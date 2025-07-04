@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { SignUpForm, FormErrors } from '../types/index';
 
 const SignUp: React.FC = () => {
@@ -15,6 +15,30 @@ const SignUp: React.FC = () => {
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
+  const [passwordRequirements, setPasswordRequirements] = useState({
+    length: false,
+    lowercase: false,
+    uppercase: false,
+    number: false,
+    special: false
+  });
+
+  const [confirmPasswordMatch, setConfirmPasswordMatch] = useState<boolean | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const navigate = useNavigate();
+
+  // Calculate password strength
+  const getPasswordStrength = () => {
+    const metRequirements = Object.values(passwordRequirements).filter(Boolean).length;
+    if (metRequirements <= 2) return { level: 'weak', text: '약함', color: 'red' };
+    if (metRequirements === 4) return { level: 'medium', text: '가입가능', color: 'orange' };
+    if (metRequirements === 5) return { level: 'strong', text: '완벽', color: 'green' };
+    return { level: 'weak', text: '약함', color: 'red' };
+  };
+
+  const passwordStrength = getPasswordStrength();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     const { name, value, type, checked } = e.target;
@@ -22,6 +46,27 @@ const SignUp: React.FC = () => {
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }));
+
+    // Password requirements check
+    if (name === 'password') {
+      setPasswordRequirements({
+        length: value.length >= 8,
+        lowercase: /(?=.*[a-z])/.test(value),
+        uppercase: /(?=.*[A-Z])/.test(value),
+        number: /(?=.*\d)/.test(value),
+        special: /(?=.*[!@#$%^&*(),.?":{}|<>])/.test(value)
+      });
+      
+      // Check confirm password match
+      if (formData.confirmPassword) {
+        setConfirmPasswordMatch(value === formData.confirmPassword);
+      }
+    }
+
+    // Confirm password match check
+    if (name === 'confirmPassword') {
+      setConfirmPasswordMatch(value === formData.password);
+    }
   };
 
   const validateForm = (): boolean => {
@@ -35,10 +80,11 @@ const SignUp: React.FC = () => {
     }
 
     // Password validation
+    const metRequirements = Object.values(passwordRequirements).filter(Boolean).length;
     if (!formData.password) {
       newErrors.password = '비밀번호를 입력해주세요.';
-    } else if (formData.password.length < 8) {
-      newErrors.password = '비밀번호는 8자 이상이어야 합니다.';
+    } else if (metRequirements < 4) {
+      newErrors.password = '비밀번호는 5개 중 4개 이상의 조건을 만족해야 합니다.';
     }
 
     // Confirm password validation
@@ -60,11 +106,13 @@ const SignUp: React.FC = () => {
 
     // Terms agreement validation
     if (!formData.agreeTerms) {
-      newErrors.agreeTerms = '이용약관에 동의해주세요.';
+      alert('이용약관에 동의해주세요.');
+      return false;
     }
 
     if (!formData.agreePrivacy) {
-      newErrors.agreePrivacy = '개인정보처리방침에 동의해주세요.';
+      alert('개인정보처리방침에 동의해주세요.');
+      return false;
     }
 
     setErrors(newErrors);
@@ -74,9 +122,22 @@ const SignUp: React.FC = () => {
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>): void => {
     e.preventDefault();
     if (validateForm()) {
-      // Here you would typically send the data to your backend
-      console.log('Form submitted:', formData);
+      // 회원가입 로직 (localStorage)
+      const users = JSON.parse(localStorage.getItem('users') || '[]');
+      const exists = users.some((user: any) => user.email === formData.email);
+      if (exists) {
+        setErrors({ email: '이미 가입된 이메일입니다.' });
+        return;
+      }
+      users.push({
+        email: formData.email,
+        password: formData.password,
+        name: formData.name,
+        phone: formData.phone
+      });
+      localStorage.setItem('users', JSON.stringify(users));
       alert('회원가입이 완료되었습니다!');
+      navigate('/login');
     }
   };
 
@@ -86,15 +147,17 @@ const SignUp: React.FC = () => {
         <div className="bg-white rounded-lg shadow-md p-8">
           {/* Header */}
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">회원가입</h1>
-            <p className="text-gray-600">애드모어에 오신 것을 환영합니다</p>
+            <div className="flex items-center justify-center mb-4">
+              <img src="/images/icon_admore.png" alt="애드모어" className="w-12 h-12" />
+            </div>
+            <p className="text-gray-600 text-base font-semibold">애드모어에 오신 것을 환영합니다</p>
           </div>
 
           {/* Sign Up Form */}
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-4">
             {/* Email */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="email" className="block text-xs font-semibold text-gray-700 mb-1">
                 이메일 *
               </label>
               <input
@@ -103,132 +166,214 @@ const SignUp: React.FC = () => {
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                className={`w-full px-3 py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm ${
                   errors.email ? 'border-red-500' : 'border-gray-300'
                 }`}
                 placeholder="example@email.com"
               />
-              {errors.email && <p className="mt-1 text-sm text-red-600">{errors.email}</p>}
+              {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email}</p>}
             </div>
 
             {/* Password */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="password" className="block text-xs font-semibold text-gray-700 mb-1">
                 비밀번호 *
               </label>
-              <input
-                type="password"
-                id="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.password ? 'border-red-500' : 'border-gray-300'
-                }`}
-                placeholder="8자 이상 입력해주세요"
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  id="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  className={`w-full px-3 py-3 pr-10 border rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm ${
+                    errors.password ? 'border-red-500 text-xs' : 'border-gray-300 text-xs'
+                  }`}
+                  placeholder="비밀번호를 입력해주세요"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-400 hover:text-gray-600"
+                >
+                  {showPassword ? (
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
+                    </svg>
+                  ) : (
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  )}
+                </button>
+              </div>
               {errors.password && <p className="mt-1 text-sm text-red-600">{errors.password}</p>}
+              
+              {/* Password Requirements */}
+              {formData.password && (
+                <div className="mt-2 p-3 bg-gray-50 rounded-md">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-semibold text-gray-700">비밀번호 강도</p>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs font-semibold ${
+                        passwordStrength.color === 'red' ? 'text-red-600' : 
+                        passwordStrength.color === 'orange' ? 'text-orange-600' : 'text-green-600'
+                      }`}>
+                        {passwordStrength.text}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        ({Object.values(passwordRequirements).filter(Boolean).length}/5)
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {/* Progress Bar */}
+                  <div className="w-full bg-gray-200 rounded-full h-2 mb-3">
+                    <div 
+                      className={`h-2 rounded-full transition-all duration-300 ${
+                        passwordStrength.color === 'red' ? 'bg-red-500 text-xs' : 
+                        passwordStrength.color === 'orange' ? 'bg-orange-500 text-xs' : 'bg-green-500 text-xs'
+                      }`}
+                      style={{ 
+                        width: `${(Object.values(passwordRequirements).filter(Boolean).length / 5) * 100}%` 
+                      }}
+                    ></div>
+                  </div>
+                  
+                  {/* Requirements Status */}
+                  <div className="grid grid-cols-2 gap-1 text-xs">
+                    <div className={`flex items-center ${passwordRequirements.length ? 'text-green-600' : 'text-gray-500'}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${passwordRequirements.length ? 'bg-green-500' : 'bg-gray-300'}`}></span>
+                      8자 이상
+                    </div>
+                    <div className={`flex items-center ${passwordRequirements.lowercase ? 'text-green-600' : 'text-gray-500'}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${passwordRequirements.lowercase ? 'bg-green-500' : 'bg-gray-300'}`}></span>
+                      소문자
+                    </div>
+                    <div className={`flex items-center ${passwordRequirements.uppercase ? 'text-green-600' : 'text-gray-500'}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${passwordRequirements.uppercase ? 'bg-green-500' : 'bg-gray-300'}`}></span>
+                      대문자
+                    </div>
+                    <div className={`flex items-center ${passwordRequirements.number ? 'text-green-600' : 'text-gray-500'}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${passwordRequirements.number ? 'bg-green-500' : 'bg-gray-300'}`}></span>
+                      숫자
+                    </div>
+                    <div className={`flex items-center ${passwordRequirements.special ? 'text-green-600' : 'text-gray-500'}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${passwordRequirements.special ? 'bg-green-500' : 'bg-gray-300'}`}></span>
+                      특수문자
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Confirm Password */}
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="confirmPassword" className="block text-xs font-semibold text-gray-700 mb-1">
                 비밀번호 확인 *
               </label>
-              <input
-                type="password"
-                id="confirmPassword"
-                name="confirmPassword"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.confirmPassword ? 'border-red-500' : 'border-gray-300'
-                }`}
-                placeholder="비밀번호를 다시 입력해주세요"
-              />
-              {errors.confirmPassword && <p className="mt-1 text-sm text-red-600">{errors.confirmPassword}</p>}
-            </div>
-
-            {/* Name */}
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                이름 *
-              </label>
-              <input
-                type="text"
-                id="name"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.name ? 'border-red-500' : 'border-gray-300'
-                }`}
-                placeholder="실명을 입력해주세요"
-              />
-              {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
-            </div>
-
-            {/* Phone */}
-            <div>
-              <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
-                전화번호 *
-              </label>
-              <input
-                type="tel"
-                id="phone"
-                name="phone"
-                value={formData.phone}
-                onChange={handleChange}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.phone ? 'border-red-500' : 'border-gray-300'
-                }`}
-                placeholder="010-1234-5678"
-              />
-              {errors.phone && <p className="mt-1 text-sm text-red-600">{errors.phone}</p>}
+              <div className="relative">
+                <input
+                  type={showConfirmPassword ? "text" : "password"}
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  className={`w-full px-3 py-3 pr-10 border rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm ${
+                    errors.confirmPassword ? 'border-red-500' : confirmPasswordMatch === false ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="비밀번호를 다시 입력해주세요"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-400 hover:text-gray-600"
+                >
+                  {showConfirmPassword ? (
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
+                    </svg>
+                  ) : (
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+              {errors.confirmPassword && <p className="mt-1 text-xs text-red-600">{errors.confirmPassword}</p>}
+              {confirmPasswordMatch === false && formData.confirmPassword && (
+                <p className="mt-1 text-xs text-red-600">비밀번호가 일치하지 않습니다.</p>
+              )}
+              {confirmPasswordMatch === true && formData.confirmPassword && (
+                <p className="mt-1 text-xs text-green-600">비밀번호가 일치합니다.</p>
+              )}
             </div>
 
             {/* Agreements */}
-            <div className="space-y-4">
-              <div className="flex items-start">
-                <input
-                  type="checkbox"
-                  id="agreeTerms"
-                  name="agreeTerms"
-                  checked={formData.agreeTerms}
-                  onChange={handleChange}
-                  className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <label htmlFor="agreeTerms" className="ml-2 block text-sm text-gray-700">
+            <div className="space-y-2 pb-4">
+              <div className="flex items-center">
+                <div className="relative flex items-center justify-center">
+                  <input
+                    type="checkbox"
+                    id="agreeTerms"
+                    name="agreeTerms"
+                    checked={formData.agreeTerms}
+                    onChange={handleChange}
+                    className="appearance-none h-4 w-4 border border-gray-300 rounded bg-white 
+                        checked:bg-orange-600 checked:border-orange-600 
+                        focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 relative"
+                  />
+                  {formData.agreeTerms && (
+                    <svg className="absolute top-[0px] left-0 h-4 w-4 text-white pointer-events-none" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </div>
+                <label htmlFor="agreeTerms" className="ml-2 block text-xs text-gray-700 font-semibold">
                   <Link to="/terms" className="text-blue-600 hover:underline">이용약관</Link>에 동의합니다 *
                 </label>
               </div>
-              {errors.agreeTerms && <p className="text-sm text-red-600">{errors.agreeTerms}</p>}
 
-              <div className="flex items-start">
-                <input
-                  type="checkbox"
-                  id="agreePrivacy"
-                  name="agreePrivacy"
-                  checked={formData.agreePrivacy}
-                  onChange={handleChange}
-                  className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <label htmlFor="agreePrivacy" className="ml-2 block text-sm text-gray-700">
+              <div className="flex items-center">
+                <div className="relative flex items-center justify-center">
+                  <input
+                    type="checkbox"
+                    id="agreePrivacy"
+                    name="agreePrivacy"
+                    checked={formData.agreePrivacy}
+                    onChange={handleChange}
+                    className="appearance-none h-4 w-4 border border-gray-300 rounded bg-white checked:bg-orange-600 checked:border-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 relative"
+                  />
+                  {formData.agreePrivacy && (
+                    <svg className="absolute top-[0px] left-0 h-4 w-4 text-white pointer-events-none" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </div>
+                <label htmlFor="agreePrivacy" className="ml-2 block text-xs text-gray-700 font-semibold">
                   <Link to="/privacy" className="text-blue-600 hover:underline">개인정보처리방침</Link>에 동의합니다 *
                 </label>
               </div>
-              {errors.agreePrivacy && <p className="text-sm text-red-600">{errors.agreePrivacy}</p>}
 
-              <div className="flex items-start">
-                <input
-                  type="checkbox"
-                  id="agreeMarketing"
-                  name="agreeMarketing"
-                  checked={formData.agreeMarketing}
-                  onChange={handleChange}
-                  className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <label htmlFor="agreeMarketing" className="ml-2 block text-sm text-gray-700">
+              <div className="flex items-center">
+                <div className="relative flex items-center justify-center">
+                  <input
+                    type="checkbox"
+                    id="agreeMarketing"
+                    name="agreeMarketing"
+                    checked={formData.agreeMarketing}
+                    onChange={handleChange}
+                    className="appearance-none h-4 w-4 border border-gray-300 rounded bg-white checked:bg-orange-600 checked:border-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 relative"
+                  />
+                  {formData.agreeMarketing && (
+                    <svg className="absolute top-[0px] left-0 h-4 w-4 text-white pointer-events-none" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </div>
+                <label htmlFor="agreeMarketing" className="ml-2 block text-xs text-gray-700 font-semibold">
                   마케팅 정보 수신에 동의합니다 (선택)
                 </label>
               </div>
@@ -237,15 +382,16 @@ const SignUp: React.FC = () => {
             {/* Submit Button */}
             <button
               type="submit"
-              className="w-full bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-300"
+              className="w-full bg-orange-500 text-white py-3 px-4 rounded-md hover:bg-orange-700 text-sm font-semibold
+                  focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition duration-300"
             >
               회원가입
             </button>
           </form>
 
           {/* Login Link */}
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
+          <div className="mt-4 text-center">
+            <p className="text-xs text-gray-600">
               이미 계정이 있으신가요?{' '}
               <Link to="/login" className="text-blue-600 hover:underline font-medium">
                 로그인하기
