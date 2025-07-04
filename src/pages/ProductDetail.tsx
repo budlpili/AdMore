@@ -7,6 +7,32 @@ import { faHeart as faRegularHeart } from '@fortawesome/free-regular-svg-icons';
 import { mockReviews } from './Reviews';
 import Home from './Home';
 import { products } from '../data/products';
+import { addRecentProduct } from '../utils/recentProducts';
+
+const FAVORITES_KEY = 'favorites';
+
+// 즐겨찾기 관련 유틸리티 함수들
+const getFavorites = (): number[] => {
+  try {
+    return JSON.parse(localStorage.getItem(FAVORITES_KEY) || '[]');
+  } catch {
+    return [];
+  }
+};
+
+const addFavorite = (productId: number) => {
+  const favorites = getFavorites();
+  if (!favorites.includes(productId)) {
+    favorites.push(productId);
+    localStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites));
+  }
+};
+
+const removeFavorite = (productId: number) => {
+  const favorites = getFavorites();
+  const updatedFavorites = favorites.filter(id => id !== productId);
+  localStorage.setItem(FAVORITES_KEY, JSON.stringify(updatedFavorites));
+};
 
 // 문의 폼 타입
 interface InquiryForm {
@@ -73,10 +99,21 @@ const ProductDetail: React.FC = () => {
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const [favorites, setFavorites] = useState<number[]>([]);
+  
+  // 컴포넌트 마운트 시 즐겨찾기 로드
+  useEffect(() => {
+    const savedFavorites = getFavorites();
+    setFavorites(savedFavorites);
+  }, []);
+
   const toggleFavorite = (id: number) => {
-    setFavorites(prev =>
-      prev.includes(id) ? prev.filter(fid => fid !== id) : [...prev, id]
-    );
+    if (favorites.includes(id)) {
+      removeFavorite(id);
+      setFavorites(prev => prev.filter(fid => fid !== id));
+    } else {
+      addFavorite(id);
+      setFavorites(prev => [...prev, id]);
+    }
   };
 
   useEffect(() => {
@@ -97,6 +134,10 @@ const ProductDetail: React.FC = () => {
   const [quantity, setQuantity] = useState(1);
   const handleDecrease = () => setQuantity(q => Math.max(1, q - 1));
   const handleIncrease = () => setQuantity(q => Math.min(99, q + 1));
+
+  useEffect(() => {
+    if (product) addRecentProduct(product);
+  }, [product]);
 
   if (!product) {
     return <div className="text-center py-20">상품을 찾을 수 없습니다.</div>;

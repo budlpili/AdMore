@@ -12,6 +12,7 @@ import Favorits from './pages/Favorits';
 import ProductDetail from './pages/ProductDetail';
 import ChatWidget from './components/ChatWidget';
 import Order from './pages/Order';
+import Login from './pages/Login';
 
 const App: React.FC = () => {
   return (
@@ -25,6 +26,7 @@ const App: React.FC = () => {
             <Route path="/products/:id" element={<ProductDetail />} />
             <Route path="/order" element={<Order />} />
             <Route path="/signup" element={<SignUp />} />
+            <Route path="/login" element={<Login />} />
             <Route path="/customer-service" element={<CustomerService />} />
             <Route path="/reviews" element={<Reviews />} />
             <Route path="/favorits" element={<Favorits />} />
