@@ -36,8 +36,6 @@ export interface SignUpForm {
   email: string;
   password: string;
   confirmPassword: string;
-  name: string;
-  phone: string;
   agreeTerms: boolean;
   agreePrivacy: boolean;
   agreeMarketing: boolean;

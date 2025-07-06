@@ -7,8 +7,6 @@ const SignUp: React.FC = () => {
     email: '',
     password: '',
     confirmPassword: '',
-    name: '',
-    phone: '',
     agreeTerms: false,
     agreePrivacy: false,
     agreeMarketing: false
@@ -70,74 +68,116 @@ const SignUp: React.FC = () => {
   };
 
   const validateForm = (): boolean => {
+    console.log('=== 폼 검증 시작 ===');
     const newErrors: FormErrors = {};
 
     // Email validation
     if (!formData.email) {
       newErrors.email = '이메일을 입력해주세요.';
+      console.log('이메일 누락');
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = '올바른 이메일 형식을 입력해주세요.';
+      console.log('이메일 형식 오류');
+    } else {
+      console.log('이메일 검증 통과');
     }
 
     // Password validation
     const metRequirements = Object.values(passwordRequirements).filter(Boolean).length;
+    console.log('비밀번호 요구사항 충족 개수:', metRequirements);
     if (!formData.password) {
       newErrors.password = '비밀번호를 입력해주세요.';
+      console.log('비밀번호 누락');
     } else if (metRequirements < 4) {
       newErrors.password = '비밀번호는 5개 중 4개 이상의 조건을 만족해야 합니다.';
+      console.log('비밀번호 요구사항 부족');
+    } else {
+      console.log('비밀번호 검증 통과');
     }
 
     // Confirm password validation
     if (!formData.confirmPassword) {
       newErrors.confirmPassword = '비밀번호 확인을 입력해주세요.';
+      console.log('비밀번호 확인 누락');
     } else if (formData.password !== formData.confirmPassword) {
       newErrors.confirmPassword = '비밀번호가 일치하지 않습니다.';
-    }
-
-    // Name validation
-    if (!formData.name) {
-      newErrors.name = '이름을 입력해주세요.';
-    }
-
-    // Phone validation
-    if (!formData.phone) {
-      newErrors.phone = '전화번호를 입력해주세요.';
+      console.log('비밀번호 불일치');
+    } else {
+      console.log('비밀번호 확인 검증 통과');
     }
 
     // Terms agreement validation
     if (!formData.agreeTerms) {
+      console.log('이용약관 미동의');
       alert('이용약관에 동의해주세요.');
       return false;
+    } else {
+      console.log('이용약관 동의 확인');
     }
 
     if (!formData.agreePrivacy) {
+      console.log('개인정보처리방침 미동의');
       alert('개인정보처리방침에 동의해주세요.');
       return false;
+    } else {
+      console.log('개인정보처리방침 동의 확인');
     }
 
+    console.log('최종 검증 결과:', newErrors);
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    const isValid = Object.keys(newErrors).length === 0;
+    console.log('폼 검증 최종 결과:', isValid ? '통과' : '실패');
+    return isValid;
   };
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>): void => {
     e.preventDefault();
+    console.log('=== 회원가입 폼 제출 시작 ===');
+    console.log('폼 데이터:', formData);
+    console.log('비밀번호 요구사항:', passwordRequirements);
+    console.log('비밀번호 강도:', passwordStrength);
+    
     if (validateForm()) {
+      console.log('폼 검증 통과! 회원가입 로직 실행');
       // 회원가입 로직 (localStorage)
       const users = JSON.parse(localStorage.getItem('users') || '[]');
+      console.log('기존 사용자 목록:', users);
+      
       const exists = users.some((user: any) => user.email === formData.email);
+      console.log('이메일 중복 확인:', exists);
+      
       if (exists) {
+        console.log('이메일 중복! 에러 설정');
         setErrors({ email: '이미 가입된 이메일입니다.' });
         return;
       }
-      users.push({
+      
+      const newUser = {
         email: formData.email,
         password: formData.password,
-        name: formData.name,
-        phone: formData.phone
-      });
+        agreeTerms: formData.agreeTerms,
+        agreePrivacy: formData.agreePrivacy,
+        agreeMarketing: formData.agreeMarketing
+      };
+      console.log('새 사용자 정보:', newUser);
+      
+      users.push(newUser);
       localStorage.setItem('users', JSON.stringify(users));
-      alert('회원가입이 완료되었습니다!');
-      navigate('/login');
+      console.log('localStorage에 사용자 저장 완료');
+      console.log('저장된 사용자 목록:', JSON.parse(localStorage.getItem('users') || '[]'));
+      
+      // 자동 로그인 처리
+      localStorage.setItem('isLoggedIn', 'true');
+      localStorage.setItem('userEmail', newUser.email);
+      
+      // 커스텀 이벤트 발생 (Header 컴포넌트에 로그인 상태 변경 알림)
+      window.dispatchEvent(new Event('loginStateChanged'));
+      
+      alert('회원가입이 완료되었습니다! 자동으로 로그인되었습니다.');
+      console.log('회원가입 완료! 자동 로그인 처리됨');
+      navigate('/');
+    } else {
+      console.log('폼 검증 실패! 회원가입 중단');
     }
   };
 

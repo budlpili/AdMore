@@ -10,8 +10,12 @@ type Message = {
   fileType?: string;
 };
 
-const ChatWidget: React.FC = () => {
-  const [chatOpen, setChatOpen] = useState(false);
+type ChatWidgetProps = {
+  isChatOpen: boolean;
+  setIsChatOpen: (open: boolean) => void;
+};
+
+const ChatWidget: React.FC<ChatWidgetProps> = ({ isChatOpen, setIsChatOpen }) => {
   const [mode, setMode] = useState<'home' | 'chat'>('home');
   const [messages, setMessages] = useState<Message[]>([
     { from: 'admin', text: '고객님 반갑습니다!\n상담 운영 시간 안내\n· 평일 10:00 ~ 17:00\n· 주말, 공휴일 휴무\n순차적으로 확인하여 답변드리도록 하겠습니다.' }
@@ -23,10 +27,10 @@ const ChatWidget: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (chatOpen && mode === 'chat' && chatEndRef.current) {
+    if (isChatOpen && mode === 'chat' && chatEndRef.current) {
       chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [messages, chatOpen, mode]);
+  }, [messages, isChatOpen, mode]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
@@ -67,20 +71,20 @@ const ChatWidget: React.FC = () => {
   };
 
   const handleOpen = () => {
-    setChatOpen(true);
+    setIsChatOpen(true);
     setMode('home');
   };
 
   const handleClose = () => {
-    setChatOpen(false);
+    setIsChatOpen(false);
     setMode('home');
   };
 
   return (
     <>
-      {/* 문의하기 플로팅 버튼 */}
+      {/* 문의하기 플로팅 버튼 (데스크탑만) */}
       <button
-        className="fixed bottom-6 right-6 z-50 bg-blue-600 text-white rounded-full shadow-lg w-16 h-16 flex items-center justify-center text-3xl hover:bg-blue-700 transition"
+        className="hidden md:flex fixed bottom-6 right-6 z-50 bg-blue-600 text-white rounded-full shadow-lg w-16 h-16 items-center justify-center text-3xl hover:bg-blue-700 transition"
         onClick={handleOpen}
         aria-label="문의하기"
         style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.15)' }}
@@ -88,8 +92,8 @@ const ChatWidget: React.FC = () => {
         <span>💬</span>
       </button>
       {/* 문의하기 채팅 위젯 모달 */}
-      {chatOpen && (
-        <div className="fixed inset-0 z-50 flex items-end justify-end bg-black/10">
+      {isChatOpen && (
+        <div className="fixed bottom-12 md:bottom-0 inset-0 z-50 flex items-end justify-end bg-black/10">
           <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl m-6 flex flex-col" style={{ height: '540px' }}>
             {/* 상단바 */}
             <div className="flex items-center justify-between px-6 py-6 border-b">

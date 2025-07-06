@@ -1,5 +1,13 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { 
+  faPhone, 
+  faClock, 
+  faCalendarTimes,
+  faBullhorn,
+  faComments
+} from '@fortawesome/free-solid-svg-icons';
 
 const Footer: React.FC = () => {
   return (
@@ -9,7 +17,7 @@ const Footer: React.FC = () => {
           {/* Company Info */}
           <div className="col-span-1 md:col-span-2">
             <h3 className="text-lg font-semibold mb-4">주식회사 루트라보</h3>
-            <div className="space-y-2 text-sm text-gray-300">
+            <div className="space-y-0 text-xs text-gray-300">
               <p>대표자 : 조병조</p>
               <p>경기도 용인시 기흥구 강남서로 9, 7 703호 K422호(구갈동)</p>
               <p>통신판매업신고 : 2022-서울강남-02565</p>
@@ -20,11 +28,11 @@ const Footer: React.FC = () => {
 
           {/* Quick Links */}
           <div>
-            <h3 className="text-lg font-semibold mb-4">회사</h3>
-            <ul className="space-y-2 text-sm">
+            <h3 className="text-sm font-semibold mb-4">회사</h3>
+            <ul className="space-y-2 text-xs">
               <li>
                 <Link to="/about" className="text-gray-300 hover:text-white">
-                  서비스 소개
+                  회사 소개
                 </Link>
               </li>
               <li>
@@ -42,17 +50,25 @@ const Footer: React.FC = () => {
 
           {/* Customer Service */}
           <div>
-            <h3 className="text-lg font-semibold mb-4">고객센터</h3>
-            <div className="space-y-2 text-sm">
-              <p className="text-gray-300">070-4580-7189</p>
-              <p className="text-gray-300">11:00 ~ 17:00</p>
-              <p className="text-gray-300">주말, 공휴일 휴무</p>
+            <h3 className="text-sm font-semibold mb-4">고객센터</h3>
+            <div className="space-y-2 text-xs bg-gray-700 rounded-md p-4 flex flex-col">
+              <p className="text-gray-300 flex items-center gap-2">
+                <FontAwesomeIcon icon={faPhone} className="w-3 h-3 text-gray-400" />
+                070-4580-7189
+              </p>
+              <p className="text-gray-300 flex items-center gap-2">
+                <FontAwesomeIcon icon={faClock} className="w-3 h-3 text-gray-400" />
+                10:00 ~ 17:00 <span className="text-[10px]">(주말, 공휴일 휴무)</span>
+              </p>
             </div>
-            <div className="mt-4 space-y-2">
-              <Link to="/customer-service" className="block text-gray-300 hover:text-white text-sm">
+            <div className="flex flex-row justify-start items-center gap-2 mt-4">
+              <Link to="/customer-service" className="block text-gray-300 hover:text-white text-sm flex items-center gap-1">
+                {/* <FontAwesomeIcon icon={faBullhorn} className="w-3 h-3" /> */}
                 공지사항
               </Link>
-              <Link to="/inquiry" className="block text-gray-300 hover:text-white text-sm">
+              <div className="w-px h-2 bg-gray-500 mx-2"></div>
+              <Link to="/inquiry" className="block text-gray-300 hover:text-white text-sm flex items-center gap-1">
+                {/* <FontAwesomeIcon icon={faComments} className="w-3 h-3" /> */}
                 1:1 문의
               </Link>
             </div>
