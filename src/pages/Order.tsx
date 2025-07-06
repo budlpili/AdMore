@@ -1,10 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import CouponCard from '../components/CouponCard';
 
 const Order: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  // 페이지 진입 시 스크롤 맨 위로 이동
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
   // For demo, get product/order info from location.state or use mock
   const order = location.state?.order || {
     product: {

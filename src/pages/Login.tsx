@@ -31,11 +31,23 @@ const Login: React.FC = () => {
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // 임시 로그인: 버튼 클릭 시 바로 로그인 처리
-    localStorage.setItem('isLoggedIn', 'true');
-    localStorage.setItem('userEmail', formData.email || 'test@admore.com');
-    alert('임시 로그인 성공!');
-    navigate('/');
+    if (validateForm()) {
+      // 실제 로그인 로직 (localStorage)
+      const users = JSON.parse(localStorage.getItem('users') || '[]');
+      const user = users.find((user: any) => user.email === formData.email && user.password === formData.password);
+      if (!user) {
+        setErrors({ general: '이메일 또는 비밀번호가 올바르지 않습니다.' });
+        return;
+      }
+      localStorage.setItem('isLoggedIn', 'true');
+      localStorage.setItem('userEmail', user.email);
+      
+      // 커스텀 이벤트 발생 (Header 컴포넌트에 로그인 상태 변경 알림)
+      window.dispatchEvent(new Event('loginStateChanged'));
+      
+      alert('로그인 성공!');
+      navigate('/');
+    }
   };
 
   return (

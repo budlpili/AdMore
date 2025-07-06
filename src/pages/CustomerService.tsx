@@ -2,8 +2,15 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Notice, InquiryForm } from '../types/index';
 
-const CustomerService: React.FC = () => {
+// Add prop type for setIsChatOpen
+interface CustomerServiceProps {
+  setIsChatOpen?: (open: boolean) => void;
+}
+
+const CustomerService: React.FC<CustomerServiceProps> = ({ setIsChatOpen }) => {
   const [activeTab, setActiveTab] = useState<string>('notice');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
   const [inquiryForm, setInquiryForm] = useState<InquiryForm>({
     name: '',
     email: '',
@@ -55,6 +62,53 @@ const CustomerService: React.FC = () => {
     '기타'
   ];
 
+  // 페이지네이션 계산
+  const totalPages = Math.ceil(notices.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentNotices = notices.slice(startIndex, endIndex);
+
+  // 페이지 변경 함수
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  // 페이지 번호 배열 생성
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisiblePages = 5;
+    
+    if (totalPages <= maxVisiblePages) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      if (currentPage <= 3) {
+        for (let i = 1; i <= 4; i++) {
+          pages.push(i);
+        }
+        pages.push('...');
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1);
+        pages.push('...');
+        for (let i = totalPages - 3; i <= totalPages; i++) {
+          pages.push(i);
+        }
+      } else {
+        pages.push(1);
+        pages.push('...');
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+          pages.push(i);
+        }
+        pages.push('...');
+        pages.push(totalPages);
+      }
+    }
+    
+    return pages;
+  };
+
   const handleInquirySubmit = (e: React.FormEvent<HTMLFormElement>): void => {
     e.preventDefault();
     // Here you would typically send the inquiry to your backend
@@ -78,31 +132,27 @@ const CustomerService: React.FC = () => {
     }));
   };
 
-  return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Page Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">고객센터</h1>
-          <p className="text-gray-600">궁금한 점이 있으시면 언제든 문의해주세요</p>
-        </div>
+  // When tab changes to 'inquiry', open chat if setIsChatOpen is provided
+  const handleTabClick = (tab: string) => {
+    if (tab === 'inquiry' && setIsChatOpen) {
+      // Open chat widget on all screen sizes
+      setIsChatOpen(true);
+    } else {
+      setActiveTab(tab);
+    }
+  };
 
-        {/* Contact Info */}
-        <div className="bg-blue-600 text-white rounded-lg p-6 mb-8">
-          <div className="text-center">
-            <h2 className="text-2xl font-bold mb-2">고객센터 070-4580-7189</h2>
-            <p className="text-blue-100">11:00 ~ 17:00</p>
-            <p className="text-blue-100">주말, 공휴일 휴무</p>
-          </div>
-        </div>
+  return (
+    <div className=" bg-gray-50 py-8">
+      <div className="max-w-5xl mx-auto px-4 pb-20 sm:px-6 lg:px-8">
 
         {/* Tabs */}
         <div className="bg-white rounded-lg shadow-md overflow-hidden">
           <div className="border-b border-gray-200">
             <nav className="flex">
               <button
-                onClick={() => setActiveTab('notice')}
-                className={`px-6 py-4 text-sm font-medium ${
+                onClick={() => handleTabClick('notice')}
+                className={`px-6 py-4 text-base font-medium ${
                   activeTab === 'notice'
                     ? 'border-b-2 border-blue-600 text-blue-600'
                     : 'text-gray-500 hover:text-gray-700'
@@ -111,12 +161,18 @@ const CustomerService: React.FC = () => {
                 공지사항
               </button>
               <button
-                onClick={() => setActiveTab('inquiry')}
-                className={`px-6 py-4 text-sm font-medium ${
-                  activeTab === 'inquiry'
+                onClick={() => handleTabClick('faq')}
+                className={`px-6 py-4 text-base font-medium ${
+                  activeTab === 'faq'
                     ? 'border-b-2 border-blue-600 text-blue-600'
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
+              >
+                자주 묻는 질문
+              </button>
+              <button
+                onClick={() => handleTabClick('inquiry')}
+                className="px-6 py-4 text-base font-medium text-gray-500 hover:text-gray-700"
               >
                 1:1 문의
               </button>
@@ -124,175 +180,114 @@ const CustomerService: React.FC = () => {
           </div>
 
           {/* Tab Content */}
-          <div className="p-6">
+          <div className="p-6 min-h-[600px]">
             {activeTab === 'notice' && (
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">공지사항</h3>
-                <div className="space-y-4">
-                  {notices.map((notice) => (
-                    <div key={notice.id} className="border-b border-gray-200 pb-4 last:border-b-0">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          {notice.important && (
-                            <span className="bg-red-500 text-white text-xs px-2 py-1 rounded">
-                              중요
-                            </span>
-                          )}
-                          <h4 className="font-medium text-gray-900 hover:text-blue-600 cursor-pointer">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          번호
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          제목
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          날짜
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          상태
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {currentNotices.map((notice) => (
+                        <tr key={notice.id} className="hover:bg-gray-50 cursor-pointer">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {notice.id}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                             {notice.title}
-                          </h4>
-                        </div>
-                        <span className="text-sm text-gray-500">{notice.date}</span>
-                      </div>
-                    </div>
-                  ))}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {notice.date}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {notice.important && (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                중요
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="mt-6 flex items-center justify-between">
+                  <div className="text-xs text-gray-400">
+                    총 {notices.length}개 중 {startIndex + 1}-{Math.min(endIndex, notices.length)}개 표시
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    {/* 이전 버튼 */}
+                    <button
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      className="px-2 py-1 text-xs font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      이전
+                    </button>
+                    
+                    {/* 페이지 번호들 */}
+                    {getPageNumbers().map((page, index) => (
+                      <button
+                        key={index}
+                        onClick={() => typeof page === 'number' && handlePageChange(page)}
+                        disabled={page === '...'}
+                        className={`px-2 py-1 font-medium border rounded-md text-xs ${
+                          currentPage === page
+                            ? 'bg-orange-600 text-white border-orange-600'
+                            : page === '...'
+                            ? 'text-gray-400 border-gray-300 cursor-default'
+                            : 'text-gray-500 bg-white border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    ))}
+                    
+                    {/* 다음 버튼 */}
+                    <button
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                      className="px-2 py-1 text-xs font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      다음
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
 
-            {activeTab === 'inquiry' && (
+            {activeTab === 'faq' && (
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">1:1 문의</h3>
-                <form onSubmit={handleInquirySubmit} className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Name */}
-                    <div>
-                      <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                        이름 *
-                      </label>
-                      <input
-                        type="text"
-                        id="name"
-                        name="name"
-                        value={inquiryForm.name}
-                        onChange={handleInquiryChange}
-                        required
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="이름을 입력해주세요"
-                      />
-                    </div>
-
-                    {/* Email */}
-                    <div>
-                      <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                        이메일 *
-                      </label>
-                      <input
-                        type="email"
-                        id="email"
-                        name="email"
-                        value={inquiryForm.email}
-                        onChange={handleInquiryChange}
-                        required
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="example@email.com"
-                      />
-                    </div>
-
-                    {/* Phone */}
-                    <div>
-                      <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
-                        전화번호
-                      </label>
-                      <input
-                        type="tel"
-                        id="phone"
-                        name="phone"
-                        value={inquiryForm.phone}
-                        onChange={handleInquiryChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="010-1234-5678"
-                      />
-                    </div>
-
-                    {/* Category */}
-                    <div>
-                      <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-2">
-                        문의 유형 *
-                      </label>
-                      <select
-                        id="category"
-                        name="category"
-                        value={inquiryForm.category}
-                        onChange={handleInquiryChange}
-                        required
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="">문의 유형을 선택해주세요</option>
-                        {inquiryCategories.map((category) => (
-                          <option key={category} value={category}>
-                            {category}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                <div className="space-y-4">
+                  <div className="border-b border-gray-100 pb-4">
+                    <h4 className="font-medium text-gray-900 mb-2">Q: 서비스 이용 방법은 어떻게 되나요?</h4>
+                    <p className="text-gray-600 px-6 text-sm">회원가입 후 원하는 서비스를 선택하여 결제하시면 됩니다. 결제 완료 후 24시간 내에 서비스가 시작됩니다.</p>
                   </div>
-
-                  {/* Subject */}
-                  <div>
-                    <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-2">
-                      제목 *
-                    </label>
-                    <input
-                      type="text"
-                      id="subject"
-                      name="subject"
-                      value={inquiryForm.subject}
-                      onChange={handleInquiryChange}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="문의 제목을 입력해주세요"
-                    />
+                  <div className="border-b border-gray-100 pb-4">
+                    <h4 className="font-medium text-gray-900 mb-2">Q: 환불 정책은 어떻게 되나요?</h4>
+                    <p className="text-gray-600 px-6 text-sm">서비스 시작 전까지는 100% 환불이 가능합니다. 서비스 시작 후에는 부분 환불이 불가능합니다.</p>
                   </div>
-
-                  {/* Message */}
-                  <div>
-                    <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-2">
-                      문의 내용 *
-                    </label>
-                    <textarea
-                      id="message"
-                      name="message"
-                      value={inquiryForm.message}
-                      onChange={handleInquiryChange}
-                      required
-                      rows={6}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="문의 내용을 자세히 입력해주세요"
-                    />
+                  <div className="border-b border-gray-100 pb-4">
+                    <h4 className="font-medium text-gray-900 mb-2">Q: 결제 방법은 어떤 것들이 있나요?</h4>
+                    <p className="text-gray-600 px-6 text-sm">신용카드, 계좌이체, 휴대폰 결제 등 다양한 결제 방법을 지원합니다.</p>
                   </div>
-
-                  {/* Submit Button */}
-                  <div className="flex justify-end">
-                    <button
-                      type="submit"
-                      className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-300"
-                    >
-                      문의하기
-                    </button>
-                  </div>
-                </form>
+                </div>
               </div>
             )}
-          </div>
-        </div>
-
-        {/* FAQ Section */}
-        <div className="mt-8 bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">자주 묻는 질문</h3>
-          <div className="space-y-4">
-            <div className="border-b border-gray-200 pb-4">
-              <h4 className="font-medium text-gray-900 mb-2">Q: 서비스 이용 방법은 어떻게 되나요?</h4>
-              <p className="text-gray-600">회원가입 후 원하는 서비스를 선택하여 결제하시면 됩니다. 결제 완료 후 24시간 내에 서비스가 시작됩니다.</p>
-            </div>
-            <div className="border-b border-gray-200 pb-4">
-              <h4 className="font-medium text-gray-900 mb-2">Q: 환불 정책은 어떻게 되나요?</h4>
-              <p className="text-gray-600">서비스 시작 전까지는 100% 환불이 가능합니다. 서비스 시작 후에는 부분 환불이 불가능합니다.</p>
-            </div>
-            <div className="border-b border-gray-200 pb-4">
-              <h4 className="font-medium text-gray-900 mb-2">Q: 결제 방법은 어떤 것들이 있나요?</h4>
-              <p className="text-gray-600">신용카드, 계좌이체, 휴대폰 결제 등 다양한 결제 방법을 지원합니다.</p>
-            </div>
           </div>
         </div>
       </div>
