@@ -143,28 +143,75 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
       }
     }
   };
+  // 주문내역 데이터 배열을 변수로 분리
+  const orderList = [
+    {
+      orderId: '20240601-001',
+      product: '유튜브 구독자 100명',
+      detail: '기본 1일/5,000원',
+      quantity: 10,
+      price: '50,000원',
+      request: 'ASAP',
+      date: '2024-06-01',
+      status: '완료',
+      review: '리뷰 작성하기',
+    },
+    {
+      orderId: '20240601-001',
+      product: '유튜브 구독자 100명',
+      detail: '기본 1일/5,000원',
+      quantity: 10,
+      price: '50,000원',
+      request: 'ASAP',
+      date: '2024-06-01',
+      status: '완료',
+      review: '리뷰 작성완료',
+    },
+    {
+      orderId: '20240601-002',
+      product: '인스타그램 좋아요 500개',
+      detail: '기본 1일/5,000원',
+      quantity: 2,
+      price: '10,000원',
+      request: '계정 공개',
+      date: '2024-06-02',
+      status: '진행 중',
+      review: '리뷰 작성하기',
+    },
+    {
+      orderId: '20240601-003',
+      product: '트위터 팔로워 200명',
+      detail: '기본 1일/5,000원',
+      quantity: 100,
+      price: '500,000원',
+      request: '없음',
+      date: '2024-06-03',
+      status: '취소',
+      review: '리뷰 작성불가',
+    },
+  ];
   return (
     <div className="bg-gray-50 py-8 pb-20">
       <div className="max-w-5xl mx-auto flex gap-8 px-4">
         {/* Sidebar */}
-        <aside className="w-64 hidden md:block z-50 relative">
-          <div className="bg-white rounded-lg shadow p-4 mb-6">
+        <aside className="min-w-[200px] hidden md:block z-50 relative">
+          <div className="bg-white rounded-lg shadow p-4 mb-10 flex flex-col gap-1">
             <div className="font-bold text-sm mb-2">내 주문 현황</div>
-            <div className="flex justify-between text-xs mb-1">
-              <span className="text-gray-500">진행 중</span>
-              <span className="font-semibold">0 건</span>
+            <div className="flex justify-between text-[13px] mb-1">
+              <span className="text-gray-600 font-normal ml-2">진행 중</span>
+              <span className="font-semibold text-gray-600 hover:underline hover:text-gray-700">0 건</span>
             </div>
-            <div className="flex justify-between text-xs mb-1">
-              <span className="text-gray-500">완료</span>
-              <span className="font-semibold">0 건</span>
+            <div className="flex justify-between text-[13px] mb-1">
+              <span className="text-gray-600 font-normal ml-2">완료</span>
+              <span className="font-semibold text-gray-600 hover:underline hover:text-gray-700">0 건</span>
             </div>
-            <div className="flex justify-between text-xs mb-1">
-              <span className="text-gray-500">쿠폰</span>
-              <span className="font-semibold text-blue-600">3 개</span>
+            <div className="flex justify-between text-[13px] mb-1">
+              <span className="text-gray-600 font-normal ml-2">쿠폰</span>
+              <span className="font-semibold text-gray-600 hover:underline hover:text-gray-700">3 개</span>
             </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-gray-500">포인트</span>
-              <span className="font-semibold text-blue-600">0 P</span>
+            <div className="flex justify-between text-[13px]">
+              <span className="text-gray-600 font-normal ml-2">포인트</span>
+              <span className="font-semibold text-gray-600 hover:underline hover:text-gray-700">0 P</span>
             </div>
           </div>
           <nav className="text-sm mb-6 pb-20">
@@ -172,7 +219,7 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                 className={`block w-full text-left px-2 py-2 rounded font-bold mb-1 
                 ${activeTab === 'mypage' ? 'bg-orange-50 text-orange-600' : 'text-orange-700 hover:bg-gray-100'}`}>마이페이지</button>
             <button onClick={() => setIsChatOpen(true)} 
-                className="block w-full text-left px-2 py-2 rounded hover:bg-gray-100">1:1 상담</button>
+                className="block w-full text-left px-2 py-2 rounded font-semibold text-gray-700 hover:bg-gray-100">1:1 상담</button>
             {TABS.map(tab => (
               <button
                 key={tab.key}
@@ -192,7 +239,7 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
           </nav>
         </aside>
         {/* Main Content */}
-        <section className="flex-1">
+        <section className="flex-1 overflow-x-hidden">
           {/* 마이페이지 대시보드(새소식, 주문현황 등): 마이페이지 탭일 때만 보임 */}
           {activeTab === 'mypage' && (
             <div className="bg-white rounded-lg shadow p-6 mb-6 min-h-[600px]">
@@ -215,6 +262,7 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                   자세히보기 &gt;
                 </Link>
               </div>
+              {/* 주문현황표 */}
               <div className="flex justify-between items-center mb-4 px-1 sm:flex-row flex-col gap-2 sm:gap-0">
                 <div className="flex flex-col items-center flex-1 w-full border border-gray-200 sm:border-none rounded-lg p-4 sm:p-0">
                   <span className="text-orange-400 text-3xl mb-2 border border-orange-200 rounded-full
@@ -223,6 +271,7 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                   <span className="text-xs">0건</span>
                 </div>
                 <div className=" h-[2px] w-full sm:bg-gray-200 mx-2 sm:mx-0"></div>
+                
                 <div className="flex flex-col items-center flex-1 w-full border border-gray-200 sm:border-none rounded-lg p-4 sm:p-0">
                   <span className="text-purple-500 text-3xl mb-2 border border-purple-200 rounded-full
                         py-5 px-6 ">💳</span>
@@ -314,49 +363,131 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                 </div>
               )}
               {activeTab === 'orders' && (
-                <div>
-                  <div className="font-bold mb-2">주문내역</div>
-                  <table className="w-full text-sm border">
-                    <thead>
-                      <tr className="bg-gray-50">
-                        <th className="p-2 border">주문번호</th>
-                        <th className="p-2 border">상품명</th>
-                        <th className="p-2 border">상태</th>
-                        <th className="p-2 border">날짜</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td className="p-2 border">20240601-001</td>
-                        <td className="p-2 border">유튜브 구독자 100명</td>
-                        <td className="p-2 border">완료</td>
-                        <td className="p-2 border">2024-06-01</td>
-                      </tr>
-                    </tbody>
-                  </table>
+                <div className="">
+                  {/* 데스크탑 테이블 */}
+                  <div className="hidden md:block">
+                    <div className="font-bold mb-2">주문내역</div>
+                    <div className="w-full max-w-full overflow-x-auto">
+                      <table className="w-full text-xs border">
+                        <thead>
+                          <tr className="bg-gray-50">
+                            <th className="p-2 border">주문번호</th>
+                            <th className="p-2 border">상품명</th>
+                            <th className="p-2 border">수량</th>
+                            <th className="p-2 border">가격</th>
+                            <th className="p-2 border">요청사항</th>
+                            <th className="p-2 border">구매일</th>
+                            <th className="p-2 border">상태</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {orderList.map((order) => (
+                            <tr key={order.orderId + order.review}>
+                              <td className="text-[11px] text-gray-600 p-2 min-w-[60px] border">{order.orderId}</td>
+                              <td className="text-[11px] text-gray-600 p-2 min-w-[100px] border">
+                                {order.product}<br/>
+                                <span className="text-gray-500 text-[10px]">({order.detail})</span>
+                              </td>
+                              <td className="text-[11px] text-gray-600 p-2 min-w-[48px] text-right border">{order.quantity}개</td>
+                              <td className="text-[11px] text-gray-600 p-2 min-w-[80px] text-right border">{order.price}</td>
+                              <td className="text-[11px] text-gray-600 p-2 min-w-[100px] border">{order.request}</td>
+                              <td className="text-[11px] text-gray-600 p-2 min-w-[80px] text-center border">{order.date}</td>
+                              <td className="text-[11px] text-gray-600 p-2 min-w-[80px] text-center border">
+                                <div className={`text-[10px] px-2 py-1 rounded-full ${
+                                  order.status === '완료' ? 'bg-green-100 text-green-600' :
+                                  order.status === '진행 중' ? 'bg-yellow-100 text-yellow-600' :
+                                  order.status === '취소' ? 'bg-red-100 text-red-600' :
+                                  'bg-gray-100 text-gray-600'
+                                }`}>{order.status}
+                                </div>
+                                <div className="text-gray-500 text-[10px] border border-gray-100 rounded-full px-2 py-1 mt-1">
+                                  {order.review}
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                  {/* 모바일 카드형 */}
+                  <div className="block md:hidden">
+                    <div className="font-bold mb-2">주문내역</div>
+                    <div className="flex flex-col gap-3">
+                      {orderList.map((order) => (
+                        <div key={order.orderId + order.review} className="bg-white rounded-lg shadow p-4 border">
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="font-semibold text-sm">{order.product}</span>
+                            <span className={`text-xs font-semibold px-2 py-1 rounded-full min-w-[60px] text-center ${
+                              order.status === '완료' ? 'bg-green-100 text-green-600' :
+                              order.status === '진행 중' ? 'bg-yellow-100 text-yellow-600' :
+                              order.status === '취소' ? 'bg-red-100 text-red-600' :
+                              'bg-gray-100 text-gray-600'
+                            }`}>{order.status}</span>
+                          </div>
+                          <div className="text-xs text-gray-600 mb-1">{order.detail}</div>
+                          <div className="flex flex-col text-xs text-gray-600 gap-x-4 gap-y-1">
+                            <div className="flex flex-wrap text-xs text-gray-600 gap-x-4 gap-y-1">
+                              <div>수량: <span className="font-medium">{order.quantity}개</span></div>
+                              <div>가격: <span className="font-medium">{order.price}</span></div>
+                              <div>구매일: <span className="font-medium">{order.date}</span></div>
+                            </div>
+                            <div>요청: <span className="font-medium">{order.request}</span></div>
+                          </div>
+                          {order.status === '완료' && (
+                            <div className="mt-2 text-xs text-white font-semibold bg-orange-500 rounded-lg px-2 py-2 shadow-md shadow-orange-200
+                                  text-center cursor-pointer hover:bg-orange-600">리뷰 작성하기</div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
               {activeTab === 'payments' && (
                 <div>
                   <div className="font-bold mb-2">결제내역</div>
-                  <table className="w-full text-sm border">
-                    <thead>
-                      <tr className="bg-gray-50">
-                        <th className="p-2 border">결제번호</th>
-                        <th className="p-2 border">금액</th>
-                        <th className="p-2 border">수단</th>
-                        <th className="p-2 border">날짜</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td className="p-2 border">P20240601-001</td>
-                        <td className="p-2 border">50,000원</td>
-                        <td className="p-2 border">카드</td>
-                        <td className="p-2 border">2024-06-01</td>
-                      </tr>
-                    </tbody>
-                  </table>
+                  <div className="w-full max-w-full overflow-x-auto">
+                    <table className="min-w-[600px] w-full text-xs border">
+                      <thead>
+                        <tr className="bg-gray-50">
+                          <th className="p-2 border">주문번호</th>
+                          <th className="p-2 border">결제금액</th>
+                          <th className="p-2 border">결제방법</th>
+                          <th className="p-2 border">결제(입금)일</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[
+                          {
+                            orderId: '20240601-001',
+                            amount: '10,000원',
+                            method: '카드',
+                            date: '2024-06-01',
+                          },
+                          {
+                            orderId: '20240601-002',
+                            amount: '20,000원',
+                            method: '무통장',
+                            date: '2024-06-02',
+                          },
+                          {
+                            orderId: '20240601-003',
+                            amount: '15,000원',
+                            method: '카카오페이',
+                            date: '2024-06-03',
+                          },
+                        ].map((payment) => (
+                          <tr key={payment.orderId}>
+                            <td className="p-2 border">{payment.orderId}</td>
+                            <td className="p-2 border">{payment.amount}</td>
+                            <td className="p-2 border">{payment.method}</td>
+                            <td className="p-2 border">{payment.date}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
               {activeTab === 'favorits' && (
@@ -382,7 +513,7 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                           전체 삭제
                         </button>
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {favoriteProducts.map((product) => (
                           <ProductCard
                             key={product.id}
