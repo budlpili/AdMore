@@ -40,7 +40,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
       </button>
       {/* 카드 상품 이미지 */}
       <div
-        className="flex justify-center items-center h-52 p-6 bg-cover bg-center transition-transform duration-300 group-hover:scale-110"
+        className="flex justify-center items-center h-40 p-6 bg-cover bg-center transition-transform duration-300 group-hover:scale-110"
         style={{
           backgroundImage: product.background ? `url(${product.background})` : undefined,
           backgroundColor: !product.background ? '#FFF7ED' : undefined
@@ -53,12 +53,12 @@ const ProductCard: React.FC<ProductCardProps> = ({
       </div>
       {/* 카드 내용 */}
       <div className="p-4">
-        <h3 className="font-semibold text-gray-900 mb-1">{product.name}</h3>
-        <p className="text-gray-500 text-sm mb-2 truncate">{product.description}</p>
+        <h3 className="font-semibold text-gray-900">{product.name}</h3>
+        <p className="text-gray-500 text-xs mb-2 truncate">{product.description}</p>
         <div className="flex flex-col gap-0">
-          <div className="flex items-center justify-end">
+          <div className="flex items-center justify-end mb-1">
             {product.discountRate && (
-              <span className="text-blue-600 font-bold text-lg mr-2">{product.discountRate}%</span>
+              <span className="text-blue-600 font-bold text-sm mr-2">{product.discountRate}%</span>
             )}
             {product.originalPrice && (
               <span className="text-gray-400 line-through text-sm mr-2">{product.originalPrice.toLocaleString()}원</span>
@@ -82,7 +82,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
               return stars;
             })()}
             <span className="text-gray-700 font-medium ml-2 mr-1 text-xs">{product.rating?.toFixed(1)}</span>
-            <span className="text-gray-400 text-xs">({product.reviewCount?.toLocaleString()})</span>
+            <span className="text-gray-400 text-[10px] font-semibold">({product.reviewCount?.toLocaleString()})</span>
           </div>
         </div>
         
