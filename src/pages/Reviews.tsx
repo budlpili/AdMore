@@ -381,7 +381,7 @@ const Reviews: React.FC = () => {
                     type="text"
                     placeholder="검색어를 입력해 주세요."
                     className="border border-gray-300 rounded-xl px-3 py-2 pr-10 text-sm 
-                     focus:outline-none focus:ring-2 focus:ring-orange-200 min-w-[200px] sm:max-w-[240px] w-full"
+                      focus:outline-none focus:ring-2 focus:ring-orange-200 min-w-[200px] sm:max-w-[240px] w-full"
                     value={search}
                     onChange={e => { setSearch(e.target.value); setCurrentPage(1); }}
                   />
@@ -470,7 +470,7 @@ const Reviews: React.FC = () => {
                           className="flex items-center gap-2 cursor-pointer hover:text-orange-600 transition-colors"
                           onClick={() => handleProductClick(review)}
                         >
-                          <span className="text-xs text-gray-500 hover:text-orange-600">{getProductInfo(review)?.category}</span>
+                          <span className="text-xs text-gray-500 hover:text-orange-600">{getProductInfo(review)?.tags}</span>
                         </div>
                       )}
                     </div>

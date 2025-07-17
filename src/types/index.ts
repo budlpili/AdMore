@@ -14,6 +14,13 @@ export interface Product {
   viewedDate?: string;
   rating?: number;
   reviewCount?: number;
+  status?: 'active' | 'inactive';
+  stock?: number;
+  tags?: string[];
+  detailedDescription?: string;
+  specifications?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Notice {

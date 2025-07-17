@@ -8,6 +8,10 @@ const Login: React.FC = () => {
   });
   const [errors, setErrors] = useState<{ email?: string; password?: string; general?: string }>({});
   const [showPassword, setShowPassword] = useState(false);
+  const [showPasswordRecovery, setShowPasswordRecovery] = useState(false);
+  const [recoveryEmail, setRecoveryEmail] = useState('');
+  const [recoveryErrors, setRecoveryErrors] = useState<{ email?: string; general?: string }>({});
+  const [recoverySuccess, setRecoverySuccess] = useState(false);
   const navigate = useNavigate();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -48,6 +52,61 @@ const Login: React.FC = () => {
       alert('로그인 성공!');
       navigate('/');
     }
+  };
+
+  // 비밀번호 찾기 폼 검증
+  const validateRecoveryForm = () => {
+    const newErrors: { email?: string } = {};
+    if (!recoveryEmail) {
+      newErrors.email = '이메일을 입력해주세요.';
+    } else if (!/\S+@\S+\.\S+/.test(recoveryEmail)) {
+      newErrors.email = '올바른 이메일 형식을 입력해주세요.';
+    }
+    setRecoveryErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  // 비밀번호 찾기 제출
+  const handleRecoverySubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (validateRecoveryForm()) {
+      // 실제 비밀번호 찾기 로직 (localStorage)
+      const users = JSON.parse(localStorage.getItem('users') || '[]');
+      const user = users.find((user: any) => user.email === recoveryEmail);
+      
+      if (!user) {
+        setRecoveryErrors({ general: '해당 이메일로 가입된 계정을 찾을 수 없습니다.' });
+        return;
+      }
+
+      // 비밀번호 재설정 (실제로는 이메일 발송 로직이 들어가야 함)
+      const newPassword = Math.random().toString(36).slice(-8); // 임시 비밀번호 생성
+      const updatedUsers = users.map((u: any) => {
+        if (u.email === recoveryEmail) {
+          return { ...u, password: newPassword };
+        }
+        return u;
+      });
+      
+      localStorage.setItem('users', JSON.stringify(updatedUsers));
+      setRecoverySuccess(true);
+      
+      // 3초 후 모달 닫기
+      setTimeout(() => {
+        setShowPasswordRecovery(false);
+        setRecoveryEmail('');
+        setRecoveryErrors({});
+        setRecoverySuccess(false);
+      }, 3000);
+    }
+  };
+
+  // 비밀번호 찾기 모달 닫기
+  const closeRecoveryModal = () => {
+    setShowPasswordRecovery(false);
+    setRecoveryEmail('');
+    setRecoveryErrors({});
+    setRecoverySuccess(false);
   };
 
   return (
@@ -119,6 +178,19 @@ const Login: React.FC = () => {
                 </button>
               </div>
               {errors.password && <p className="mt-1 text-xs text-red-600">{errors.password}</p>}
+
+              {/* Password Recovery Link */}
+              <div className="mt-2 text-left flex flex-row justify-start gap-2">
+                <p className="text-xs text-gray-600">비밀번호를 잊으셨나요?</p>
+                <button
+                  type="button"
+                  onClick={() => setShowPasswordRecovery(true)}
+                  className="text-xs text-blue-600 hover:text-blue-700 hover:underline transition-colors"
+                >
+                  비밀번호 찾기
+                </button>
+              </div>
+
             </div>
 
             {/* General Error */}
@@ -144,6 +216,91 @@ const Login: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* 비밀번호 찾기 모달 */}
+      {showPasswordRecovery && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">비밀번호 찾기</h2>
+              <button
+                onClick={closeRecoveryModal}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {!recoverySuccess ? (
+              <>
+                <p className="text-sm text-gray-600 mb-4">
+                  가입하신 이메일 주소를 입력하시면 임시 비밀번호를 발급해드립니다.
+                </p>
+                
+                <form onSubmit={handleRecoverySubmit} className="space-y-4">
+                  <div>
+                    <label htmlFor="recovery-email" className="block text-xs font-semibold text-gray-700 mb-1">
+                      이메일 *
+                    </label>
+                    <input
+                      type="email"
+                      id="recovery-email"
+                      value={recoveryEmail}
+                      onChange={(e) => setRecoveryEmail(e.target.value)}
+                      className={`w-full px-3 py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm ${
+                        recoveryErrors.email ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      placeholder="example@email.com"
+                    />
+                    {recoveryErrors.email && <p className="mt-1 text-xs text-red-600">{recoveryErrors.email}</p>}
+                  </div>
+
+                  {recoveryErrors.general && (
+                    <p className="text-xs text-red-600">{recoveryErrors.general}</p>
+                  )}
+
+                  <div className="flex space-x-3">
+                    <button
+                      type="button"
+                      onClick={closeRecoveryModal}
+                      className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm font-medium transition-colors"
+                    >
+                      취소
+                    </button>
+                    <button
+                      type="submit"
+                      className="flex-1 bg-orange-500 text-white py-2 px-4 rounded-md hover:bg-orange-700 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition duration-300"
+                    >
+                      비밀번호 찾기
+                    </button>
+                  </div>
+                </form>
+              </>
+            ) : (
+              <div className="text-center">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">비밀번호가 재설정되었습니다</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  새로운 임시 비밀번호가 발급되었습니다.<br />
+                  로그인 후 비밀번호를 변경해주세요.
+                </p>
+                <button
+                  onClick={closeRecoveryModal}
+                  className="w-full bg-orange-500 text-white py-2 px-4 rounded-md hover:bg-orange-700 text-sm font-semibold transition-colors"
+                >
+                  확인
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
