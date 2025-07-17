@@ -1,5 +1,5 @@
 import React, { useState, useRef, useLayoutEffect, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Product } from '../types/index';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFacebook, faInstagram, faYoutube, faBlogger, faTwitter, faTelegram, IconDefinition } from '@fortawesome/free-brands-svg-icons';
@@ -53,6 +53,7 @@ const Home: React.FC = () => {
   const [slideIndex, setSlideIndex] = useState(0);
   const [favorites, setFavorites] = useState<number[]>([]);
   const [slidesToShow, setSlidesToShow] = useState(getSlidesToShow());
+  const location = useLocation();
 
   // 슬라이드 트랙 ref 및 컨테이너 width
   const trackRef = useRef<HTMLDivElement>(null);
@@ -72,6 +73,23 @@ const Home: React.FC = () => {
     const savedFavorites = getFavorites();
     setFavorites(savedFavorites);
   }, []);
+
+  // 상담창 열기 처리
+  useEffect(() => {
+    if (location.state?.openChat) {
+      // 상담 메시지가 있으면 자동으로 입력
+      const consultationMessage = localStorage.getItem('consultationMessage');
+      if (consultationMessage) {
+        localStorage.setItem('chatAutoMessage', consultationMessage);
+        localStorage.setItem('chatType', 'consultation');
+        // 상담창 열기 (전역 상태로 관리)
+        window.dispatchEvent(new CustomEvent('openChat'));
+        // 사용 후 localStorage에서 제거
+        localStorage.removeItem('consultationMessage');
+        localStorage.removeItem('consultationProduct');
+      }
+    }
+  }, [location.state]);
 
   // 슬라이드 관련
   useLayoutEffect(() => {

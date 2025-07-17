@@ -22,6 +22,8 @@ const ProductCard: React.FC<ProductCardProps> = ({
   cardWidthPx,
   linkTo
 }) => {
+  // categoryIcon이 undefined일 때 기본값 사용
+  const safeCategoryIcon = categoryIcon || { icon: faPlayCircle, color: 'text-gray-400' };
   return (
     <Link
       to={linkTo || `/products/${product.id}`}
@@ -47,8 +49,8 @@ const ProductCard: React.FC<ProductCardProps> = ({
         }}
       >
         <FontAwesomeIcon
-          icon={categoryIcon.icon}
-          className={`text-5xl ${categoryIcon.color}`}
+          icon={safeCategoryIcon.icon}
+          className={`text-5xl ${safeCategoryIcon.color}`}
         />
       </div>
       {/* 카드 내용 */}

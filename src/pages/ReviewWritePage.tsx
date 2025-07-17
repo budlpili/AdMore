@@ -1,31 +1,61 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { products } from '../data/products';
 
 const ReviewWritePage = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  // 상품 정보는 location.state로 전달받는다고 가정
   const order = location.state?.order || {};
+  const product = products.find(p => p.id === order.productId);
+  
+  // 이미지 우선순위: order.image > product.background > product.image > placeholder
+  const image = order.image || 
+                product?.background || 
+                (product?.image ? `/images/${product.image}` : null) ||
+                'https://via.placeholder.com/400x200?text=Product+Image';
 
   const [rating, setRating] = useState(5);
   const [content, setContent] = useState('');
-  const [image, setImage] = useState<File | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // 실제로는 서버에 리뷰 등록 요청
+    
+    // localStorage에서 orderList 가져오기
+    const orderList = JSON.parse(localStorage.getItem('orderList') || '[]');
+    
+    // 해당 주문 찾기 및 review 상태 업데이트
+    const updatedOrderList = orderList.map((o: any) => {
+      if (o.orderId === order.orderId) {
+        return { ...o, review: '리뷰 작성 완료' };
+      }
+      return o;
+    });
+    
+    // localStorage에 업데이트된 orderList 저장
+    localStorage.setItem('orderList', JSON.stringify(updatedOrderList));
+    
     alert('리뷰가 등록되었습니다!');
     navigate('/mypage?tab=orders');
   };
 
   return (
-    <div className="max-w-lg mx-auto bg-white rounded-lg shadow p-6 mt-8">
+    <div className="max-w-5xl mx-auto bg-white rounded-lg shadow p-6 mt-8">
       <h2 className="font-bold text-lg mb-4">리뷰 작성</h2>
-      <div className="mb-4">
-        <div className="font-semibold">{order.product}</div>
-        <div className="text-xs text-gray-500">{order.detail}</div>
+      <div className="mb-4 flex flex-col md:flex-row gap-6 items-start">
+        <img
+          src={image}
+          alt={order.product || product?.name || '상품 이미지'}
+          className="w-full md:w-60 h-40 object-cover rounded border cursor-pointer hover:opacity-80 transition"
+          onClick={() => product && navigate(`/products/${product.id}`)}
+          title="상품 상세페이지로 이동"
+        />
+        <div className="flex-1">
+          <div className="font-semibold">{order.product || product?.name}</div>
+          <div className="text-xs text-gray-500 mb-2">{order.detail || product?.description}</div>
+        </div>
       </div>
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4 mt-4">
         <div>
           <label className="block text-sm font-medium mb-1">별점</label>
           <div className="flex gap-1">
@@ -54,7 +84,7 @@ const ReviewWritePage = () => {
           <input
             type="file"
             accept="image/*"
-            onChange={e => setImage(e.target.files?.[0] || null)}
+            onChange={e => setImageFile(e.target.files?.[0] || null)}
           />
         </div>
         <button

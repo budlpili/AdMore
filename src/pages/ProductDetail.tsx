@@ -1,11 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Product } from '../types/index';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faChevronLeft, faStar as faSolidStar, faStarHalfAlt, faStar as faRegularStar, faHeart as faSolidHeart } from '@fortawesome/free-solid-svg-icons';
+import { faStar as faSolidStar, faStarHalfAlt, faStar as faRegularStar, faHeart as faSolidHeart, faPen, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { faHeart as faRegularHeart } from '@fortawesome/free-regular-svg-icons';
-import { mockReviews } from './Reviews';
-import Home from './Home';
+import { mockReviews } from '../data/reviews-list';
 import { products } from '../data/products';
 import { addRecentProduct } from '../utils/recentProducts';
 import MobileNavBar from '../components/MobileNavBar';
@@ -56,45 +54,29 @@ interface ProductDetailProps {
   setIsChatOpen: (open: boolean) => void;
 }
 
+// 시간 형식 변환 유틸리티 함수
+const formatDateTime = (date: Date, isModified: boolean = false): string => {
+  const formattedDate = date.toLocaleDateString('ko-KR', {
+    year: '2-digit',
+    month: '2-digit',
+    day: '2-digit'
+  }).replace(/\. /g, '-').replace('.', '');
+  
+  const formattedTime = date.toLocaleTimeString('ko-KR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
+  
+  return isModified ? `${formattedDate} ${formattedTime} (수정됨)` : `${formattedDate} ${formattedTime}`;
+};
+
 const ProductDetail: React.FC<ProductDetailProps> = ({ setIsChatOpen }) => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  // 실제로는 product 데이터를 context나 별도 파일에서 import하는 것이 좋음
-  // 여기서는 Home에서 popularProducts를 가져온다고 가정
+  const location = useLocation();
   const product = products.find(p => p.id === Number(id));
 
-  // 문의 폼 상태
-  const [inquiryForm, setInquiryForm] = useState<InquiryForm>({
-    name: '',
-    email: '',
-    phone: '',
-    category: '상품 문의',
-    subject: product ? `[상품문의] ${product.name}` : '',
-    message: ''
-  });
-
-  const handleInquiryChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setInquiryForm(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handleInquirySubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    alert('문의가 성공적으로 접수되었습니다. 빠른 시일 내에 답변드리겠습니다.');
-    setInquiryForm({
-      name: '',
-      email: '',
-      phone: '',
-      category: '상품 문의',
-      subject: product ? `[상품문의] ${product.name}` : '',
-      message: ''
-    });
-  };
-
-  const [tab, setTab] = useState<'desc' | 'review'>('desc');
   // 리뷰 더보기 상태
   const [visibleReviews, setVisibleReviews] = useState(3);
 
@@ -149,17 +131,6 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ setIsChatOpen }) => {
     if (product) addRecentProduct(product);
   }, [product]);
 
-  // 탭 변경 핸들러 수정
-  const handleTabChange = (newTab: 'desc' | 'review') => {
-    setTab(newTab);
-    if (newTab === 'review' && serviceReviewRef.current) {
-      // 약간의 지연을 두어 탭 변경 후 스크롤 실행
-      setTimeout(() => {
-        serviceReviewRef.current?.scrollIntoView({ behavior: 'smooth' });
-      }, 100);
-    }
-  };
-
   // 서비스 평가로 스크롤하는 함수
   const scrollToReviews = () => {
     if (serviceReviewRef.current) {
@@ -167,12 +138,559 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ setIsChatOpen }) => {
     }
   };
 
+  // 리뷰 작성 상태
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewContent, setReviewContent] = useState('');
+  const [productReviews, setProductReviews] = useState<any[]>([]);
+  
+  // 관리자 댓글 상태
+  const [adminReplyInputs, setAdminReplyInputs] = useState<{ [reviewId: number]: string }>({});
+  const [showReplyForms, setShowReplyForms] = useState<{ [reviewId: number]: boolean }>({});
+  const [editingReply, setEditingReply] = useState<{ [reviewId: number]: boolean }>({});
+  
+  // 사용자 리뷰 수정 상태
+  const [editingUserReview, setEditingUserReview] = useState<{ [reviewId: number]: boolean }>({});
+  const [userReviewInputs, setUserReviewInputs] = useState<{ [reviewId: number]: { content: string; rating: number } }>({});
+  
+  // 주문내역 상태 확인
+  const [canWriteReview, setCanWriteReview] = useState(false);
+  const [hasWrittenReview, setHasWrittenReview] = useState(false);
+  const [orderInfo, setOrderInfo] = useState<any>(null);
+
+  // 문의 폼 상태
+  const [inquiryForm, setInquiryForm] = useState<InquiryForm>({
+    name: '',
+    email: '',
+    phone: '',
+    category: '상품 문의',
+    subject: product ? `[상품문의] ${product.name}` : '',
+    message: ''
+  });
+
+  const handleInquiryChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setInquiryForm(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleInquirySubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    alert('문의가 성공적으로 접수되었습니다. 빠른 시일 내에 답변드리겠습니다.');
+    setInquiryForm({
+      name: '',
+      email: '',
+      phone: '',
+      category: '상품 문의',
+      subject: product ? `[상품문의] ${product.name}` : '',
+      message: ''
+    });
+  };
+
+  // localStorage에서 리뷰 데이터 로드
+  useEffect(() => {
+    const loadReviews = () => {
+      try {
+        const savedReviews = JSON.parse(localStorage.getItem('mockReviews') || '[]');
+        // 현재 상품에 대한 리뷰만 필터링
+        const currentProductReviews = savedReviews.filter((review: any) => 
+          review.productId === product?.id
+        );
+        // mockReviews에서 현재 상품의 리뷰만 필터링
+        const currentMockReviews = mockReviews.filter((mock: any) => 
+          mock.productId === product?.id
+        );
+        // 모든 리뷰를 합치고 날짜 순으로 정렬 (최신이 맨 위)
+        const allReviews = [...currentProductReviews, ...currentMockReviews];
+        const sortedReviews = allReviews.sort((a: any, b: any) => {
+          // 날짜 파싱 함수
+          const parseDate = (dateStr: string) => {
+            // 형식 1: "25-07-15 16:42" (mockReviews)
+            if (dateStr.match(/^\d{2}-\d{2}-\d{2}/)) {
+              return new Date(dateStr.replace(/(\d{2})-(\d{2})-(\d{2})/, '20$1-$2-$3'));
+            }
+            // 형식 2: "2025. 7. 15. 오후 3:52:21" (저장된 리뷰)
+            if (dateStr.includes('오후') || dateStr.includes('오전')) {
+              const match = dateStr.match(/(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})\.\s*(오전|오후)\s*(\d{1,2}):(\d{2}):(\d{2})/);
+              if (match) {
+                const [, year, month, day, ampm, hour, minute, second] = match;
+                let hour24 = parseInt(hour);
+                if (ampm === '오후' && hour24 !== 12) hour24 += 12;
+                if (ampm === '오전' && hour24 === 12) hour24 = 0;
+                return new Date(parseInt(year), parseInt(month) - 1, parseInt(day), hour24, parseInt(minute), parseInt(second));
+              }
+            }
+            // 기본 파싱 시도
+            return new Date(dateStr);
+          };
+          
+          const dateA = parseDate(a.time);
+          const dateB = parseDate(b.time);
+          return dateB.getTime() - dateA.getTime(); // 최신이 맨 위
+        });
+        setProductReviews(sortedReviews);
+      } catch (error) {
+        console.error('리뷰 로드 중 오류:', error);
+        setProductReviews(mockReviews.filter((mock: any) => mock.productId === product?.id));
+      }
+    };
+
+    if (product?.id) {
+      loadReviews();
+    }
+    
+    // 페이지 포커스 시 리뷰 재로드
+    const handleFocus = () => {
+      if (product?.id) {
+        loadReviews();
+      }
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [product?.id]);
+
+  // 현재 상품에 대한 리뷰 작성 여부 확인
+  useEffect(() => {
+    const checkIfReviewWritten = () => {
+      // 주문에서 온 경우에는 리뷰 작성 여부를 확인하지 않음
+      if (location.state?.fromOrder) {
+        setHasWrittenReview(false);
+        return;
+      }
+      
+      try {
+        const existingReviews = JSON.parse(localStorage.getItem('mockReviews') || '[]');
+        const hasReview = existingReviews.some((review: any) => 
+          review.productId === product?.id && review.user === '나'
+        );
+        setHasWrittenReview(hasReview);
+      } catch (error) {
+        console.error('리뷰 작성 여부 확인 중 오류:', error);
+        setHasWrittenReview(false);
+      }
+    };
+
+    checkIfReviewWritten();
+  }, [product?.id, location.state?.fromOrder]);
+
+  // 주문에서 리뷰 작성하기로 온 경우 리뷰 작성 폼 자동 열기
+  useEffect(() => {
+    if (location.state?.fromOrder && product) {
+      try {
+        const orderList = JSON.parse(localStorage.getItem('orderList') || '[]');
+        const orderId = location.state?.orderId;
+        
+        // orderId가 있으면 해당 주문을 찾고, 없으면 현재 상품의 첫 번째 작성 가능한 주문을 찾음
+        let currentOrder;
+        if (orderId) {
+          currentOrder = orderList.find((order: any) => {
+            return order.productId === product.id && 
+                   order.orderId === orderId &&
+                   (order.status === '작업완료' || order.status === '구매완료') && 
+                   order.review === '리뷰 작성하기';
+          });
+        } else {
+          // orderId가 없으면 현재 상품의 첫 번째 작성 가능한 주문을 찾음
+          currentOrder = orderList.find((order: any) => {
+            return order.productId === product.id && 
+                   (order.status === '작업완료' || order.status === '구매완료') && 
+                   order.review === '리뷰 작성하기';
+          });
+        }
+        
+        if (currentOrder) {
+          setOrderInfo(currentOrder);
+          setCanWriteReview(true); // 주문에서 온 경우 강제로 true 설정
+          setHasWrittenReview(false); // 주문에서 온 경우 리뷰 작성 상태 강제 초기화
+          setShowReviewForm(true); // 리뷰 작성 폼 강제 열기
+          
+          // 리뷰 섹션으로 스크롤 (더 위쪽으로)
+          setTimeout(() => {
+            if (serviceReviewRef.current) {
+              const element = serviceReviewRef.current;
+              const elementPosition = element.offsetTop;
+              const offset = 100; // 상단에서 100px 여백
+              window.scrollTo({
+                top: elementPosition - offset,
+                behavior: 'smooth'
+              });
+            }
+          }, 300);
+        }
+      } catch (error) {
+        console.error('주문내역 확인 중 오류:', error);
+      }
+    }
+  }, [location.state, product]);
+
+  // 리뷰 확인을 위해 온 경우 리뷰 섹션으로 스크롤
+  useEffect(() => {
+    if (location.state?.showReview && serviceReviewRef.current) {
+      setTimeout(() => {
+        serviceReviewRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    }
+  }, [location.state]);
+
+  // 리뷰 작성 핸들러
+  const handleSubmitReview = () => {
+    if (reviewRating === 0) {
+      alert('별점을 선택해주세요.');
+      return;
+    }
+    if (!reviewContent.trim()) {
+      alert('리뷰 내용을 입력해주세요.');
+      return;
+    }
+
+    const newReview = {
+      id: Date.now(),
+      user: '나',
+      rating: reviewRating,
+      content: reviewContent.trim(),
+      time: formatDateTime(new Date()),
+      product: product?.name || '애드모어',
+      productId: product?.id // 상품 ID 추가
+    };
+
+    // Reviews 페이지의 mockReviews에 추가
+    try {
+      const existingReviews = JSON.parse(localStorage.getItem('mockReviews') || '[]');
+      const updatedReviews = [newReview, ...existingReviews];
+      localStorage.setItem('mockReviews', JSON.stringify(updatedReviews));
+      
+      // 현재 상품에 대한 리뷰만 필터링해서 업데이트
+      const currentProductReviews = updatedReviews.filter((review: any) => 
+        review.productId === product?.id
+      );
+      // 최근 등록한 리뷰가 맨 위에 오도록 정렬
+      const sortedCurrentProductReviews = currentProductReviews.sort((a: any, b: any) => b.id - a.id);
+      // 저장된 리뷰를 먼저 표시하고, 그 다음에 mockReviews 표시
+      const allReviews = [...sortedCurrentProductReviews, ...mockReviews];
+      setProductReviews(allReviews);
+    } catch (error) {
+      console.error('리뷰 저장 중 오류:', error);
+    }
+
+    setReviewRating(0);
+    setReviewContent('');
+    setShowReviewForm(false);
+    
+    // 주문내역의 리뷰 상태 업데이트
+    try {
+      // orderList 업데이트 (UserPage와 동기화)
+      const orderList = JSON.parse(localStorage.getItem('orderList') || '[]');
+      const orderId = location.state?.orderId;
+      const updatedOrderList = orderList.map((order: any) => {
+        if (order.productId === product?.id && 
+            (orderId ? order.orderId === orderId : true) && // orderId가 있으면 해당 주문만, 없으면 모든 해당 상품 주문
+            (order.status === '작업완료' || order.status === '구매완료') && 
+            order.review === '리뷰 작성하기') {
+          return {
+            ...order,
+            review: '리뷰 확인'
+          };
+        }
+        return order;
+      });
+      localStorage.setItem('orderList', JSON.stringify(updatedOrderList));
+      
+      // 리뷰 작성 가능 여부 재확인
+      setCanWriteReview(false);
+      setHasWrittenReview(true); // 리뷰 작성 후에만 state 초기화
+      setShowReviewForm(false); // 리뷰 작성 폼 닫기
+      // 주문에서 온 경우의 상태 정리
+      if (location.state?.fromOrder) {
+        navigate(location.pathname, { replace: true });
+      }
+    } catch (error) {
+      console.error('주문내역 업데이트 중 오류:', error);
+    }
+    
+    alert('리뷰가 성공적으로 등록되었습니다!');
+    
+    // 리뷰 작성 완료 후 Reviews 페이지로 이동할지 묻기
+    if (window.confirm('리뷰가 성공적으로 등록되었습니다!\n\n리뷰 목록 페이지로 이동하시겠습니까?')) {
+      navigate('/reviews');
+    }
+  };
+
+  // 관리자 댓글 등록 핸들러
+  const handleAddAdminReply = (reviewId: number) => {
+    const replyContent = adminReplyInputs[reviewId]?.trim();
+    if (!replyContent) {
+      alert('댓글 내용을 입력해주세요.');
+      return;
+    }
+
+    const updatedReviews = productReviews.map(review => {
+      if (review.id === reviewId) {
+        return {
+          ...review,
+          reply: replyContent,
+          replyTime: formatDateTime(new Date(), true)
+        };
+      }
+      return review;
+    });
+
+    setProductReviews(updatedReviews);
+
+    // localStorage 업데이트
+    try {
+      const existingReviews = JSON.parse(localStorage.getItem('mockReviews') || '[]');
+      const updatedLocalReviews = existingReviews.map((review: any) => {
+        if (review.id === reviewId) {
+          return {
+            ...review,
+            reply: replyContent,
+            replyTime: formatDateTime(new Date(), true)
+          };
+        }
+        return review;
+      });
+      localStorage.setItem('mockReviews', JSON.stringify(updatedLocalReviews));
+    } catch (error) {
+      console.error('댓글 저장 중 오류:', error);
+    }
+
+    setAdminReplyInputs(prev => ({ ...prev, [reviewId]: '' }));
+    setShowReplyForms(prev => ({ ...prev, [reviewId]: false }));
+    setEditingReply(prev => ({ ...prev, [reviewId]: false })); // 수정 폼 닫기
+    
+    alert('댓글이 성공적으로 등록되었습니다!');
+  };
+
+  // 관리자 댓글 수정 핸들러
+  const handleEditAdminReply = (reviewId: number) => {
+    const replyContent = adminReplyInputs[reviewId]?.trim();
+    if (!replyContent) {
+      alert('댓글 내용을 입력해주세요.');
+      return;
+    }
+
+    const updatedReviews = productReviews.map(review => {
+      if (review.id === reviewId) {
+        return {
+          ...review,
+          reply: replyContent,
+          replyTime: new Date().toLocaleString() + ' (수정됨)'
+        };
+      }
+      return review;
+    });
+
+    setProductReviews(updatedReviews);
+
+    // localStorage 업데이트
+    try {
+      const existingReviews = JSON.parse(localStorage.getItem('mockReviews') || '[]');
+      const updatedLocalReviews = existingReviews.map((review: any) => {
+        if (review.id === reviewId) {
+          return {
+            ...review,
+            reply: replyContent,
+            replyTime: new Date().toLocaleString() + ' (수정됨)'
+          };
+        }
+        return review;
+      });
+      localStorage.setItem('mockReviews', JSON.stringify(updatedLocalReviews));
+    } catch (error) {
+      console.error('댓글 수정 중 오류:', error);
+    }
+
+    setAdminReplyInputs(prev => ({ ...prev, [reviewId]: '' }));
+    setEditingReply(prev => ({ ...prev, [reviewId]: false }));
+    
+    alert('댓글이 성공적으로 수정되었습니다!');
+  };
+
+  // 관리자 댓글 삭제 핸들러
+  const handleDeleteAdminReply = (reviewId: number) => {
+    if (window.confirm('정말로 이 댓글을 삭제하시겠습니까?')) {
+      const updatedReviews = productReviews.map(review => {
+        if (review.id === reviewId) {
+          const { reply, replyTime, ...rest } = review;
+          return rest;
+        }
+        return review;
+      });
+
+      setProductReviews(updatedReviews);
+
+      // localStorage 업데이트
+      try {
+        const existingReviews = JSON.parse(localStorage.getItem('mockReviews') || '[]');
+        const updatedLocalReviews = existingReviews.map((review: any) => {
+          if (review.id === reviewId) {
+            const { reply, replyTime, ...rest } = review;
+            return rest;
+          }
+          return review;
+        });
+        localStorage.setItem('mockReviews', JSON.stringify(updatedLocalReviews));
+      } catch (error) {
+        console.error('댓글 삭제 중 오류:', error);
+      }
+      
+      alert('댓글이 삭제되었습니다.');
+    }
+  };
+
+  // 관리자 댓글 폼 토글
+  const toggleReplyForm = (reviewId: number) => {
+    setShowReplyForms(prev => ({ ...prev, [reviewId]: !prev[reviewId] }));
+    if (!showReplyForms[reviewId]) {
+      setAdminReplyInputs(prev => ({ ...prev, [reviewId]: '' }));
+    }
+  };
+
+  // 관리자 댓글 수정 폼 토글
+  const toggleEditReplyForm = (reviewId: number, currentReply: string) => {
+    setEditingReply(prev => ({ ...prev, [reviewId]: !prev[reviewId] }));
+    if (!editingReply[reviewId]) {
+      setAdminReplyInputs(prev => ({ ...prev, [reviewId]: currentReply }));
+    } else {
+      setAdminReplyInputs(prev => ({ ...prev, [reviewId]: '' }));
+    }
+  };
+
+  // 사용자 리뷰 수정 핸들러
+  const handleEditUserReview = (reviewId: number) => {
+    const reviewInput = userReviewInputs[reviewId];
+    if (!reviewInput || !reviewInput.content.trim()) {
+      alert('리뷰 내용을 입력해주세요.');
+      return;
+    }
+    if (reviewInput.rating === 0) {
+      alert('별점을 선택해주세요.');
+      return;
+    }
+
+    const updatedReviews = productReviews.map(review => {
+      if (review.id === reviewId) {
+        return {
+          ...review,
+          content: reviewInput.content.trim(),
+          rating: reviewInput.rating,
+          time: formatDateTime(new Date(), true)
+        };
+      }
+      return review;
+    });
+
+    setProductReviews(updatedReviews);
+
+    // localStorage 업데이트
+    try {
+      const existingReviews = JSON.parse(localStorage.getItem('mockReviews') || '[]');
+      const updatedLocalReviews = existingReviews.map((review: any) => {
+        if (review.id === reviewId) {
+          return {
+            ...review,
+            content: reviewInput.content.trim(),
+            rating: reviewInput.rating,
+            time: formatDateTime(new Date(), true)
+          };
+        }
+        return review;
+      });
+      localStorage.setItem('mockReviews', JSON.stringify(updatedLocalReviews));
+    } catch (error) {
+      console.error('리뷰 수정 중 오류:', error);
+    }
+
+    setUserReviewInputs(prev => ({ ...prev, [reviewId]: { content: '', rating: 0 } }));
+    setEditingUserReview(prev => ({ ...prev, [reviewId]: false }));
+    
+    alert('리뷰가 성공적으로 수정되었습니다!');
+  };
+
+  // 사용자 리뷰 삭제 핸들러
+  const handleDeleteUserReview = (reviewId: number) => {
+    if (window.confirm('정말로 이 리뷰를 삭제하시겠습니까?')) {
+      const updatedReviews = productReviews.filter(review => review.id !== reviewId);
+      setProductReviews(updatedReviews);
+
+      // localStorage 업데이트
+      try {
+        const existingReviews = JSON.parse(localStorage.getItem('mockReviews') || '[]');
+        const updatedLocalReviews = existingReviews.filter((review: any) => review.id !== reviewId);
+        localStorage.setItem('mockReviews', JSON.stringify(updatedLocalReviews));
+        
+        // 주문내역에서 해당 상품의 리뷰 상태를 '리뷰 작성하기'로 변경
+        const orderList = JSON.parse(localStorage.getItem('orderList') || '[]');
+        const updatedOrderList = orderList.map((order: any) => {
+          if (order.productId === product?.id) {
+            return { ...order, review: '리뷰 작성하기' };
+          }
+          return order;
+        });
+        localStorage.setItem('orderList', JSON.stringify(updatedOrderList));
+        
+        // 리뷰 작성 상태 업데이트
+        setHasWrittenReview(false);
+        setCanWriteReview(true);
+      } catch (error) {
+        console.error('리뷰 삭제 중 오류:', error);
+      }
+
+      alert('리뷰가 삭제되었습니다.');
+    }
+  };
+
+  // 사용자 리뷰 수정 폼 토글
+  const toggleEditUserReview = (reviewId: number, currentContent: string, currentRating: number) => {
+    setEditingUserReview(prev => ({ ...prev, [reviewId]: !prev[reviewId] }));
+    if (!editingUserReview[reviewId]) {
+      setUserReviewInputs(prev => ({ 
+        ...prev, 
+        [reviewId]: { content: currentContent, rating: currentRating } 
+      }));
+    } else {
+      setUserReviewInputs(prev => ({ 
+        ...prev, 
+        [reviewId]: { content: '', rating: 0 } 
+      }));
+    }
+  };
+
+  // 주문내역에서 리뷰 작성 가능 여부 확인
+  useEffect(() => {
+    const checkReviewEligibility = () => {
+      try {
+        const orderList = JSON.parse(localStorage.getItem('orderList') || '[]');
+        // 현재 상품에 대한 주문만 확인
+        const hasWritableReview = orderList.some((order: any) => {
+          return order.productId === product?.id && 
+                 (order.status === '작업완료' || order.status === '구매완료') && 
+                 order.review === '리뷰 작성하기';
+        });
+        setCanWriteReview(hasWritableReview);
+      } catch (error) {
+        console.error('주문내역 확인 중 오류:', error);
+        setCanWriteReview(false);
+      }
+    };
+
+    checkReviewEligibility();
+    
+    // 페이지 포커스 시 주문내역 재확인
+    const handleFocus = () => {
+      checkReviewEligibility();
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [product?.id]); // location.state?.fromOrder 의존성 제거
+
   if (!product) {
     return <div className="text-center py-20">상품을 찾을 수 없습니다.</div>;
   }
-
-  // 해당 상품에 대한 리뷰만 필터링
-  const productReviews = mockReviews; // 모든 리뷰를 테스트용으로 노출
 
   return (
     <div className="max-w-5xl mx-auto py-10 px-4 pb-20 flex flex-row gap-8">
@@ -391,7 +909,123 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ setIsChatOpen }) => {
         
         {/* 서비스 평가 섹션 */}
         <div className="" ref={serviceReviewRef}>
-          <h2 className="text-base font-bold mb-4">서비스 평가</h2>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-base font-bold">서비스 평가</h2>
+            {canWriteReview && !showReviewForm && !hasWrittenReview && (
+              <button
+                className="px-4 py-2 bg-orange-600 text-white text-sm rounded-md hover:bg-orange-700 transition-colors"
+                onClick={() => setShowReviewForm(true)}
+              >
+                리뷰 남기기
+              </button>
+            )}
+          </div>
+
+          {/* 리뷰 작성 폼 */}
+          {canWriteReview && showReviewForm && (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
+              {/* <h3 className="font-semibold text-gray-800 mb-3 text-sm">내 리뷰 작성</h3> */}
+              
+              {/* 주문한 상품 정보 표시 */}
+              <div className="flex flex-row justify-between bg-white border border-gray-200 rounded-lg p-3 mb-4">
+                {/* <h4 className="font-semibold text-gray-800 mb-2 text-sm">주문 상품 정보</h4> */}
+                <div className="flex items-center space-x-3 mb-2">
+                  <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center overflow-hidden">
+                    {product?.background ? (
+                      <img 
+                        src={product.background} 
+                        alt={orderInfo?.product || product?.name || '상품 이미지'}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          const target = e.currentTarget as HTMLImageElement;
+                          target.style.display = 'none';
+                          const fallback = target.nextElementSibling as HTMLElement;
+                          if (fallback) {
+                            fallback.style.display = 'flex';
+                          }
+                        }}
+                      />
+                    ) : null}
+                    <div className={`w-full h-full bg-orange-100 rounded-lg items-center justify-center text-orange-600 text-xs font-bold ${product?.background ? 'hidden' : 'flex'}`}>
+                      {product?.name?.charAt(0) || 'A'}
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-medium text-gray-900 text-sm">{product?.name || '애드모어'}</div>
+                    <div className="text-gray-500 text-xs">{product?.description || '서비스 상품'}</div>
+                    <div className="text-orange-600 text-xs font-semibold mt-1">
+                      {orderInfo ? (
+                        `주문일: ${orderInfo.date} | 수량: ${orderInfo.quantity}개`
+                      ) : (
+                        `상품: ${product?.name || '애드모어'}`
+                      )}
+                    </div>
+                  </div>
+                </div>
+                {/* 별점 선택 */}
+                <div className="flex flex-row items-center space-x-2 justify-center">
+                  <div className="flex items-center space-x-1 justify-center">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setReviewRating(star)}
+                        className="text-xl hover:scale-110 transition-transform"
+                      >
+                        <FontAwesomeIcon
+                          icon={star <= reviewRating ? faSolidStar : faRegularStar}
+                          className={star <= reviewRating ? 'text-yellow-400' : 'text-gray-300'}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                    <span className="text-xs text-gray-600 font-normal">
+                      {reviewRating > 0 ? `${reviewRating}점` : '(필수)*'}
+                    </span>
+                </div>
+                
+              </div>
+              
+              
+
+              {/* 리뷰 내용 */}
+              <div className="mb-4">
+                <label className="block text-[12px] font-semibold text-gray-700 mb-1">상세 리뷰</label>
+                <textarea
+                  value={reviewContent}
+                  onChange={(e) => setReviewContent(e.target.value)}
+                  placeholder="서비스 이용 후기를 작성해주세요."
+                  className="w-full p-3 border border-gray-300 rounded-md text-xs resize-none"
+                  rows={4}
+                  maxLength={500}
+                />
+                <div className="text-right text-[10px] text-gray-500">
+                  {reviewContent.length}/500
+                </div>
+              </div>
+
+              {/* 버튼 */}
+              <div className="flex justify-end space-x-2">
+                <button
+                  onClick={() => {
+                    setShowReviewForm(false);
+                    setReviewRating(0);
+                    setReviewContent('');
+                  }}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 text-xs font-semibold rounded-md min-w-[80px] hover:bg-gray-50"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={handleSubmitReview}
+                  className="flex-1 px-4 py-2 bg-orange-600 text-white text-xs font-semibold rounded-md hover:bg-orange-700"
+                >
+                  리뷰 등록
+                </button>
+              </div>
+            </div>
+          )}
+
           {productReviews.length === 0 ? (
             <div className="text-gray-400">아직 후기가 없습니다.</div>
           ) : (
@@ -421,25 +1055,263 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ setIsChatOpen }) => {
                 <div key={review.id} className="border-b border-gray-100 pb-6 mb-4 last:border-b-0 last:mb-0">
                   <div className="flex items-center pt-2 mb-2">
                     <span className="font-semibold text-blue-600 mr-2 text-xs">{review.user}</span>
-                    <span className="text-xs text-gray-400">{review.time}</span>
-                    <span className="ml-3 flex items-center text-xs">
+                    <span className="flex items-center text-xs">
                       {Array.from({ length: 5 }).map((_, i) => (
                         <FontAwesomeIcon
-                          key={i}
-                          icon={i < review.rating ? faSolidStar : faRegularStar}
-                          className={i < review.rating ? 'text-yellow-400' : 'text-gray-300'}
+                        key={i}
+                        icon={i < review.rating ? faSolidStar : faRegularStar}
+                        className={i < review.rating ? 'text-yellow-400' : 'text-gray-300'}
                         />
                       ))}
+                    <span className="text-xs text-gray-400 ml-2 mr-2">{review.time}</span>
                     </span>
                   </div>
-                  <div className="mb-2 text-gray-900 text-xs">{review.content}</div>
+                  
+                  {/* 사용자 리뷰 내용 - 수정 모드일 때는 편집 폼으로 변경 */}
+                  {editingUserReview[review.id] ? (
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
+                      {/* 주문한 상품 정보 표시 */}
+                      <div className="flex flex-row justify-between bg-white border border-gray-200 rounded-lg p-3 mb-4">
+                        <div className="flex items-center space-x-3 mb-2">
+                          <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center overflow-hidden">
+                            {product?.background ? (
+                              <img 
+                                src={product.background} 
+                                alt={orderInfo?.product || product?.name || '상품 이미지'}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  const target = e.currentTarget as HTMLImageElement;
+                                  target.style.display = 'none';
+                                  const fallback = target.nextElementSibling as HTMLElement;
+                                  if (fallback) {
+                                    fallback.style.display = 'flex';
+                                  }
+                                }}
+                              />
+                            ) : null}
+                            <div className={`w-full h-full bg-orange-100 rounded-lg items-center justify-center text-orange-600 text-xs font-bold ${product?.background ? 'hidden' : 'flex'}`}>
+                              {product?.name?.charAt(0) || 'A'}
+                            </div>
+                          </div>
+                          <div className="flex-1">
+                            <div className="font-medium text-gray-900 text-sm">{product?.name || '애드모어'}</div>
+                            <div className="text-gray-500 text-xs">{product?.description || '서비스 상품'}</div>
+                            <div className="text-orange-600 text-xs font-semibold mt-1">
+                              {(() => {
+                                try {
+                                  const orderList = JSON.parse(localStorage.getItem('orderList') || '[]');
+                                  const relatedOrder = orderList.find((order: any) => 
+                                    order.productId === product?.id && order.review === '리뷰 확인'
+                                  );
+                                  if (relatedOrder) {
+                                    return `주문일: ${relatedOrder.date} | 수량: ${relatedOrder.quantity}개`;
+                                  }
+                                } catch (error) {
+                                  console.error('주문 정보 로드 중 오류:', error);
+                                }
+                                return `주문일: ${new Date().toLocaleDateString('ko-KR').replace(/\. /g, '-').replace('.', '')} | 수량: 1개`;
+                              })()}
+                            </div>
+                          </div>
+                        </div>
+                        {/* 별점 선택 */}
+                        <div className="flex flex-row items-center space-x-2 justify-center">
+                          <div className="flex items-center space-x-1 justify-center">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <button
+                                key={star}
+                                type="button"
+                                onClick={() => setUserReviewInputs(prev => ({
+                                  ...prev,
+                                  [review.id]: { ...prev[review.id], rating: star }
+                                }))}
+                                className="text-xl hover:scale-110 transition-transform"
+                              >
+                                <FontAwesomeIcon
+                                  icon={star <= (userReviewInputs[review.id]?.rating || 0) ? faSolidStar : faRegularStar}
+                                  className={star <= (userReviewInputs[review.id]?.rating || 0) ? 'text-yellow-400' : 'text-gray-300'}
+                                />
+                              </button>
+                            ))}
+                          </div>
+                          <span className="text-xs text-gray-600 font-normal">
+                            {(userReviewInputs[review.id]?.rating || 0) > 0 ? `${userReviewInputs[review.id]?.rating}점` : '(필수)*'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* 리뷰 내용 */}
+                      <div className="mb-4">
+                        <label className="block text-[12px] font-semibold text-gray-700 mb-1">상세 리뷰</label>
+                        <textarea
+                          value={userReviewInputs[review.id]?.content || ''}
+                          onChange={(e) => setUserReviewInputs(prev => ({
+                            ...prev,
+                            [review.id]: { ...prev[review.id], content: e.target.value }
+                          }))}
+                          placeholder="서비스 이용 후기를 작성해주세요."
+                          className="w-full p-3 border border-gray-300 rounded-md text-xs resize-none"
+                          rows={4}
+                          maxLength={500}
+                          autoFocus
+                        />
+                        <div className="text-right text-[10px] text-gray-500">
+                          {(userReviewInputs[review.id]?.content || '').length}/500
+                        </div>
+                      </div>
+
+                      {/* 버튼 */}
+                      <div className="flex justify-end space-x-2">
+                        <button
+                          onClick={() => toggleEditUserReview(review.id, review.content, review.rating)}
+                          className="px-4 py-2 border border-gray-300 text-gray-700 text-xs font-semibold rounded-md min-w-[80px] hover:bg-gray-50"
+                        >
+                          취소
+                        </button>
+                        <button
+                          onClick={() => handleEditUserReview(review.id)}
+                          className="flex-1 px-4 py-2 bg-orange-600 text-white text-white text-xs font-semibold rounded-md hover:bg-orange-700"
+                        >
+                          리뷰 수정
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mb-2 text-gray-900 text-xs">{review.content}</div>
+                  )}
+                  
+                  {/* 사용자 리뷰 버튼들 - 수정 모드가 아닐 때만 표시 */}
+                  {!editingUserReview[review.id] && (
+                    <div className="mt-2 flex space-x-3">
+                      <button
+                        onClick={() => toggleEditUserReview(review.id, review.content, review.rating)}
+                        className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center"
+                      >
+                        <FontAwesomeIcon icon={faPen} className="mr-1 text-xs" />
+                        수정하기
+                      </button>
+                      <button
+                        onClick={() => handleDeleteUserReview(review.id)}
+                        className="text-xs text-red-600 hover:text-red-800 font-medium flex items-center"
+                      >
+                        <FontAwesomeIcon icon={faTrash} className="mr-1 text-xs" />
+                        삭제하기
+                      </button>
+                    </div>
+                  )}
+                  
+                  {/* 관리자 댓글 표시 */}
                   {review.reply && (
                     <div className="bg-gray-50 border-l-4 border-blue-400 p-3 text-xs text-gray-700 mt-2 ml-4">
                       <div className="flex items-center mb-1">
                         <span className="font-bold text-blue-600 text-xs">애드모어</span>
                         <span className="text-xs text-gray-400 ml-2">{review.replyTime}</span>
                       </div>
-                      <span className="text-xs">{review.reply}</span>
+                      
+                      {/* 관리자 댓글 내용 - 수정 모드일 때는 textarea로 변경 */}
+                      {editingReply[review.id] ? (
+                        <div className="mb-2">
+                          <textarea
+                            value={adminReplyInputs[review.id] || ''}
+                            onChange={(e) => setAdminReplyInputs(prev => ({ ...prev, [review.id]: e.target.value }))}
+                            placeholder="댓글을 수정해주세요..."
+                            className="w-full p-2 border border-blue-300 rounded text-xs resize-none"
+                            rows={3}
+                            maxLength={300}
+                            autoFocus
+                          />
+                          <div className="flex justify-between items-center mt-2">
+                            <span className="text-xs text-gray-500">
+                              {(adminReplyInputs[review.id] || '').length}/300
+                            </span>
+                            <div className="flex space-x-2">
+                              <button
+                                onClick={() => toggleEditReplyForm(review.id, review.reply || '')}
+                                className="px-2 py-1 border border-gray-300 text-gray-700 text-xs rounded hover:bg-gray-50"
+                              >
+                                취소
+                              </button>
+                              <button
+                                onClick={() => handleEditAdminReply(review.id)}
+                                className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
+                              >
+                                수정 완료
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-xs">{review.reply}</span>
+                      )}
+                      
+                      {/* 관리자 댓글 버튼들 - 수정 모드가 아닐 때만 표시 */}
+                      {!editingReply[review.id] && (
+                        <div className="mt-2 flex space-x-3">
+                          <button
+                            onClick={() => toggleEditReplyForm(review.id, review.reply || '')}
+                            className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center"
+                          >
+                            <FontAwesomeIcon icon={faPen} className="mr-1 text-xs" />
+                            수정하기
+                          </button>
+                          <button
+                            onClick={() => handleDeleteAdminReply(review.id)}
+                            className="text-xs text-red-600 hover:text-red-800 font-medium flex items-center"
+                          >
+                            <FontAwesomeIcon icon={faTrash} className="mr-1 text-xs" />
+                            삭제하기
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* 관리자 댓글 작성 폼 */}
+                  {showReplyForms[review.id] && (
+                    <div className="mt-3 ml-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div className="flex items-center mb-2">
+                        <span className="font-bold text-blue-600 text-xs">애드모어</span>
+                        <span className="text-xs text-gray-500 ml-2">관리자 댓글</span>
+                      </div>
+                      <textarea
+                        value={adminReplyInputs[review.id] || ''}
+                        onChange={(e) => setAdminReplyInputs(prev => ({ ...prev, [review.id]: e.target.value }))}
+                        placeholder="고객님의 리뷰에 답변을 남겨주세요..."
+                        className="w-full p-2 border border-blue-300 rounded text-xs resize-none"
+                        rows={3}
+                        maxLength={300}
+                      />
+                      <div className="flex justify-between items-center mt-2">
+                        <span className="text-xs text-gray-500">
+                          {(adminReplyInputs[review.id] || '').length}/300
+                        </span>
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => toggleReplyForm(review.id)}
+                            className="px-3 py-1 border border-gray-300 text-gray-700 text-xs rounded hover:bg-gray-50"
+                          >
+                            취소
+                          </button>
+                          <button
+                            onClick={() => handleAddAdminReply(review.id)}
+                            className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
+                          >
+                            댓글 등록
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 관리자 댓글 남기기 버튼 (댓글이 없을 때만) */}
+                  {!review.reply && (
+                    <div className="mt-2 ml-4">
+                      <button
+                        onClick={() => toggleReplyForm(review.id)}
+                        className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                      >
+                        {showReplyForms[review.id] ? '댓글 작성 취소' : '댓글 남기기'}
+                      </button>
                     </div>
                   )}
                 </div>
@@ -562,10 +1434,20 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ setIsChatOpen }) => {
               <li>환불은 기본적으로 동일 결제수단 환불로 진행됩니다.</li>
             </ul>
           </div>
-          {/* 상품 문의 (md 미만에서만 보임) */}
+          {/* 상품 문의 버튼 */}
           <div
-            className="mt-4 text-xs text-orange-600 font-semibold flex items-center border border-gray-200 rounded-lg p-3 hover:bg-gray-50 transition-colors duration-300 cursor-pointer md:hidden"
-            onClick={() => setIsChatOpen(true)}
+            className="mt-4 text-xs text-orange-600 font-semibold flex items-center border border-gray-200 rounded-lg p-3 hover:bg-gray-50 transition-colors duration-300 cursor-pointer"
+            onClick={() => {
+              const message = `안녕하세요! 상품에 대해 문의드립니다.\n\n상품명: ${product.name}\n카테고리: ${product.category}\n\n빠른 답변 부탁드립니다.`;
+              
+              // localStorage에 상담 메시지 저장
+              localStorage.setItem('chatAutoMessage', message);
+              localStorage.setItem('chatType', 'consultation');
+              localStorage.setItem('consultationProduct', JSON.stringify(product));
+              
+              // 채팅창 열기
+              setIsChatOpen(true);
+            }}
           >
             <span className="mr-2">ⓘ</span> 상품 문의 혹은 커스텀 문의도 가능해요!
           </div>

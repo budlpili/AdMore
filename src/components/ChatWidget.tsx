@@ -32,6 +32,24 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ isChatOpen, setIsChatOpen }) =>
     }
   }, [messages, isChatOpen, mode]);
 
+  // 자동 메시지 입력 기능 (결제취소 요청, 상담 문의 등)
+  useEffect(() => {
+    if (isChatOpen) {
+      const autoMessage = localStorage.getItem('chatAutoMessage');
+      const chatType = localStorage.getItem('chatType');
+      
+      if (autoMessage && (chatType === 'payment_cancel' || chatType === 'consultation')) {
+        // 채팅 모드로 전환하고 메시지 입력창에 자동으로 텍스트 입력
+        setMode('chat');
+        setInput(autoMessage);
+        
+        // 사용 후 localStorage에서 제거
+        localStorage.removeItem('chatAutoMessage');
+        localStorage.removeItem('chatType');
+      }
+    }
+  }, [isChatOpen]);
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (f) {

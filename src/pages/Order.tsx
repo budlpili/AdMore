@@ -1,14 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import CouponCard from '../components/CouponCard';
 
 const Order: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  // 페이지 진입 시 스크롤 맨 위로 이동
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, []);
   // For demo, get product/order info from location.state or use mock
   const order = location.state?.order || {
     product: {
@@ -142,19 +138,20 @@ const Order: React.FC = () => {
               <span className="font-bold text-lg">쿠폰 선택</span>
               <button onClick={() => setCouponModalOpen(false)} className="text-2xl">&times;</button>
             </div>
-            <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+            <div className="flex flex-wrap gap-3 max-h-[60vh] overflow-y-auto">
               {coupons.map((coupon, idx) => (
-                <CouponCard
-                  key={idx}
-                  title={coupon.title}
-                  expiry={coupon.expiry}
-                  maxDiscount={coupon.maxDiscount}
-                  discountRate={coupon.discountRate}
-                  onUse={() => {
-                    setSelectedCoupon(coupon);
-                    setCouponModalOpen(false);
-                  }}
-                />
+                <div key={idx} className="w-full sm:w-[calc(50%-6px)]">
+                  <CouponCard
+                    title={coupon.title}
+                    expiry={coupon.expiry}
+                    maxDiscount={coupon.maxDiscount}
+                    discountRate={coupon.discountRate}
+                    onUse={() => {
+                      setSelectedCoupon(coupon);
+                      setCouponModalOpen(false);
+                    }}
+                  />
+                </div>
               ))}
             </div>
           </div>

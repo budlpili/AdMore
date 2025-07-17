@@ -296,6 +296,13 @@ const Header: React.FC<HeaderProps> = ({ setIsChatOpen }) => {
                           </button>
                         </li>
                         <li>
+                          <button className="text-sm w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center font-semibold"
+                            onClick={() => { setUserMenuOpen(false); navigate('/admin'); }}>
+                            <FontAwesomeIcon icon={faBuilding} className="mr-2 text-gray-400 w-4 h-4" />
+                            관리자 페이지
+                          </button>
+                        </li>
+                        <li>
                           <button
                             className="text-sm w-full text-left px-4 py-2 text-red-500 hover:bg-gray-50 flex items-center font-semibold"
                             onClick={handleLogout}

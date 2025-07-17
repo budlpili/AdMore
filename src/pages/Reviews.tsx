@@ -1,360 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faRotateRight, faStar, faClock } from '@fortawesome/free-solid-svg-icons';
-
-interface Review {
-  id: number;
-  user: string;
-  time: string;
-  content: string;
-  product: string;
-  rating: number;
-  reply?: string;
-  replyTime?: string;
-}
-
-export const mockReviews: Review[] = [
-  {
-    id: 1,
-    user: 'Sol****',
-    time: '2시간전',
-    content: '진행 과정도 결과도 만족합니다. 그리고 문의에 친절하게 설명해주십니다.',
-    product: '유튜브 구독자,조회수,쇼츠,시청시간,수익창출,스트리밍',
-    rating: 5,
-    reply: '소중한 후기를 남겨주셔서 진심으로 감사드립니다. 애드모어는 최상의 결과를 제공하기 위해 끊임없이 노력하고 있습니다.',
-    replyTime: '1시간전'
-  },
-  {
-    id: 2,
-    user: '살*****',
-    time: '20시간전',
-    content: '친절하게 잘 설명해주시고 바로바로 피드백 주셔서 너무 좋습니다!',
-    product: '애드모어',
-    rating: 5,
-    reply: '앞으로도 최고의 서비스를 제공하기 위해 최선을 다하겠습니다.',
-    replyTime: '19시간전'
-  },
-  {
-    id: 3,
-    user: 'K31***',
-    time: '하루전',
-    content: '수고하셨습니다. 감사합니다.',
-    product: '인스타그램 팔로워,릴스,좋아요,조회수,인기게시물 관리',
-    rating: 4,
-    reply: '함께해 주셔서 감사합니다.',
-    replyTime: '23시간전'
-  },
-  {
-    id: 4,
-    user: '방**',
-    time: '하루전',
-    content: '빠른 대응과 기대이상의 결과물로 매우 만족 합니다.',
-    product: '유튜브 구독자,조회수,쇼츠,시청시간,수익창출,스트리밍',
-    rating: 5,
-    reply: '고객님의 만족이 저희의 목표입니다.',
-    replyTime: '22시간전'
-  },
-  {
-    id: 5,
-    user: '에*****',
-    time: '2025-06-28',
-    content: '항상 작업물의 퀄리티, 속도와 처리가 매우 만족을 줍니다. 다음에 또 구매하겠습니다.',
-    product: '유튜브 구독자,조회수,쇼츠,시청시간,수익창출,스트리밍',
-    rating: 5,
-  },
-  {
-    id: 6,
-    user: '민**',
-    time: '3일전',
-    content: '처음 이용해봤는데 정말 빠르고 친절해서 좋았어요.',
-    product: '페이스북 팔로워',
-    rating: 5,
-    reply: '처음 이용해주셔서 감사합니다!',
-    replyTime: '2일전'
-  },
-  {
-    id: 7,
-    user: '박***',
-    time: '3일전',
-    content: '문의에 대한 답변이 빨라서 신뢰가 갑니다.',
-    product: '인스타그램 좋아요',
-    rating: 4,
-  },
-  {
-    id: 8,
-    user: '김**',
-    time: '4일전',
-    content: '서비스가 기대 이상이었습니다.',
-    product: '유튜브 조회수',
-    rating: 5,
-  },
-  {
-    id: 9,
-    user: '이***',
-    time: '4일전',
-    content: '재구매 의사 100%입니다.',
-    product: '블로그 방문자',
-    rating: 5,
-    reply: '재구매 감사합니다!',
-    replyTime: '3일전'
-  },
-  {
-    id: 10,
-    user: '최**',
-    time: '5일전',
-    content: '가격도 저렴하고 효과도 좋아요.',
-    product: '트위터 팔로워',
-    rating: 4,
-  },
-  {
-    id: 11,
-    user: '정***',
-    time: '5일전',
-    content: '친구에게 추천하고 싶어요.',
-    product: '텔레그램 멤버',
-    rating: 5,
-  },
-  {
-    id: 12,
-    user: '윤**',
-    time: '6일전',
-    content: '처음엔 반신반의했는데 결과가 너무 좋아서 놀랐어요.',
-    product: '페이스북 좋아요',
-    rating: 5,
-    reply: '믿고 이용해주셔서 감사합니다.',
-    replyTime: '5일전'
-  },
-  {
-    id: 13,
-    user: '장***',
-    time: '6일전',
-    content: '빠른 처리 감사합니다.',
-    product: '인스타그램 팔로워',
-    rating: 4,
-  },
-  {
-    id: 14,
-    user: '임**',
-    time: '7일전',
-    content: '문의에 친절하게 답변해주셔서 좋았습니다.',
-    product: '유튜브 구독자',
-    rating: 5,
-  },
-  {
-    id: 15,
-    user: '한***',
-    time: '7일전',
-    content: '서비스가 정말 만족스러워요.',
-    product: '블로그 댓글',
-    rating: 5,
-    reply: '만족해주셔서 감사합니다.',
-    replyTime: '6일전'
-  },
-  {
-    id: 16,
-    user: '오**',
-    time: '8일전',
-    content: '다음에도 또 이용할게요.',
-    product: '트위터 리트윗',
-    rating: 4,
-  },
-  {
-    id: 17,
-    user: '서***',
-    time: '8일전',
-    content: '결과가 빨라서 좋았습니다.',
-    product: '텔레그램 뷰',
-    rating: 5,
-  },
-  {
-    id: 18,
-    user: '문**',
-    time: '9일전',
-    content: '처음엔 걱정했는데 결과가 너무 좋아요.',
-    product: '페이스북 좋아요',
-    rating: 5,
-  },
-  {
-    id: 19,
-    user: '유***',
-    time: '9일전',
-    content: '고객센터가 친절해서 좋았습니다.',
-    product: '인스타그램 좋아요',
-    rating: 5,
-    reply: '고객센터를 칭찬해주셔서 감사합니다.',
-    replyTime: '8일전'
-  },
-  {
-    id: 20,
-    user: '신**',
-    time: '10일전',
-    content: '서비스가 신속해서 만족합니다.',
-    product: '유튜브 조회수',
-    rating: 4,
-  },
-  {
-    id: 21,
-    user: '배***',
-    time: '10일전',
-    content: '효과가 바로 나타나서 신기했어요.',
-    product: '블로그 방문자',
-    rating: 5,
-  },
-  {
-    id: 22,
-    user: '조**',
-    time: '11일전',
-    content: '가격 대비 효과가 좋아요.',
-    product: '트위터 팔로워',
-    rating: 4,
-  },
-  {
-    id: 23,
-    user: '권***',
-    time: '11일전',
-    content: '다른 곳보다 훨씬 빠르고 정확합니다.',
-    product: '텔레그램 멤버',
-    rating: 5,
-    reply: '빠르고 정확한 서비스 제공을 위해 노력하겠습니다.',
-    replyTime: '10일전'
-  },
-  {
-    id: 24,
-    user: '송**',
-    time: '12일전',
-    content: '문의에 대한 답변이 빨라서 좋았어요.',
-    product: '페이스북 팔로워',
-    rating: 5,
-  },
-  {
-    id: 25,
-    user: '노***',
-    time: '12일전',
-    content: '서비스가 기대 이상이었습니다.',
-    product: '인스타그램 좋아요',
-    rating: 5,
-  },
-  {
-    id: 26,
-    user: '하**',
-    time: '13일전',
-    content: '재구매 의사 있습니다.',
-    product: '유튜브 조회수',
-    rating: 4,
-  },
-  {
-    id: 27,
-    user: '정***',
-    time: '13일전',
-    content: '친구에게 추천하고 싶어요.',
-    product: '블로그 방문자',
-    rating: 5,
-    reply: '추천 감사합니다!',
-    replyTime: '12일전'
-  },
-  {
-    id: 28,
-    user: '최**',
-    time: '14일전',
-    content: '가격도 저렴하고 효과도 좋아요.',
-    product: '트위터 팔로워',
-    rating: 4,
-  },
-  {
-    id: 29,
-    user: '김***',
-    time: '14일전',
-    content: '친구 추천으로 이용했는데 만족합니다.',
-    product: '텔레그램 멤버',
-    rating: 5,
-  },
-  {
-    id: 30,
-    user: '이**',
-    time: '15일전',
-    content: '처음엔 반신반의했는데 결과가 너무 좋아서 놀랐어요.',
-    product: '페이스북 좋아요',
-    rating: 5,
-    reply: '믿고 이용해주셔서 감사합니다.',
-    replyTime: '14일전'
-  },
-  {
-    id: 31,
-    user: '박***',
-    time: '15일전',
-    content: '빠른 처리 감사합니다.',
-    product: '인스타그램 팔로워',
-    rating: 4,
-  },
-  {
-    id: 32,
-    user: '민**',
-    time: '16일전',
-    content: '문의에 친절하게 답변해주셔서 좋았습니다.',
-    product: '유튜브 구독자',
-    rating: 5,
-  },
-  {
-    id: 1,
-    product: '블로그 구독자 증가',
-    user: 'ddd**',
-    rating: 5,
-    time: '2025-04-01',
-    content: '감사합니다',
-    reply: '이용해주셔서 감사합니다!',
-    replyTime: '2025-04-02',
-  },
-  {
-    id: 2,
-    product: '블로그 구독자 증가',
-    user: 'shin**',
-    rating: 5,
-    time: '2025-03-24',
-    content: '최고 항상 최고',
-    reply: '',
-    replyTime: '',
-  },
-  {
-    id: 3,
-    product: '블로그 구독자 증가',
-    user: 'damb**',
-    rating: 5,
-    time: '2025-03-15',
-    content: '훌륭합니다',
-    reply: '',
-    replyTime: '',
-  },
-  {
-    id: 4,
-    product: '블로그 구독자 증가',
-    user: 'kim**',
-    rating: 4,
-    time: '2025-03-10',
-    content: '만족합니다',
-    reply: '',
-    replyTime: '',
-  },
-  {
-    id: 5,
-    product: '블로그 구독자 증가',
-    user: 'lee**',
-    rating: 5,
-    time: '2025-03-05',
-    content: '빠르고 좋아요',
-    reply: '',
-    replyTime: '',
-  },
-  {
-    id: 6,
-    product: '블로그 구독자 증가',
-    user: 'park**',
-    rating: 5,
-    time: '2025-02-28',
-    content: '재구매 의사 있습니다',
-    reply: '',
-    replyTime: '',
-  },
-];
+import { faRotateRight, faStar, faClock, faPen, faComments } from '@fortawesome/free-solid-svg-icons';
+import { useNavigate } from 'react-router-dom';
+import { Review, mockReviews } from '../data/reviews-list';
+import { products } from '../data/products';
 
 const REVIEWS_PER_PAGE = 5;
 
@@ -381,17 +30,169 @@ type SortType = typeof sortOptions[number]['value'];
 const Reviews: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [search, setSearch] = useState('');
-  const [sortType, setSortType] = useState<'rating' | 'date'>('rating');
+  const [sortType, setSortType] = useState<'rating' | 'date'>('date');
   const [ratingOrder, setRatingOrder] = useState<'desc' | 'asc'>('desc');
   const [dateOrder, setDateOrder] = useState<'desc' | 'asc'>('desc');
+  const [showReviews, setShowReviews] = useState(true);
+  const [showReviewableDropdown, setShowReviewableDropdown] = useState(false);
+  const [reviews, setReviews] = useState<Review[]>(mockReviews);
+  const navigate = useNavigate();
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // 새로고침: 모든 상태 초기화
+  // localStorage에서 리뷰 로드
+  useEffect(() => {
+    const loadReviews = () => {
+      try {
+        const savedReviews = JSON.parse(localStorage.getItem('mockReviews') || '[]');
+        
+        // 모든 리뷰를 합치고 날짜 순으로 정렬 (최신이 맨 위)
+        const allReviews = [...savedReviews, ...mockReviews];
+        
+        const sortedReviews = allReviews.sort((a: any, b: any) => {
+          // 날짜 파싱 함수
+          const parseDate = (dateStr: string) => {
+            // 형식 1: "25-07-15 16:42" (mockReviews)
+            if (dateStr.match(/^\d{2}-\d{2}-\d{2}/)) {
+              return new Date(dateStr.replace(/(\d{2})-(\d{2})-(\d{2})/, '20$1-$2-$3'));
+            }
+            // 형식 2: "2025. 7. 15. 오후 3:52:21" (저장된 리뷰)
+            if (dateStr.includes('오후') || dateStr.includes('오전')) {
+              const match = dateStr.match(/(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})\.\s*(오전|오후)\s*(\d{1,2}):(\d{2}):(\d{2})/);
+              if (match) {
+                const [, year, month, day, ampm, hour, minute, second] = match;
+                let hour24 = parseInt(hour);
+                if (ampm === '오후' && hour24 !== 12) hour24 += 12;
+                if (ampm === '오전' && hour24 === 12) hour24 = 0;
+                return new Date(parseInt(year), parseInt(month) - 1, parseInt(day), hour24, parseInt(minute), parseInt(second));
+              }
+            }
+            // 기본 파싱 시도
+            return new Date(dateStr);
+          };
+          
+          const dateA = parseDate(a.time);
+          const dateB = parseDate(b.time);
+          return dateB.getTime() - dateA.getTime(); // 최신이 맨 위
+        });
+        
+        setReviews(sortedReviews);
+      } catch (error) {
+        console.error('리뷰 로드 중 오류:', error);
+        setReviews(mockReviews);
+      }
+    };
+    
+    loadReviews();
+    window.addEventListener('focus', loadReviews);
+    return () => window.removeEventListener('focus', loadReviews);
+  }, []);
+
+  // 드롭다운 바깥 클릭 시 닫기
+  useEffect(() => {
+    if (!showReviewableDropdown) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowReviewableDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showReviewableDropdown]);
+
+  // 리뷰 작성 가능한 주문내역 가져오기 (localStorage에서)
+  const [reviewableOrders, setReviewableOrders] = useState<any[]>([]);
+  useEffect(() => {
+    const loadOrders = () => {
+      try {
+        const orderList = JSON.parse(localStorage.getItem('orderList') || '[]');
+        
+        const reviewables = orderList.filter((o: any) => {
+          const isEligible = (o.status === '작업완료' || o.status === '구매완료') && o.review === '리뷰 작성하기';
+          return isEligible;
+        });
+        
+        setReviewableOrders(reviewables);
+      } catch (error) {
+        console.error('주문 로드 에러:', error);
+        setReviewableOrders([]);
+      }
+    };
+    loadOrders();
+    window.addEventListener('focus', loadOrders);
+    return () => window.removeEventListener('focus', loadOrders);
+  }, []);
+
+  // 새로고침: 모든 상태 초기화 및 데이터 재로드
   const handleRefresh = () => {
+    // UI 상태 초기화
     setSearch('');
-    setSortType('rating');
+    setSortType('date');
     setRatingOrder('desc');
     setDateOrder('desc');
     setCurrentPage(1);
+    
+    // 리뷰 데이터 재로드
+    const loadReviews = () => {
+      try {
+        const savedReviews = JSON.parse(localStorage.getItem('mockReviews') || '[]');
+        
+        // 모든 리뷰를 합치고 날짜 순으로 정렬 (최신이 맨 위)
+        const allReviews = [...savedReviews, ...mockReviews];
+        
+        const sortedReviews = allReviews.sort((a: any, b: any) => {
+          // 날짜 파싱 함수
+          const parseDate = (dateStr: string) => {
+            // 형식 1: "25-07-15 16:42" (mockReviews)
+            if (dateStr.match(/^\d{2}-\d{2}-\d{2}/)) {
+              return new Date(dateStr.replace(/(\d{2})-(\d{2})-(\d{2})/, '20$1-$2-$3'));
+            }
+            // 형식 2: "2025. 7. 15. 오후 3:52:21" (저장된 리뷰)
+            if (dateStr.includes('오후') || dateStr.includes('오전')) {
+              const match = dateStr.match(/(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})\.\s*(오전|오후)\s*(\d{1,2}):(\d{2}):(\d{2})/);
+              if (match) {
+                const [, year, month, day, ampm, hour, minute, second] = match;
+                let hour24 = parseInt(hour);
+                if (ampm === '오후' && hour24 !== 12) hour24 += 12;
+                if (ampm === '오전' && hour24 === 12) hour24 = 0;
+                return new Date(parseInt(year), parseInt(month) - 1, parseInt(day), hour24, parseInt(minute), parseInt(second));
+              }
+            }
+            // 기본 파싱 시도
+            return new Date(dateStr);
+          };
+          
+          const dateA = parseDate(a.time);
+          const dateB = parseDate(b.time);
+          return dateB.getTime() - dateA.getTime(); // 최신이 맨 위
+        });
+        
+        setReviews(sortedReviews);
+      } catch (error) {
+        console.error('리뷰 로드 중 오류:', error);
+        setReviews(mockReviews);
+      }
+    };
+    
+    // 주문 데이터 재로드
+    const loadOrders = () => {
+      try {
+        const orderList = JSON.parse(localStorage.getItem('orderList') || '[]');
+        
+        const reviewables = orderList.filter((o: any) => {
+          const isEligible = (o.status === '작업완료' || o.status === '구매완료') && o.review === '리뷰 작성하기';
+          return isEligible;
+        });
+        
+        setReviewableOrders(reviewables);
+      } catch (error) {
+        console.error('주문 로드 에러:', error);
+        setReviewableOrders([]);
+      }
+    };
+    
+    // 데이터 재로드 실행
+    loadReviews();
+    loadOrders();
   };
 
   // 별점 정렬 버튼 클릭
@@ -408,8 +209,36 @@ const Reviews: React.FC = () => {
     setCurrentPage(1);
   };
 
+  // 상품 페이지로 이동
+  const handleProductClick = (review: Review) => {
+    if (review.productId) {
+      navigate(`/products/${review.productId}`);
+    }
+  };
+
+  // 상담하기 기능
+  const handleConsultation = (review: Review) => {
+    const product = products.find(p => p.id === review.productId);
+    if (product) {
+      const message = `안녕하세요! 상품에 대해 문의드립니다.\n\n상품명: ${product.name}\n카테고리: ${product.category}\n\n 빠른 답변 부탁드립니다.`;
+      
+      // localStorage에 상담 메시지 저장
+      localStorage.setItem('chatAutoMessage', message);
+      localStorage.setItem('chatType', 'consultation');
+      localStorage.setItem('consultationProduct', JSON.stringify(product));
+      
+      // 채팅창 열기 (전역 이벤트로 열기)
+      window.dispatchEvent(new CustomEvent('openChat'));
+    }
+  };
+
+  // 상품 정보 가져오기
+  const getProductInfo = (review: Review) => {
+    return products.find(p => p.id === review.productId);
+  };
+
   // 검색 및 정렬 적용
-  const filtered = mockReviews.filter(r =>
+  const filtered = reviews.filter(r =>
     r.user.includes(search) ||
     r.content.includes(search) ||
     r.product.includes(search)
@@ -419,7 +248,32 @@ const Reviews: React.FC = () => {
     sorted.sort((a, b) => ratingOrder === 'desc' ? b.rating - a.rating : a.rating - b.rating);
   }
   if (sortType === 'date') {
-    sorted.sort((a, b) => dateOrder === 'desc' ? b.id - a.id : a.id - b.id);
+    sorted.sort((a, b) => {
+      // 날짜 파싱 함수
+      const parseDate = (dateStr: string) => {
+        // 형식 1: "25-07-15 16:42" (mockReviews)
+        if (dateStr.match(/^\d{2}-\d{2}-\d{2}/)) {
+          return new Date(dateStr.replace(/(\d{2})-(\d{2})-(\d{2})/, '20$1-$2-$3'));
+        }
+        // 형식 2: "2025. 7. 15. 오후 3:52:21" (저장된 리뷰)
+        if (dateStr.includes('오후') || dateStr.includes('오전')) {
+          const match = dateStr.match(/(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})\.\s*(오전|오후)\s*(\d{1,2}):(\d{2}):(\d{2})/);
+          if (match) {
+            const [, year, month, day, ampm, hour, minute, second] = match;
+            let hour24 = parseInt(hour);
+            if (ampm === '오후' && hour24 !== 12) hour24 += 12;
+            if (ampm === '오전' && hour24 === 12) hour24 = 0;
+            return new Date(parseInt(year), parseInt(month) - 1, parseInt(day), hour24, parseInt(minute), parseInt(second));
+          }
+        }
+        // 기본 파싱 시도
+        return new Date(dateStr);
+      };
+      
+      const dateA = parseDate(a.time);
+      const dateB = parseDate(b.time);
+      return dateOrder === 'desc' ? dateB.getTime() - dateA.getTime() : dateA.getTime() - dateB.getTime();
+    });
   }
 
   const totalPages = Math.ceil(sorted.length / REVIEWS_PER_PAGE);
@@ -439,141 +293,240 @@ const Reviews: React.FC = () => {
     <div className="min-h-screen bg-gray-50 py-12 pb-20">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Page Header (NEW) */}
-        <div className="mb-8">
-          <div className="flex justify-center items-center mb-4">
-            <h1 className="text-3xl font-bold text-gray-900 mr-2">리뷰 목록</h1>
-            <span className="text-blue-500 text-xl font-bold">({sorted.length.toLocaleString()}+)</span>
-          </div>
-          <div className="flex justify-center items-center mb-4">
+        <div className="mb-8 flex flex-row justify-between items-end">
+          <div className="flex flex-col justify-start items-start gap-3">
+            <div className="flex items-center gap-2">
+              <h1 className="text-3xl font-bold text-gray-900 mr-2">리뷰 목록</h1>
+              <span className="text-blue-500 text-xl font-bold">({sorted.length.toLocaleString()}+)</span>
+            </div>
             <span className="text-gray-400 text-base font-semibold">실제로 구매하신 고객님들의 후기를 확인해보세요.</span>
-            
           </div>
+          
         </div>
 
         {/* Review List */}
-        <div className="space-y-6">
-          <div className="flex justify-end items-center space-x-2">
-            {/* 검색창 */}
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="검색어를 입력해 주세요."
-                className="border border-gray-300 rounded-xl px-3 py-2 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-                style={{ width: 200 }}
-                value={search}
-                onChange={e => { setSearch(e.target.value); setCurrentPage(1); }}
-              />
-              <span className="absolute right-3 top-2 text-gray-400">
-                <svg width="18" height="18" fill="none" viewBox="0 0 24 24">
-                  <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" />
-                </svg>
-              </span>
-            </div>
-            {/* 정렬 버튼 그룹 */}
-            <div className="flex items-center space-x-2">
-              {/* 별점 정렬 버튼 */}
-              <button
-                onClick={handleRatingSort}
-                className={`w-9 h-9 flex items-center justify-center rounded-full border border-gray-200 bg-white hover:bg-gray-100 ${sortType === 'rating' ? 'ring-2 ring-yellow-200' : ''}`}
-                title={`별점순 (${ratingOrder === 'desc' ? '높은 순' : '낮은 순'})`}
+        {showReviews && (
+          <div id="review-list-section" className="space-y-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+              {/* 작성가능한리뷰 */}
+              <div
+                ref={dropdownRef}
+                className="flex flex-col border border-gray-300 ring-2 ring-orange-200 rounded-xl bg-white 
+                  min-w-[200px] sm:max-w-[240px] relative w-full"
               >
-                <FontAwesomeIcon
-                  icon={faStar}
-                  className={`text-lg transition-transform duration-200 ${ratingOrder === 'desc' ? 'text-yellow-400' : 'text-gray-400'}`}
-                  style={{ transform: ratingOrder === 'asc' ? 'rotate(180deg)' : 'none' }}
-                />
-              </button>
-              {/* 최신순 정렬 버튼 */}
-              <button
-                onClick={handleDateSort}
-                className={`w-9 h-9 flex items-center justify-center rounded-full border border-gray-200 bg-white hover:bg-gray-100 ${sortType === 'date' ? 'ring-2 ring-blue-200' : ''}`}
-                title={`최신순 (${dateOrder === 'desc' ? '최신순' : '오래된순'})`}
-              >
-                <FontAwesomeIcon
-                  icon={faClock}
-                  className={`text-lg transition-transform duration-200 ${dateOrder === 'desc' ? 'text-blue-500' : 'text-gray-400'}`}
-                  style={{ transform: dateOrder === 'asc' ? 'rotate(180deg)' : 'none' }}
-                />
-              </button>
-              {/* 새로고침 버튼 */}
-              <button onClick={handleRefresh} className="w-9 h-9 flex items-center justify-center rounded-full border border-gray-200 bg-white hover:bg-gray-100" title="새로고침">
-                <FontAwesomeIcon icon={faRotateRight} className="text-gray-500 text-lg" />
-              </button>
-            </div>
-          </div>
-
-          {pagedReviews.map(review => (
-            <div key={review.id} className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center mb-2">
-                <span className="font-semibold text-blue-600 mr-2">{review.user}</span>
-                <span className="text-xs text-gray-400">{review.time}</span>
-                <span className="ml-3 flex items-center">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <svg
-                      key={i}
-                      className={`w-4 h-4 ${i < review.rating ? 'text-yellow-400' : 'text-gray-300'}`}
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.967a1 1 0 00.95.69h4.175c.969 0 1.371 1.24.588 1.81l-3.38 2.455a1 1 0 00-.364 1.118l1.287 3.966c.3.922-.755 1.688-1.54 1.118l-3.38-2.454a1 1 0 00-1.175 0l-3.38 2.454c-.784.57-1.838-.196-1.54-1.118l1.287-3.966a1 1 0 00-.364-1.118L2.05 9.394c-.783-.57-.38-1.81.588-1.81h4.175a1 1 0 00.95-.69l1.286-3.967z" />
-                    </svg>
-                  ))}
-                </span>
-              </div>
-              <div className="mb-4 text-gray-900">{review.content}</div>
-              {review.reply && (
-                <div className="bg-gray-50 border-l-4 border-blue-400 p-3 text-sm text-gray-700 mt-2">
-                  <div className="flex items-center mb-1">
-                    <span className="font-bold text-blue-600">애드모어</span>
-                    <span className="text-xs text-gray-400 ml-2">{review.replyTime}</span>
+                <button
+                  type="button"
+                  className="flex items-center justify-between px-3 py-2 text-left transition-colors group w-full"
+                  onClick={() => setShowReviewableDropdown(v => !v)}
+                  aria-expanded={showReviewableDropdown}
+                >
+                  <span className="text-gray-700 text-sm font-semibold flex items-center group-hover:text-orange-500 transition-colors">
+                    <FontAwesomeIcon
+                      icon={faPen}
+                      className="text-gray-500 mr-2 text-xs group-hover:text-orange-500 transition-colors"
+                      onClick={e => {
+                        e.stopPropagation();
+                        setShowReviewableDropdown(false);
+                      }}
+                    />
+                    작성 가능한 리뷰:
+                    <span className="text-orange-500 text-sm font-bold ml-2 group-hover:text-orange-600 transition-colors">
+                      {reviewableOrders.length}개
+                    </span>
+                  </span>
+                  <span className="ml-2 group-hover:text-orange-500 transition-colors">
+                    {showReviewableDropdown ? (
+                      <svg width="16" height="16" fill="none" viewBox="0 0 24 24">
+                        <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    ) : (
+                      <svg width="16" height="16" fill="none" viewBox="0 0 24 24">
+                        <path d="M18 15l-6-6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    )}
+                  </span>
+                </button>
+                {showReviewableDropdown && reviewableOrders.length > 0 && (
+                  <div className="mt-[1px] bg-white absolute top-full left-0 w-full shadow-xl shadow-gray-300 border border-gray-200 rounded-xl py-2">
+                    <div className="flex flex-col">
+                      {reviewableOrders.map((order, idx) => (
+                        <button
+                          key={order.orderId}
+                          className={`flex flex-col items-center justify-start text-left gap-1 py-2 px-4 hover:bg-orange-50
+                            transition-colors border-b border-gray-200 ${idx === reviewableOrders.length - 1 ? 'border-b-0' : ''}`}
+                          onClick={() => navigate(`/products/${order.productId}`, { 
+                            state: { 
+                              fromOrder: true,
+                              orderId: order.orderId 
+                            } 
+                          })}
+                        >
+                          <span className="text-sm font-medium text-gray-700 block w-full">{order.product}</span>
+                          <span className="text-xs text-orange-500 font-semibold text-right block w-full hover:underline">리뷰 작성 →</span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <span>{review.reply}</span>
+                )}
+                {showReviewableDropdown && reviewableOrders.length === 0 && (
+                  <div className="border-t border-gray-200 p-3 bg-gray-50">
+                    <span className="text-sm text-gray-500">작성 가능한 리뷰가 없습니다.</span>
+                  </div>
+                )}
+              </div>
+              <div className="flex justify-end items-center space-x-2 w-full">
+                {/* 검색창 */}
+                <div className="relative w-full flex justify-end items-center">
+                  <input
+                    type="text"
+                    placeholder="검색어를 입력해 주세요."
+                    className="border border-gray-300 rounded-xl px-3 py-2 pr-10 text-sm 
+                     focus:outline-none focus:ring-2 focus:ring-orange-200 min-w-[200px] sm:max-w-[240px] w-full"
+                    value={search}
+                    onChange={e => { setSearch(e.target.value); setCurrentPage(1); }}
+                  />
+                  <span className="absolute right-3 top-2 text-gray-400">
+                    <svg width="18" height="18" fill="none" viewBox="0 0 24 24">
+                      <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" />
+                    </svg>
+                  </span>
                 </div>
-              )}
-              <div className="text-sm text-gray-600 mt-4 border border-orange-200 p-2 rounded-lg flex items-center justify-between">
-                <span className="text-gray-500 font-semibold text-sm">{review.product}</span>
-                <button className="text-sm font-semibold ml-2 px-2 py-1 text-orange-500 hover:text-blue-700">상담받기 →</button>
+                {/* 정렬 버튼 그룹 */}
+                <div className="flex items-center space-x-2">
+                  {/* 별점 정렬 버튼 */}
+                  <button
+                    onClick={handleRatingSort}
+                    className={`w-9 h-9 flex items-center justify-center rounded-full border border-gray-200 bg-white hover:bg-gray-100 ${sortType === 'rating' ? 'ring-2 ring-yellow-200' : ''}`}
+                    title={`별점순 (${ratingOrder === 'desc' ? '높은 순' : '낮은 순'})`}
+                  >
+                    <FontAwesomeIcon
+                      icon={faStar}
+                      className={`text-lg transition-transform duration-200 ${ratingOrder === 'desc' ? 'text-yellow-400' : 'text-gray-400'}`}
+                      style={{ transform: ratingOrder === 'asc' ? 'rotate(180deg)' : 'none' }}
+                    />
+                  </button>
+                  {/* 최신순 정렬 버튼 */}
+                  <button
+                    onClick={handleDateSort}
+                    className={`w-9 h-9 flex items-center justify-center rounded-full border border-gray-200 bg-white hover:bg-gray-100 ${sortType === 'date' ? 'ring-2 ring-blue-200' : ''}`}
+                    title={`최신순 (${dateOrder === 'desc' ? '최신순' : '오래된순'})`}
+                  >
+                    <FontAwesomeIcon
+                      icon={faClock}
+                      className={`text-lg transition-transform duration-200 ${dateOrder === 'desc' ? 'text-blue-500' : 'text-gray-400'}`}
+                      style={{ transform: dateOrder === 'asc' ? 'rotate(180deg)' : 'none' }}
+                    />
+                  </button>
+                  {/* 새로고침 버튼 */}
+                  <button onClick={handleRefresh} className="w-9 h-9 flex items-center justify-center rounded-full border border-gray-200 bg-white hover:bg-gray-100" title="새로고침">
+                    <FontAwesomeIcon icon={faRotateRight} className="text-gray-500 text-lg" />
+                  </button>
+                </div>
               </div>
             </div>
-          ))}
-        </div>
+            
+
+            {pagedReviews.map(review => (
+              <div key={review.id} className="bg-white rounded-lg shadow p-6">
+                <div className="flex flex-col xxs:flex-row xxs:items-center mb-2 gap-1 sm:gap-0">
+                  <div className="flex items-center">
+                    <span className="font-semibold text-blue-600 mr-2">{review.user}</span>
+                    <span className="flex items-center mr-3">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <svg
+                          key={i}
+                          className={`w-4 h-4 ${i < review.rating ? 'text-yellow-400' : 'text-gray-300'}`}
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.967a1 1 0 00.95.69h4.175c.969 0 1.371 1.24.588 1.81l-3.38 2.455a1 1 0 00-.364 1.118l1.287 3.966c.3.922-.755 1.688-1.54 1.118l-3.38-2.454a1 1 0 00-1.175 0l-3.38 2.454c-.784.57-1.838-.196-1.54-1.118l1.287-3.966a1 1 0 00-.364-1.118L2.05 9.394c-.783-.57-.38-1.81.588-1.81h4.175a1 1 0 00.95-.69l1.286-3.967z" />
+                        </svg>
+                      ))}
+                    </span>
+                  </div>
+                  <span className="text-xs text-gray-400">{review.time}</span>
+                </div>
+                <div className="text-sm mb-4 text-gray-900 font-normal">{review.content}</div>
+                {review.reply && (
+                  <div className="bg-gray-50 border-l-4 border-blue-400 p-3 text-sm text-gray-700 mt-2">
+                    <div className="flex xxs:items-center xxs:flex-row flex-col mb-1">
+                      <span className="font-bold text-blue-600 mr-2">애드모어</span>
+                      <span className="text-xs text-gray-400">{review.replyTime}</span>
+                    </div>
+                    <span>{review.reply}</span>
+                  </div>
+                )}
+                <div className="text-sm text-gray-600 mt-4 border border-orange-200 p-2 rounded-lg">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex flex-col gap-1">
+                      <div 
+                        className="flex items-center gap-2 cursor-pointer hover:text-orange-600 transition-colors"
+                        onClick={() => handleProductClick(review)}
+                      >
+                        <span className="text-gray-700 font-semibold text-sm hover:text-orange-600">{review.product}</span>
+                      </div>
+                      {getProductInfo(review) && (
+                        <div 
+                          className="flex items-center gap-2 cursor-pointer hover:text-orange-600 transition-colors"
+                          onClick={() => handleProductClick(review)}
+                        >
+                          <span className="text-xs text-gray-500 hover:text-orange-600">{getProductInfo(review)?.category}</span>
+                        </div>
+                      )}
+                    </div>
+                    <button 
+                      className="text-sm font-semibold px-3 py-3 text-orange-600 min-w-[40px] max-w-[50px] sm:max-w-none sm:flex-row flex-col
+                        hover:text-orange-800 bg-orange-50 hover:bg-orange-100 rounded-md transition-colors flex items-center gap-1"
+                      onClick={() => handleConsultation(review)}
+                    >
+                      <FontAwesomeIcon icon={faComments} className="text-xs sm:block hidden" />
+                      <span className="text-xs ">상담하기</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Pagination */}
-        <div className="flex justify-center mt-10 space-x-1">
-          <button
-            className="text-xs px-3 py-1 rounded bg-white border text-gray-700 disabled:opacity-50"
-            onClick={() => handlePageChange(currentPage - 1)}
-            disabled={currentPage === 1}
-          >
-            이전
-          </button>
-          {pageNumbers[0] > 1 && (
-            <span className="px-2 py-1 text-gray-400">...</span>
-          )}
-          {pageNumbers.map(page => (
+        {showReviews && (
+          <div className="flex justify-center mt-10 space-x-1">
             <button
-              key={page}
-              className={`text-xs px-3 py-1 font-semibold rounded border ${
-                page === currentPage
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : 'bg-white text-gray-500 border-gray-300'
-              }`}
-              onClick={() => handlePageChange(page)}
+              className="text-xs px-3 py-1 rounded bg-white border text-gray-700 disabled:opacity-50"
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
             >
-              {page}
+              이전
             </button>
-          ))}
-          {pageNumbers[pageNumbers.length - 1] < totalPages && (
-            <span className="px-2 py-1 text-gray-400">...</span>
-          )}
-          <button
-            className="text-xs px-3 py-1 rounded bg-white border text-gray-700 disabled:opacity-50"
-            onClick={() => handlePageChange(currentPage + 1)}
-            disabled={currentPage === totalPages}
-          >
-            다음
-          </button>
-        </div>
+            {pageNumbers[0] > 1 && (
+              <span className="px-2 py-1 text-gray-400">...</span>
+            )}
+            {pageNumbers.map(page => (
+              <button
+                key={page}
+                className={`text-xs px-3 py-1 font-semibold rounded border ${
+                  page === currentPage
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-white text-gray-500 border-gray-300'
+                }`}
+                onClick={() => handlePageChange(page)}
+              >
+                {page}
+              </button>
+            ))}
+            {pageNumbers[pageNumbers.length - 1] < totalPages && (
+              <span className="px-2 py-1 text-gray-400">...</span>
+            )}
+            <button
+              className="text-xs px-3 py-1 rounded bg-white border text-gray-700 disabled:opacity-50"
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+            >
+              다음
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
