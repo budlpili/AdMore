@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { products as initialProducts, getProducts, saveProducts, resetProducts } from '../data/products';
 import { mockReviews } from '../data/reviews-list';
 import { defaultUsers, User } from '../data/users';
+import { defaultOrderList } from '../data/orderdata';
 import ProductManagement from '../components/ProductManagement';
 import { Product } from '../types';
 
@@ -17,7 +18,19 @@ interface Order {
   quantity: number;
   status: string;
   review: string;
-  price: number;
+  price: string;
+  originalPrice?: string;
+  discountPrice?: string;
+  paymentMethod?: string;
+  paymentDate?: string;
+  refundStatus?: string;
+  confirmStatus?: string;
+  detail?: string;
+  request?: string;
+  image?: string;
+  paymentNumber?: string;
+  userName?: string;
+  userEmail?: string;
 }
 
 interface Review {
@@ -63,6 +76,7 @@ const Admin: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [selectedReview, setSelectedReview] = useState<Review | null>(null);
+  const [selectedPaymentOrder, setSelectedPaymentOrder] = useState<Order | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const [isNotificationDropdownOpen, setIsNotificationDropdownOpen] = useState(false);
@@ -182,10 +196,18 @@ const Admin: React.FC = () => {
   const loadOrders = () => {
     try {
       const orderList = JSON.parse(localStorage.getItem('orderList') || '[]');
-      setOrders(orderList);
+      if (orderList.length === 0) {
+        // 기본 주문 데이터가 없으면 기본 데이터 사용
+        localStorage.setItem('orderList', JSON.stringify(defaultOrderList));
+        setOrders(defaultOrderList);
+      } else {
+        setOrders(orderList);
+      }
     } catch (error) {
       console.error('주문 로드 에러:', error);
-      setOrders([]);
+      // 에러 발생 시 기본 데이터 사용
+      localStorage.setItem('orderList', JSON.stringify(defaultOrderList));
+      setOrders(defaultOrderList);
     }
   };
 
@@ -337,7 +359,21 @@ const Admin: React.FC = () => {
   const filteredOrders = orders.filter(order => {
     const matchesSearch = (order.product?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
                          (order.orderId?.toLowerCase() || '').includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
+    
+    // 상태 필터링 로직 (UserPage와 동일)
+    let matchesStatus = true;
+    if (statusFilter !== 'all') {
+      if (statusFilter === '가상계좌발급') {
+        matchesStatus = order.paymentMethod === '가상계좌' && (!order.paymentDate || order.paymentDate === '-');
+      } else if (statusFilter === '작업완료') {
+        matchesStatus = order.status === '작업완료' && order.confirmStatus !== '구매완료';
+      } else if (statusFilter === '구매완료') {
+        matchesStatus = order.status === '작업완료' && order.confirmStatus === '구매완료';
+      } else {
+        matchesStatus = order.status === statusFilter;
+      }
+    }
+    
     return matchesSearch && matchesStatus;
   });
 
@@ -1070,12 +1106,20 @@ const Admin: React.FC = () => {
                         <span className="font-semibold">{totalOrders}건</span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-gray-600">완료</span>
-                        <span className="font-semibold text-green-600">{orders.filter(o => o.status === '완료').length}건</span>
+                        <span className="text-gray-600">가상계좌발급</span>
+                        <span className="font-semibold text-yellow-600">{orders.filter(o => o.paymentMethod === '가상계좌' && (!o.paymentDate || o.paymentDate === '-')).length}건</span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-gray-600">대기중</span>
-                        <span className="font-semibold text-yellow-600">{orders.filter(o => o.status === '대기중').length}건</span>
+                        <span className="text-gray-600">진행 중</span>
+                        <span className="font-semibold text-blue-600">{orders.filter(o => o.status === '진행 중').length}건</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">작업완료</span>
+                        <span className="font-semibold text-green-600">{orders.filter(o => o.status === '작업완료' && o.confirmStatus !== '구매완료').length}건</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">구매완료</span>
+                        <span className="font-semibold text-purple-600">{orders.filter(o => o.status === '작업완료' && o.confirmStatus === '구매완료').length}건</span>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-gray-600">취소</span>
@@ -1133,8 +1177,8 @@ const Admin: React.FC = () => {
                         <FontAwesomeIcon icon={faEye} className="text-yellow-600" />
                       </div>
                       <div className="ml-3">
-                        <p className="text-sm text-gray-600">대기중</p>
-                        <p className="text-xl font-bold">{orders.filter(o => o.status === '대기중').length}</p>
+                        <p className="text-sm text-gray-600">가상계좌발급</p>
+                        <p className="text-xl font-bold">{orders.filter(o => o.paymentMethod === '가상계좌' && (!o.paymentDate || o.paymentDate === '-')).length}</p>
                       </div>
                     </div>
                   </div>
@@ -1144,19 +1188,19 @@ const Admin: React.FC = () => {
                         <FontAwesomeIcon icon={faCheck} className="text-green-600" />
                       </div>
                       <div className="ml-3">
-                        <p className="text-sm text-gray-600">완료</p>
-                        <p className="text-xl font-bold">{orders.filter(o => o.status === '완료').length}</p>
+                        <p className="text-sm text-gray-600">작업완료</p>
+                        <p className="text-xl font-bold">{orders.filter(o => o.status === '작업완료' && o.confirmStatus !== '구매완료').length}</p>
                       </div>
                     </div>
                   </div>
                   <div className="bg-white p-4 rounded-lg shadow">
                     <div className="flex items-center">
-                      <div className="p-2 bg-red-100 rounded-lg">
-                        <FontAwesomeIcon icon={faTimes} className="text-red-600" />
+                      <div className="p-2 bg-purple-100 rounded-lg">
+                        <FontAwesomeIcon icon={faStar} className="text-purple-600" />
                       </div>
                       <div className="ml-3">
-                        <p className="text-sm text-gray-600">취소</p>
-                        <p className="text-xl font-bold">{orders.filter(o => o.status === '취소').length}</p>
+                        <p className="text-sm text-gray-600">구매완료</p>
+                        <p className="text-xl font-bold">{orders.filter(o => o.status === '작업완료' && o.confirmStatus === '구매완료').length}</p>
                       </div>
                     </div>
                   </div>
@@ -1164,13 +1208,13 @@ const Admin: React.FC = () => {
 
                 {/* 검색 및 필터 */}
                 <div className="bg-white p-4 rounded-lg shadow mb-6">
-                  <div className="flex flex-col md:flex-row gap-4">
+                  <div className="flex flex-col lg:flex-row gap-4">
                     <div className="flex-1">
                       <div className="relative">
                         <FontAwesomeIcon icon={faSearch} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                         <input
                           type="text"
-                          placeholder="주문 검색..."
+                          placeholder="주문번호, 상품명으로 검색..."
                           value={searchTerm}
                           onChange={(e) => setSearchTerm(e.target.value)}
                           className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
@@ -1185,8 +1229,10 @@ const Admin: React.FC = () => {
                         className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                       >
                         <option value="all">전체 상태</option>
-                        <option value="대기중">대기중</option>
-                        <option value="완료">완료</option>
+                        <option value="가상계좌발급">가상계좌발급</option>
+                        <option value="진행 중">진행 중</option>
+                        <option value="작업완료">작업완료</option>
+                        <option value="구매완료">구매완료</option>
                         <option value="취소">취소</option>
                       </select>
                     </div>
@@ -1201,10 +1247,13 @@ const Admin: React.FC = () => {
                         <tr>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">주문번호</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">상품</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">날짜</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">주문일</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">수량</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">상태</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">액션</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">결제방법</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">결제상태</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">주문상태</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">금액</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">관리</th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
@@ -1213,29 +1262,90 @@ const Admin: React.FC = () => {
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{order.orderId}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{order.product}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{order.date}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{order.quantity}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{order.quantity}개</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{order.paymentMethod || '카드결제'}</td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              {(() => {
+                                let label = '';
+                                let color = '';
+                                if (order.refundStatus === '카드결제취소') {
+                                  label = '카드결제취소';
+                                  color = 'bg-red-100 text-red-600';
+                                } else if (order.refundStatus === '계좌입금완료') {
+                                  label = '계좌입금완료';
+                                  color = 'bg-red-100 text-red-600';
+                                } else if (order.paymentDate === '-' || !order.paymentDate) {
+                                  label = '입금전';
+                                  color = 'bg-yellow-100 text-yellow-600';
+                                } else if (order.paymentMethod === '가상계좌') {
+                                  label = '입금완료';
+                                  color = 'bg-green-100 text-green-600';
+                                } else {
+                                  label = '결제완료';
+                                  color = 'bg-blue-50 text-blue-500';
+                                }
+                                return (
+                                  <span className={`inline-flex text-xs font-semibold px-2 py-1 rounded-full ${color}`}>
+                                    {label}
+                                  </span>
+                                );
+                              })()}
+                            </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                order.status === '완료' ? 'bg-green-100 text-green-800' :
-                                order.status === '대기중' ? 'bg-yellow-100 text-yellow-800' :
-                                'bg-red-100 text-red-800'
+                                order.status === '작업완료' ? 'bg-green-100 text-green-800' :
+                                order.status === '진행 중' ? 'bg-blue-100 text-blue-800' :
+                                order.status === '취소' ? 'bg-red-100 text-red-800' :
+                                'bg-gray-100 text-gray-800'
                               }`}>
                                 {order.status}
                               </span>
                             </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {(() => {
+                                // price 문자열에서 숫자만 추출 (예: "50,000원" -> 50000)
+                                const priceNumber = parseInt(order.price.replace(/[^\d]/g, '')) || 0;
+                                const quantity = order.quantity || 1;
+                                return (priceNumber * quantity).toLocaleString() + '원';
+                              })()}
+                            </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                              <button
-                                onClick={() => updateOrderStatus(order.orderId, '완료')}
-                                className="text-green-600 hover:text-green-900 mr-2"
-                              >
-                                완료
-                              </button>
-                              <button
-                                onClick={() => updateOrderStatus(order.orderId, '취소')}
-                                className="text-red-600 hover:text-red-900"
-                              >
-                                취소
-                              </button>
+                              <div className="flex flex-wrap gap-1">
+                                <button
+                                  onClick={() => setSelectedPaymentOrder(order)}
+                                  className="text-blue-600 hover:text-blue-900 text-xs px-2 py-1 rounded border border-blue-300 hover:bg-blue-50"
+                                >
+                                  결제내역
+                                </button>
+                                {order.status === '진행 중' && (
+                                  <button
+                                    onClick={() => updateOrderStatus(order.orderId, '작업완료')}
+                                    className="text-green-600 hover:text-green-900 text-xs px-2 py-1 rounded border border-green-300 hover:bg-green-50"
+                                  >
+                                    작업완료
+                                  </button>
+                                )}
+                                {order.status === '작업완료' && order.confirmStatus !== '구매완료' && (
+                                  <button
+                                    onClick={() => {
+                                      const updatedOrders = orders.map(o => 
+                                        o.orderId === order.orderId ? { ...o, confirmStatus: '구매완료' } : o
+                                      );
+                                      setOrders(updatedOrders);
+                                      localStorage.setItem('orderList', JSON.stringify(updatedOrders));
+                                    }}
+                                    className="text-blue-600 hover:text-blue-900 text-xs px-2 py-1 rounded border border-blue-300 hover:bg-blue-50"
+                                  >
+                                    구매확정
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => updateOrderStatus(order.orderId, '취소')}
+                                  className="text-red-600 hover:text-red-900 text-xs px-2 py-1 rounded border border-red-300 hover:bg-red-50"
+                                >
+                                  취소
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -1738,7 +1848,11 @@ const Admin: React.FC = () => {
                 <p><strong>주문일:</strong> {selectedOrder.date}</p>
                 <p><strong>수량:</strong> {selectedOrder.quantity}개</p>
                 <p><strong>상태:</strong> {selectedOrder.status}</p>
-                <p><strong>가격:</strong> {(selectedOrder.price * selectedOrder.quantity).toLocaleString()}원</p>
+                <p><strong>가격:</strong> {(() => {
+                  const priceNumber = parseInt(selectedOrder.price.replace(/[^\d]/g, '')) || 0;
+                  const quantity = selectedOrder.quantity || 1;
+                  return (priceNumber * quantity).toLocaleString() + '원';
+                })()}</p>
               </div>
               <div className="mt-6 flex justify-end">
                 <button
@@ -1776,6 +1890,143 @@ const Admin: React.FC = () => {
               <div className="mt-6 flex justify-end">
                 <button
                   onClick={() => setSelectedReview(null)}
+                  className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
+                >
+                  닫기
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 결제내역 모달 */}
+      {selectedPaymentOrder && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">결제내역 상세</h3>
+              <div className="space-y-3">
+                <div className="border-b border-gray-200 pb-2">
+                  <p className="text-sm font-medium text-gray-600">주문번호</p>
+                  <p className="text-sm text-gray-900">{selectedPaymentOrder.orderId}</p>
+                </div>
+                <div className="border-b border-gray-200 pb-2">
+                  <p className="text-sm font-medium text-gray-600">결제번호</p>
+                  <p className="text-sm text-gray-900">
+                    {selectedPaymentOrder.paymentNumber || `PAY-${selectedPaymentOrder.orderId.replace('-', '')}`}
+                  </p>
+                </div>
+                <div className="border-b border-gray-200 pb-2">
+                  <p className="text-sm font-medium text-gray-600">주문자</p>
+                  <p className="text-sm text-gray-900">{selectedPaymentOrder.userName || '고객'}</p>
+                </div>
+                <div className="border-b border-gray-200 pb-2">
+                  <p className="text-sm font-medium text-gray-600">이메일</p>
+                  <p className="text-sm text-gray-900">{selectedPaymentOrder.userEmail || 'customer@example.com'}</p>
+                </div>
+                <div className="border-b border-gray-200 pb-2">
+                  <p className="text-sm font-medium text-gray-600">상품명</p>
+                  <p className="text-sm text-gray-900">{selectedPaymentOrder.product}</p>
+                </div>
+                <div className="border-b border-gray-200 pb-2">
+                  <p className="text-sm font-medium text-gray-600">주문일</p>
+                  <p className="text-sm text-gray-900">{selectedPaymentOrder.date}</p>
+                </div>
+                <div className="border-b border-gray-200 pb-2">
+                  <p className="text-sm font-medium text-gray-600">수량</p>
+                  <p className="text-sm text-gray-900">{selectedPaymentOrder.quantity}개</p>
+                </div>
+                <div className="border-b border-gray-200 pb-2">
+                  <p className="text-sm font-medium text-gray-600">결제방법</p>
+                  <p className="text-sm text-gray-900">{selectedPaymentOrder.paymentMethod || '카드결제'}</p>
+                </div>
+                <div className="border-b border-gray-200 pb-2">
+                  <p className="text-sm font-medium text-gray-600">결제일</p>
+                  <p className="text-sm text-gray-900">
+                    {selectedPaymentOrder.paymentDate === '-' || !selectedPaymentOrder.paymentDate ? '입금전' : selectedPaymentOrder.paymentDate}
+                  </p>
+                </div>
+                <div className="border-b border-gray-200 pb-2">
+                  <p className="text-sm font-medium text-gray-600">결제상태</p>
+                  <p className="text-sm">
+                    {(() => {
+                      let label = '';
+                      let color = '';
+                      if (selectedPaymentOrder.refundStatus === '카드결제취소') {
+                        label = '카드결제취소';
+                        color = 'text-red-600';
+                      } else if (selectedPaymentOrder.refundStatus === '계좌입금완료') {
+                        label = '계좌입금완료';
+                        color = 'text-red-600';
+                      } else if (selectedPaymentOrder.paymentDate === '-' || !selectedPaymentOrder.paymentDate) {
+                        label = '입금전';
+                        color = 'text-yellow-600';
+                      } else if (selectedPaymentOrder.paymentMethod === '가상계좌') {
+                        label = '입금완료';
+                        color = 'text-green-600';
+                      } else {
+                        label = '결제완료';
+                        color = 'text-blue-600';
+                      }
+                      return <span className={color}>{label}</span>;
+                    })()}
+                  </p>
+                </div>
+                <div className="border-b border-gray-200 pb-2">
+                  <p className="text-sm font-medium text-gray-600">주문상태</p>
+                  <p className="text-sm">
+                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                      selectedPaymentOrder.status === '작업완료' ? 'bg-green-100 text-green-800' :
+                      selectedPaymentOrder.status === '진행 중' ? 'bg-blue-100 text-blue-800' :
+                      selectedPaymentOrder.status === '취소' ? 'bg-red-100 text-red-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
+                      {selectedPaymentOrder.status}
+                    </span>
+                  </p>
+                </div>
+                <div className="border-b border-gray-200 pb-2">
+                  <p className="text-sm font-medium text-gray-600">단가</p>
+                  <p className="text-sm text-gray-900">{selectedPaymentOrder.price}</p>
+                </div>
+                <div className="border-b border-gray-200 pb-2">
+                  <p className="text-sm font-medium text-gray-600">총 결제금액</p>
+                  <p className="text-sm font-semibold text-red-600">
+                    {(() => {
+                      const priceNumber = parseInt(selectedPaymentOrder.price.replace(/[^\d]/g, '')) || 0;
+                      const quantity = selectedPaymentOrder.quantity || 1;
+                      return (priceNumber * quantity).toLocaleString() + '원';
+                    })()}
+                  </p>
+                </div>
+                {selectedPaymentOrder.originalPrice && selectedPaymentOrder.originalPrice !== selectedPaymentOrder.price && (
+                  <div className="border-b border-gray-200 pb-2">
+                    <p className="text-sm font-medium text-gray-600">할인정보</p>
+                    <p className="text-sm text-gray-900">
+                      <span className="line-through text-gray-400">{selectedPaymentOrder.originalPrice}</span>
+                      {selectedPaymentOrder.discountPrice && selectedPaymentOrder.discountPrice !== '0원' && (
+                        <span className="text-green-600 ml-2">(할인: {selectedPaymentOrder.discountPrice})</span>
+                      )}
+                    </p>
+                  </div>
+                )}
+                {selectedPaymentOrder.request && (
+                  <div className="border-b border-gray-200 pb-2">
+                    <p className="text-sm font-medium text-gray-600">요청사항</p>
+                    <p className="text-sm text-gray-900">{selectedPaymentOrder.request}</p>
+                  </div>
+                )}
+                {selectedPaymentOrder.refundStatus && (
+                  <div className="border-b border-gray-200 pb-2">
+                    <p className="text-sm font-medium text-gray-600">환불상태</p>
+                    <p className="text-sm text-red-600">{selectedPaymentOrder.refundStatus}</p>
+                  </div>
+                )}
+              </div>
+              <div className="mt-6 flex justify-end">
+                <button
+                  onClick={() => setSelectedPaymentOrder(null)}
                   className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
                 >
                   닫기

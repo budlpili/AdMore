@@ -1748,6 +1748,7 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                           <tr className="bg-gray-50">
                             <th className="p-2 border">결제번호</th>
                             <th className="p-2 border">상품명</th>
+                            <th className="p-2 border">주문자</th>
                             <th className="p-2 border">가격정보</th>
                             <th className="p-2 border">결제방법</th>
                             <th className="p-2 border">결제(입금)일</th>
@@ -1757,7 +1758,7 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                         <tbody>
                           {paymentsCurrentItems.length === 0 ? (
                             <tr>
-                              <td colSpan={6} className="text-center text-gray-400 py-16">결제한 내역이 없습니다.</td>
+                              <td colSpan={7} className="text-center text-gray-400 py-16">결제한 내역이 없습니다.</td>
                             </tr>
                           ) : (
                             paymentsCurrentItems.map((order: Order) => {
@@ -1765,7 +1766,7 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                                 <tr key={order.orderId}>
                                   <td className="p-2 border min-w-[100px]">
                                     <div>
-                                      <div className="">PAY-{order.orderId.replace('-', '')}</div>
+                                      <div className="">{order.paymentNumber || `PAY-${order.orderId.replace('-', '')}`}</div>
                                       <div className="text-gray-500 text-[10px]">({order.orderId})</div>
                                     </div>
                                   </td>
@@ -1778,6 +1779,12 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                                         {order.product}
                                       </Link>
                                       <div className="text-gray-500 text-[10px]">({order.detail})</div>
+                                    </div>
+                                  </td>
+                                  <td className="p-2 border min-w-[80px] text-center">
+                                    <div>
+                                      <div className="text-xs font-medium">{order.userName || '고객'}</div>
+                                      <div className="text-gray-500 text-[10px]">{order.userEmail || 'customer@example.com'}</div>
                                     </div>
                                   </td>
                                   <td className="p-2 border min-w-[100px] text-right">
@@ -1940,8 +1947,12 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                               <div className="text-xs text-gray-600 mb-1">{order.detail}</div>
                               <div className="flex flex-col text-xs text-gray-600 gap-x-4 gap-y-1 mb-2">
                                 <div className="flex flex-wrap text-xs text-gray-600 gap-x-4 gap-y-1">
-                                  <div>결제번호: <span className="font-medium">PAY-{order.orderId.replace('-', '')}</span></div>
+                                  <div>결제번호: <span className="font-medium">{order.paymentNumber || `PAY-${order.orderId.replace('-', '')}`}</span></div>
+                                  <div>주문자: <span className="font-medium">{order.userName || '고객'}</span></div>
+                                </div>
+                                <div className="flex flex-wrap text-xs text-gray-600 gap-x-4 gap-y-1">
                                   <div>결제방식: <span className="font-medium">{order.paymentMethod}</span></div>
+                                  <div>이메일: <span className="font-medium">{order.userEmail || 'customer@example.com'}</span></div>
                                 </div>
                                 <div className="flex flex-wrap text-xs text-gray-600 gap-x-4 gap-y-1">
                                   <div>결제일: <span className="font-medium">{order.paymentDate === '-' || !order.paymentDate ? '입금전' : order.paymentDate}</span></div>

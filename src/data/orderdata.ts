@@ -16,6 +16,9 @@ export interface Order {
   paymentMethod: string;
   refundStatus: string;
   confirmStatus: string;
+  paymentNumber?: string;
+  userName?: string;
+  userEmail?: string;
 }
 
 // 기본 주문 데이터
@@ -38,6 +41,9 @@ export const defaultOrderList: Order[] = [
     paymentMethod: '신용카드',
     refundStatus: '',
     confirmStatus: '구매확정전',
+    paymentNumber: 'PAY-20240601001',
+    userName: '김철수',
+    userEmail: 'kim@example.com',
   },
   {
     orderId: '20240601-002',
@@ -57,6 +63,9 @@ export const defaultOrderList: Order[] = [
     paymentMethod: '가상계좌',
     refundStatus: '',
     confirmStatus: '구매확정전',
+    paymentNumber: 'PAY-20240601002',
+    userName: '이영희',
+    userEmail: 'lee@example.com',
   },
   {
     orderId: '20240601-003',
@@ -76,6 +85,9 @@ export const defaultOrderList: Order[] = [
     paymentMethod: '카카오페이',
     refundStatus: '',
     confirmStatus: '구매확정전',
+    paymentNumber: 'PAY-20240601003',
+    userName: '박민수',
+    userEmail: 'park@example.com',
   },
   {
     orderId: '20240601-004',
@@ -95,6 +107,9 @@ export const defaultOrderList: Order[] = [
     paymentMethod: '신용카드',
     refundStatus: '',
     confirmStatus: '구매확정전',
+    paymentNumber: 'PAY-20240601004',
+    userName: '최지영',
+    userEmail: 'choi@example.com',
   },
   {
     orderId: '20240601-005',
@@ -114,6 +129,9 @@ export const defaultOrderList: Order[] = [
     paymentMethod: '네이버페이',
     refundStatus: '',
     confirmStatus: '구매완료',
+    paymentNumber: 'PAY-20240601005',
+    userName: '정수진',
+    userEmail: 'jung@example.com',
   },
   {
     orderId: '20240601-006',
@@ -133,5 +151,8 @@ export const defaultOrderList: Order[] = [
     paymentMethod: '신용카드',
     refundStatus: '',
     confirmStatus: '구매확정전',
+    paymentNumber: 'PAY-20240601006',
+    userName: '한소희',
+    userEmail: 'han@example.com',
   }
 ]; 
