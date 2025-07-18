@@ -47,34 +47,6 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
   const [backgroundFile, setBackgroundFile] = useState<File | null>(null);
   const [backgroundPreview, setBackgroundPreview] = useState<string>('');
 
-  // Calculate original price function
-  const calculateOriginalPrice = (price: number, discountRate: number): number => {
-    if (price === 0) return 0;
-    if (discountRate <= 0) return price;
-    if (discountRate >= 100) return 0;
-    
-    return Math.round(price / (1 - discountRate / 100));
-  };
-
-  // Calculate discount rate function
-  const calculateDiscountRate = (originalPrice: number, sellingPrice: number): number => {
-    if (originalPrice === 0 || sellingPrice === 0) return 0;
-    if (sellingPrice >= originalPrice) return 0;
-    
-    return Math.round(((originalPrice - sellingPrice) / originalPrice) * 100);
-  };
-
-  // Format number with thousand separators
-  const formatNumber = (value: string | number): string => {
-    const num = typeof value === 'string' ? parseFloat(value) || 0 : value;
-    return num.toLocaleString('ko-KR');
-  };
-
-  // Parse formatted number back to number
-  const parseFormattedNumber = (value: string): string => {
-    return value.replace(/,/g, '');
-  };
-
   // Get unique categories from products and custom categories
   const productCategories = useMemo(() => 
     Array.from(new Set(products.map(p => p.category).filter(Boolean))), 
@@ -102,12 +74,26 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
     return calculateOriginalPrice(price, discountRate);
   }, [formData.price, formData.discountRate]);
 
-  // Calculate discount rate based on original price and selling price
-  const calculatedDiscountRate = useMemo(() => {
-    const originalPrice = parseFloat(formData.originalPrice) || 0;
-    const sellingPrice = parseFloat(formData.price) || 0;
-    return calculateDiscountRate(originalPrice, sellingPrice);
-  }, [formData.originalPrice, formData.price]);
+  // 디버깅을 위한 로그 (개발 중에만 사용)
+  console.log('Products categories:', products.map(p => ({ id: p.id, name: p.name, category: p.category, tags: p.tags })));
+  console.log('Unique product categories:', productCategories);
+  console.log('All categories (including custom):', categories);
+  console.log('Unique product tags:', productTags);
+  console.log('All tags (including custom):', allTags);
+
+  // 카테고리 드롭다운 디버깅
+  useEffect(() => {
+    if (isCategoryDropdownOpen) {
+      console.log('Category dropdown opened with:', { productCategories, customCategories, categories });
+    }
+  }, [isCategoryDropdownOpen, productCategories, customCategories, categories]);
+
+  // 태그 드롭다운 디버깅
+  useEffect(() => {
+    if (isTagDropdownOpen) {
+      console.log('Tag dropdown opened with:', { productTags, customTags, allTags, selectedTags });
+    }
+  }, [isTagDropdownOpen, productTags, customTags, allTags, selectedTags]);
 
   // 드롭다운 외부 클릭 시 닫기
   useEffect(() => {
@@ -192,6 +178,7 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
       resetForm();
     }
     setIsFormOpen(true);
+    // 부모 컴포넌트에 상태 변경 알림
     onFormStateChange?.(true, product || null);
   };
 
@@ -199,17 +186,20 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
     setIsFormOpen(false);
     setEditingProduct(null);
     resetForm();
+    // 부모 컴포넌트에 상태 변경 알림
     onFormStateChange?.(false, null);
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'background') => {
     const file = e.target.files?.[0];
     if (file) {
+      // 파일 크기 검증 (5MB 제한)
       if (file.size > 5 * 1024 * 1024) {
         alert('이미지 파일 크기는 5MB 이하여야 합니다.');
         return;
       }
 
+      // 파일 타입 검증
       if (!file.type.startsWith('image/')) {
         alert('이미지 파일만 업로드 가능합니다.');
         return;
@@ -226,6 +216,9 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
           setBackgroundPreview(result);
         }
       };
+      reader.onerror = () => {
+        alert('이미지 파일을 읽는 중 오류가 발생했습니다.');
+      };
       reader.readAsDataURL(file);
     }
   };
@@ -233,47 +226,36 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    const newProduct: Product = {
+      id: editingProduct?.id || Date.now(),
+      name: formData.name,
+      description: formData.description,
+      detailedDescription: formData.detailedDescription,
+      originalPrice: parseInt(formData.originalPrice) || 0,
+      price: parseInt(formData.price) || 0,
+      discountRate: parseInt(formData.discountRate) || 0,
+      category: formData.category,
+      image: imagePreview,
+      background: backgroundPreview,
+      stock: parseInt(formData.stock) || 0,
+      status: formData.status,
+      tags: selectedTags,
+      specifications: formData.specifications,
+      clickCount: editingProduct?.clickCount || 0,
+      rating: editingProduct?.rating || 0,
+      reviewCount: editingProduct?.reviewCount || 0,
+      createdAt: editingProduct?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    let updatedProducts: Product[];
     if (editingProduct) {
-      const updatedProducts = products.map(p => 
-        p.id === editingProduct.id ? { 
-          ...p, 
-          name: formData.name,
-          description: formData.description,
-          detailedDescription: formData.detailedDescription,
-          price: parseFloat(formData.price),
-          originalPrice: parseFloat(formData.originalPrice),
-          discountRate: calculatedDiscountRate,
-          category: formData.category,
-          stock: parseInt(formData.stock) || 0,
-          status: formData.status,
-          tags: selectedTags,
-          specifications: formData.specifications,
-          image: imagePreview,
-          background: backgroundPreview
-        } : p
-      );
-      onProductsChange(updatedProducts);
+      updatedProducts = products.map(p => p.id === editingProduct.id ? newProduct : p);
     } else {
-      const newProduct: Product = {
-        id: Math.max(...products.map(p => p.id), 0) + 1,
-        name: formData.name,
-        description: formData.description,
-        detailedDescription: formData.detailedDescription,
-        price: parseFloat(formData.price),
-        originalPrice: parseFloat(formData.originalPrice),
-        discountRate: calculatedDiscountRate,
-        category: formData.category,
-        stock: parseInt(formData.stock) || 0,
-        status: formData.status,
-        tags: selectedTags,
-        specifications: formData.specifications,
-        image: imagePreview,
-        background: backgroundPreview,
-        createdAt: new Date().toISOString()
-      };
-      onProductsChange([...products, newProduct]);
+      updatedProducts = [...products, newProduct];
     }
-    
+
+    onProductsChange(updatedProducts);
     closeForm();
   };
 
@@ -286,7 +268,9 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
 
   const toggleProductStatus = (productId: number) => {
     const updatedProducts = products.map(p => 
-      p.id === productId ? { ...p, status: (p.status === 'active' ? 'inactive' : 'active') as 'active' | 'inactive' } : p
+      p.id === productId 
+        ? { ...p, status: (p.status === 'active' ? 'inactive' : 'active') as 'active' | 'inactive' }
+        : p
     );
     onProductsChange(updatedProducts);
   };
@@ -298,6 +282,7 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
       setFormData({...formData, category: trimmedCategory});
       setNewCategory('');
       setIsAddCategoryModalOpen(false);
+      setIsCategoryDropdownOpen(false);
     }
   };
 
@@ -305,29 +290,37 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
     const trimmedTag = newTag.trim();
     if (trimmedTag && !allTags.includes(trimmedTag)) {
       setCustomTags(prev => [...prev, trimmedTag]);
-      setSelectedTags(prev => [...prev, trimmedTag]);
       setNewTag('');
       setIsAddTagModalOpen(false);
+      setIsTagDropdownOpen(false);
     }
   };
 
   const toggleTag = (tag: string) => {
-    setSelectedTags(prev => 
-      prev.includes(tag) 
-        ? prev.filter(t => t !== tag)
-        : [...prev, tag]
-    );
+    setSelectedTags(prev => {
+      if (prev.includes(tag)) {
+        return prev.filter(t => t !== tag);
+      } else {
+        return [...prev, tag];
+      }
+    });
   };
 
   const removeTag = (tagToRemove: string) => {
     setSelectedTags(prev => prev.filter(tag => tag !== tagToRemove));
   };
 
+  // 원가 계산 함수
+  const calculateOriginalPrice = (price: number, discountRate: number): number => {
+    if (discountRate <= 0) return price;
+    if (discountRate >= 100) return 0; // 할인율이 100% 이상이면 원가는 0
+    return Math.round(price / (1 - discountRate / 100));
+  };
+
+  // 데이터 초기화 함수 (개발 중에만 사용)
   const resetData = () => {
-    if (window.confirm('모든 데이터를 초기화하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
+    if (window.confirm('모든 상품 데이터를 초기화하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
       localStorage.removeItem('products');
-      localStorage.removeItem('customCategories');
-      localStorage.removeItem('customTags');
       window.location.reload();
     }
   };
@@ -336,6 +329,8 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
   if (!isFormOpen) {
     return (
       <div className="space-y-6">
+        
+
         {/* Statistics */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="bg-white p-4 rounded-lg border">
@@ -420,9 +415,10 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
                 />
               </div>
             </div>
+            
           </div>
 
-          <div className="flex justify-end items-center gap-2 mt-4">
+          <div className="flex justify-end items-center gap-2">
             <button
               onClick={resetData}
               className="bg-red-600 text-white text-xs font-bold px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
@@ -464,7 +460,7 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
                           alt={product.name} 
                           className="w-12 h-12 rounded-lg object-cover mr-3"
                           onError={(e) => {
-                            e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0zMCAzMEg3MFY3MEgzMFYzMFoiIGZpbGw9IiNEM0Q3RDAiLz4KPHN2ZyB4PSIzNSIgeT0iMzUiIHdpZHRoPSIzMCIgaGVpZ2h0PSIzMCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8cGF0aCBkPSJNMTkgM0g1QzMuOSAzIDMgMy45IDMgNVYxOUMzIDIwLjEgMy45IDIxIDUgMjFIMTlDMjAuMSAyMSAyMSAyMC4xIDIxIDE5VjVDMjEgMy45IDIwLjEgMyAxOSAzWk0xOSAxOUg1VjVIMTlWMTlaIiBmaWxsPSIjOUI5QkEwIi8+CjxwYXRoIGQ9Ik0xNCAxNEgxMFYxMEgxNFYxNFpNMTQgMThIMFYxN0gxNFYxOFoiIGZpbGw9IiM5QjlCQTAiLz4KPC9zdmc+Cjwvc3ZnPgo=';
+                            e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0zMCAzMEg3MFY3MEgzMFYzMFoiIGZpbGw9IiNEM0Q3RDAiLz4KPHN2ZyB4PSIzNSIgeT0iMzUiIHdpZHRoPSIzMCIgaGVpZ2h0PSIzMCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8cGF0aCBkPSJNMTkgM0g1QzMuOSAzIDMgMy45IDMgNVYxOUMzIDIwLjEgMy45IDIxIDUgMjFIMTlDMjAuMSAyMSAyMSAyMC4xIDIxIDE5VjVDMjEgMy45IDIwLjEgMyAxOSAzWk0xOSAxOUg1VjVIMTlWMTlaIiBmaWxsPSIjOUI5QkEwIi8+CjxwYXRoIGQ9Ik0xNCAxNEgxMFYxMEgxNFYxNFpNMTQgMThIMFYxN0gxNFYxOFoiIGZpbGw9IiM5QjlCQTAiLz4KPC9zdmc+Cjwvc3ZnPgo='; // 기본 이미지로 대체
                           }}
                         />
                         <div>
@@ -579,19 +575,35 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
           >
             <FontAwesomeIcon icon={faArrowLeft} />
           </button>
-          
+          {/* Form Actions */}
+          <div className="flex justify-end space-x-3">
+            <button
+              type="button"
+              onClick={closeForm}
+              className="px-4 py-2 border border-gray-300 rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-50"
+            >
+              취소
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-orange-600 text-white rounded-lg text-xs font-medium hover:bg-orange-700"
+            >
+              {editingProduct ? '수정' : '등록'}
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Product Form */}
       <div className="bg-white rounded-lg border p-6">
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 border border-red-500">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Basic Information */}
-            <div className="space-y-4 h-full">
+            <div className="space-y-4">
               <div className="flex flex-row gap-4">
                 {/* Image Upload */}
                 <div className="w-full h-full max-w-[240px] min-w-[200px] flex flex-col">
+                  {/* <label className="block text-xs font-semibold text-gray-700 mb-2">상품 이미지</label> */}
                   <div className="flex-1 border-2 border-dashed border-gray-300 rounded-lg p-4 text-center 
                       flex flex-col justify-center items-center min-h-[200px]">
                     <input
@@ -629,41 +641,39 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
                 <div className="flex flex-col gap-4 w-full">
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 mb-2">
-                      {/* 상품명 <span className="text-red-500">*</span> */}
+                      상품명 <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
                       required
                       value={formData.name}
                       onChange={(e) => setFormData({...formData, name: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none"
-                      placeholder="상품명을 입력해주세요 (필수)"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none"
                     />
                   </div>
                   
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-2">
-                      {/* 간단 설명 */}
-                    </label>
+                    <label className="block text-xs font-semibold text-gray-700 mb-2">간단 설명</label>
                     <textarea
                       value={formData.description}
                       onChange={(e) => setFormData({...formData, description: e.target.value})}
                       rows={2}
-                      placeholder="간단 설명을 입력해주세요 (필수)"
-                      className="resize-none w-full px-3 py-2 border border-gray-300 rounded-lg text-xs 
+                      className="resize-none w-full px-3 py-2 border border-gray-300 rounded-lg text-sm 
                       focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none h-[100px] min-h-[100px]"
                     />
                   </div>
                 </div>
               </div>
+              
             </div>
             
             {/* Pricing and Status */}
-            <div className="space-y-4 h-full">
+            <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
+
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 mb-2">
-                    {/* 카테고리 <span className="text-red-500">*</span> */}
+                    카테고리 <span className="text-red-500">*</span>
                   </label>
                   <div className="relative category-dropdown">
                     <div
@@ -681,12 +691,14 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
                     
                     {isCategoryDropdownOpen && (
                       <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
+                        {/* 기존 카테고리 */}
                         {productCategories.length > 0 && (
                           <>
                             {productCategories.map((category) => (
                               <div
                                 key={category}
                                 onClick={() => {
+                                  console.log('Selected category:', category);
                                   setFormData({...formData, category});
                                   setIsCategoryDropdownOpen(false);
                                 }}
@@ -701,10 +713,12 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
                           </>
                         )}
                         
+                        {/* 새로 추가된 카테고리 */}
                         {customCategories.map((category) => (
                           <div
                             key={category}
                             onClick={() => {
+                              console.log('Selected custom category:', category);
                               setFormData({...formData, category});
                               setIsCategoryDropdownOpen(false);
                             }}
@@ -714,6 +728,7 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
                           </div>
                         ))}
                         
+                        {/* 새 카테고리 추가 버튼 */}
                         <div className="border-t border-gray-200">
                           <div
                             onClick={() => {
@@ -730,9 +745,147 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
                   </div>
                 </div>
                 <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-2">태그</label>
+                  <div className="relative tag-dropdown">
+                    <div
+                      onClick={() => setIsTagDropdownOpen(!isTagDropdownOpen)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none cursor-pointer bg-white flex items-center justify-between min-h-[40px]"
+                    >
+                      <div className="flex flex-wrap gap-1 flex-1">
+                        {selectedTags.length > 0 ? (
+                          selectedTags.map((tag) => (
+                            <span
+                              key={tag}
+                              className="inline-flex items-center gap-1 px-2 py-1 bg-orange-100 text-orange-800 text-xs rounded-full"
+                            >
+                              {tag}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  removeTag(tag);
+                                }}
+                                className="text-orange-600 hover:text-orange-800"
+                              >
+                                <FontAwesomeIcon icon={faTimes} className="text-xs" />
+                              </button>
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-gray-500">태그를 선택하세요</span>
+                        )}
+                      </div>
+                      <FontAwesomeIcon 
+                        icon={faCaretDown} 
+                        className={`text-gray-400 transition-transform ${isTagDropdownOpen ? 'rotate-180' : ''}`}
+                      />
+                    </div>
+                    
+                    {isTagDropdownOpen && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
+                        {/* 기존 태그 */}
+                        {productTags.length > 0 && (
+                          <>
+                            {productTags.map((tag) => (
+                              <div
+                                key={tag}
+                                onClick={() => toggleTag(tag)}
+                                className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-100 first:rounded-t-lg flex items-center justify-between ${
+                                  selectedTags.includes(tag) ? 'bg-orange-50 text-orange-700' : ''
+                                }`}
+                              >
+                                <span>{tag}</span>
+                                {selectedTags.includes(tag) && (
+                                  <FontAwesomeIcon icon={faTimes} className="text-orange-600 text-xs" />
+                                )}
+                              </div>
+                            ))}
+                            {customTags.length > 0 && (
+                              <div className="border-t border-gray-200"></div>
+                            )}
+                          </>
+                        )}
+                        
+                        {/* 새로 추가된 태그 */}
+                        {customTags.map((tag) => (
+                          <div
+                            key={tag}
+                            onClick={() => toggleTag(tag)}
+                            className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-100 text-blue-600 flex items-center justify-between ${
+                              selectedTags.includes(tag) ? 'bg-orange-50 text-orange-700' : ''
+                            }`}
+                          >
+                            <span>{tag} (새로 추가됨)</span>
+                            {selectedTags.includes(tag) && (
+                              <FontAwesomeIcon icon={faTimes} className="text-orange-600 text-xs" />
+                            )}
+                          </div>
+                        ))}
+                        
+                        {/* 새 태그 추가 버튼 */}
+                        <div className="border-t border-gray-200">
+                          <div
+                            onClick={() => {
+                              setIsAddTagModalOpen(true);
+                              setIsTagDropdownOpen(false);
+                            }}
+                            className="px-3 py-2 text-sm cursor-pointer hover:bg-gray-100 text-orange-600 font-medium last:rounded-b-lg"
+                          >
+                            + 새 태그 추가
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+                
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-2">할인율 (%)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={formData.discountRate}
+                    onChange={(e) => setFormData({...formData, discountRate: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none"
+                    placeholder="0-100 사이의 값"
+                  />
+                  {/* <p className="text-xs text-gray-500 mt-1">할인율을 입력하면 원가가 자동으로 계산됩니다</p> */}
+                </div>
+                <div>
                   <label className="block text-xs font-semibold text-gray-700 mb-2">
-                    {/* 상태 */}
+                    판매가 <span className="text-red-500">*</span>
                   </label>
+                  <input
+                    type="number"
+                    min="0"
+                    required
+                    value={formData.price}
+                    onChange={(e) => setFormData({...formData, price: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none"
+                    placeholder="판매가를 입력하세요"
+                  />
+                  {/* <p className="text-xs text-gray-500 mt-1">판매가를 입력하면 원가가 자동으로 계산됩니다</p> */}
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-2">원가</label>
+                  <input
+                    type="number"
+                    value={calculatedOriginalPrice}
+                    readOnly
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-gray-50 text-gray-700 cursor-not-allowed"
+                    placeholder="할인율과 판매가를 입력하면 자동으로 계산됩니다"
+                  />
+                  
+                </div>
+                
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-2">상태</label>
                   <select
                     value={formData.status}
                     onChange={(e) => setFormData({...formData, status: e.target.value as 'active' | 'inactive'})}
@@ -744,148 +897,7 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
                 </div>
               </div>
               
-              <div className="col-span-2">
-                {/* <label className="block text-xs font-semibold text-gray-700 mb-2">태그</label> */}
-                <div className="relative tag-dropdown">
-                  <div
-                    onClick={() => setIsTagDropdownOpen(!isTagDropdownOpen)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none cursor-pointer bg-white flex items-center justify-between min-h-[40px]"
-                  >
-                    <div className="flex flex-wrap gap-1 flex-1">
-                      {selectedTags.length > 0 ? (
-                        selectedTags.map((tag) => (
-                          <span
-                            key={tag}
-                            className="inline-flex items-center gap-1 px-2 py-1 bg-orange-100 text-orange-800 text-xs rounded-full"
-                          >
-                            {tag}
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                removeTag(tag);
-                              }}
-                              className="text-orange-600 hover:text-orange-800"
-                            >
-                              <FontAwesomeIcon icon={faTimes} className="text-xs" />
-                            </button>
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-gray-500">태그를 선택하세요</span>
-                      )}
-                    </div>
-                    <FontAwesomeIcon 
-                      icon={faCaretDown} 
-                      className={`text-gray-400 transition-transform ${isTagDropdownOpen ? 'rotate-180' : ''}`}
-                    />
-                  </div>
-                  
-                  {isTagDropdownOpen && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
-                      {productTags.length > 0 && (
-                        <>
-                          {productTags.map((tag) => (
-                            <div
-                              key={tag}
-                              onClick={() => toggleTag(tag)}
-                              className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-100 first:rounded-t-lg flex items-center justify-between ${
-                                selectedTags.includes(tag) ? 'bg-orange-50 text-orange-700' : ''
-                              }`}
-                            >
-                              <span>{tag}</span>
-                              {selectedTags.includes(tag) && (
-                                <FontAwesomeIcon icon={faTimes} className="text-orange-600 text-xs" />
-                              )}
-                            </div>
-                          ))}
-                          {customTags.length > 0 && (
-                            <div className="border-t border-gray-200"></div>
-                          )}
-                        </>
-                      )}
-                      
-                      {customTags.map((tag) => (
-                        <div
-                          key={tag}
-                          onClick={() => toggleTag(tag)}
-                          className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-100 text-blue-600 flex items-center justify-between ${
-                            selectedTags.includes(tag) ? 'bg-orange-50 text-orange-700' : ''
-                          }`}
-                        >
-                          <span>{tag} (새로 추가됨)</span>
-                          {selectedTags.includes(tag) && (
-                            <FontAwesomeIcon icon={faTimes} className="text-orange-600 text-xs" />
-                          )}
-                        </div>
-                      ))}
-                      
-                      <div className="border-t border-gray-200">
-                        <div
-                          onClick={() => {
-                            setIsAddTagModalOpen(true);
-                            setIsTagDropdownOpen(false);
-                          }}
-                          className="px-3 py-2 text-sm cursor-pointer hover:bg-gray-100 text-orange-600 font-medium last:rounded-b-lg"
-                        >
-                          + 새 태그 추가
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
               
-              <div className="grid grid-cols-5 gap-4">
-                <div className="col-span-2">
-                  <label className="block text-xs font-semibold text-gray-700 mb-2">
-                    {/* 원가 <span className="text-red-500">*</span> */}
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.originalPrice ? formatNumber(formData.originalPrice) : ''}
-                    onChange={(e) => {
-                      const rawValue = parseFormattedNumber(e.target.value);
-                      if (rawValue === '' || /^\d*$/.test(rawValue)) {
-                        setFormData({...formData, originalPrice: rawValue});
-                      }
-                    }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none"
-                    placeholder="원가를 입력하세요"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <label className="block text-xs font-semibold text-gray-700 mb-2">
-                    {/* 판매가 <span className="text-red-500">*</span> */}
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.price ? formatNumber(formData.price) : ''}
-                    onChange={(e) => {
-                      const rawValue = parseFormattedNumber(e.target.value);
-                      if (rawValue === '' || /^\d*$/.test(rawValue)) {
-                        setFormData({...formData, price: rawValue});
-                      }
-                    }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none"
-                    placeholder="판매가를 입력하세요"
-                  />
-                </div>
-                <div className="">
-                  <label className="block text-xs font-semibold text-gray-700 mb-2">
-                    {/* 할인율 (%) */}
-                    </label>
-                  <input
-                    type="number"
-                    value={calculatedDiscountRate}
-                    readOnly
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-gray-50 text-gray-700 cursor-not-allowed"
-                    placeholder="자동 계산"
-                  />
-                </div>
-              </div>
             </div>
           </div>
 
