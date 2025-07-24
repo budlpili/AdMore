@@ -7,6 +7,7 @@ export interface Order {
   price: string;
   originalPrice: string;
   discountPrice: string;
+  finalPrice?: number; // 추가
   request: string;
   date: string;
   paymentDate: string;

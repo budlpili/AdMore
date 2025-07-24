@@ -1,14 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBox, faStar, faChartLine, faCog, faSearch, faFilter, faEdit, faTrash, faCheck, faTimes, faEye, faHome, faSignOutAlt, faBars, faChevronLeft, faComments, faBell, faUser, faCaretDown, faChevronRight } from '@fortawesome/free-solid-svg-icons';
+import { faBars, faBell, faUser, faCog, faSignOutAlt, faHome, faShoppingCart, faUsers, faComments, faStar, faChartBar, faBox, faTachometerAlt, faChevronDown, faSearch, faEye, faEdit, faTrash, faPlus, faTimes, faCheck, faXmark, faCaretDown, faChevronLeft, faChevronRight, faSync } from '@fortawesome/free-solid-svg-icons';
 import { faStar as faStarRegular } from '@fortawesome/free-regular-svg-icons';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { products as initialProducts, getProducts, saveProducts, resetProducts } from '../data/products';
 import { mockReviews } from '../data/reviews-list';
 import { defaultUsers, User } from '../data/users';
 import { defaultOrderList } from '../data/orderdata';
 import ProductManagement from '../components/ProductManagement';
 import { Product } from '../types';
+import { productAPI, authAPI } from '../services/api';
 
 interface Order {
   orderId: string;
@@ -21,6 +22,7 @@ interface Order {
   price: string;
   originalPrice?: string;
   discountPrice?: string;
+  finalPrice?: number;
   paymentMethod?: string;
   paymentDate?: string;
   refundStatus?: string;
@@ -65,6 +67,7 @@ interface SidebarItem {
 
 const Admin: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'orders' | 'reviews' | 'customerService' | 'users'>('dashboard');
   const [activeSubTab, setActiveSubTab] = useState<'notices' | 'faq' | 'inquiries'>('notices');
   const [orders, setOrders] = useState<Order[]>([]);
@@ -81,6 +84,7 @@ const Admin: React.FC = () => {
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const [isNotificationDropdownOpen, setIsNotificationDropdownOpen] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   // 상품 관리 관련 상태
   const [isProductFormOpen, setIsProductFormOpen] = useState(false);
@@ -96,6 +100,7 @@ const Admin: React.FC = () => {
   const [usersPerPage, setUsersPerPage] = useState(10);
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
+  const [isOrderStatusDropdownOpen, setIsOrderStatusDropdownOpen] = useState(false);
 
   // 반응형 사이드바 상태 관리
   useEffect(() => {
@@ -123,41 +128,85 @@ const Admin: React.FC = () => {
     };
   }, []);
 
-  // 데이터 로드
+  // 컴포넌트 마운트 시 데이터 로드
   useEffect(() => {
-    loadOrders();
-    loadReviews();
-    loadChatMessages();
-    loadUsers();
-    loadProducts();
-  }, []);
+    const initializeData = async () => {
+      try {
+        setIsLoading(true);
+        
+        // URL 파라미터에서 탭 설정
+        const params = new URLSearchParams(location.search);
+        const tabParam = params.get('tab');
+        if (tabParam && ['dashboard', 'products', 'orders', 'reviews', 'customerService', 'users'].includes(tabParam)) {
+          setActiveTab(tabParam as any);
+        }
+        
+        // location.state에서 새로운 주문 정보 확인
+        if (location.state?.newOrder) {
+          console.log('새로운 주문이 감지되었습니다:', location.state.newOrder);
+          // 새로운 주문이 있으면 주문 탭으로 이동
+          setActiveTab('orders');
+        }
+        
+        // 자동 관리자 로그인
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+          const loginResult = await authAPI.adminLogin('admin@admore.com', 'admin123');
+          if (loginResult) {
+            localStorage.setItem('authToken', loginResult.token);
+            console.log('관리자 로그인 완료');
+          } else {
+            console.error('관리자 로그인 실패');
+          }
+        }
 
-  const loadProducts = () => {
+        // 모든 데이터 로드
+        await Promise.all([
+          loadProducts(),
+          loadOrders(),
+          loadReviews(),
+          loadChatMessages(),
+          loadUsers()
+        ]);
+      } catch (error) {
+        console.error('데이터 초기화 에러:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initializeData();
+  }, [location.search, location.state]);
+
+  const loadProducts = async () => {
     try {
-      const productList = getProducts();
-      // blob URL이 있는지 확인
-      const hasBlobUrls = productList.some(product => 
-        (product.image && product.image.startsWith('blob:')) || 
-        (product.background && product.background.startsWith('blob:'))
-      );
+      // 타임아웃 설정 (5초)
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('요청 시간 초과')), 5000);
+      });
+
+      // 백엔드에서 모든 상품 가져오기
+      const productPromise = productAPI.getAllProducts();
       
-      if (hasBlobUrls) {
-        console.log('Blob URL 발견, localStorage 초기화 중...');
-        resetProducts();
-        setProducts(initialProducts);
-      } else {
+      const productList = await Promise.race([productPromise, timeoutPromise]) as Product[];
+      
+      if (productList && productList.length > 0) {
         setProducts(productList);
+      } else {
+        // 백엔드에 데이터가 없으면 기본 데이터 사용
+        console.log('백엔드에 상품 데이터가 없어 기본 데이터를 사용합니다.');
+        setProducts(initialProducts);
       }
     } catch (error) {
       console.error('상품 로드 에러:', error);
-      resetProducts();
+      // 에러 발생 시 기본 데이터 사용
       setProducts(initialProducts);
     }
   };
 
   const handleProductsChange = (updatedProducts: Product[]) => {
     setProducts(updatedProducts);
-    saveProducts(updatedProducts);
+    // 백엔드 API를 사용하므로 localStorage 저장은 제거
   };
 
   // 상품 폼 상태 변경 핸들러
@@ -180,13 +229,18 @@ const Admin: React.FC = () => {
       if (isProfileDropdownOpen && !target.closest('.profile-dropdown')) {
         setIsProfileDropdownOpen(false);
       }
+
+      // 주문 상태 드롭다운 외부 클릭 시 닫기
+      if (isOrderStatusDropdownOpen && !target.closest('.order-status-dropdown')) {
+        setIsOrderStatusDropdownOpen(false);
+      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isNotificationDropdownOpen, isProfileDropdownOpen]);
+  }, [isNotificationDropdownOpen, isProfileDropdownOpen, isOrderStatusDropdownOpen]);
 
   // 필터 변경 시 페이지 리셋
   useEffect(() => {
@@ -196,12 +250,45 @@ const Admin: React.FC = () => {
   const loadOrders = () => {
     try {
       const orderList = JSON.parse(localStorage.getItem('orderList') || '[]');
+      
       if (orderList.length === 0) {
         // 기본 주문 데이터가 없으면 기본 데이터 사용
         localStorage.setItem('orderList', JSON.stringify(defaultOrderList));
         setOrders(defaultOrderList);
       } else {
-        setOrders(orderList);
+        // 새로운 주문 형식과 기존 형식을 호환하도록 변환
+        const convertedOrders = orderList.map((order: any) => {
+          // 새로운 주문 형식인 경우
+          if (order.productName) {
+            const convertedOrder = {
+              orderId: order.orderId,
+              productId: order.productId,
+              product: order.productName,
+              date: order.date,
+              quantity: order.quantity,
+              status: order.status,
+              review: order.review || '리뷰 작성하기',
+              price: order.finalPrice?.toString() || order.price?.toString() || '0',
+              originalPrice: order.originalPrice?.toString() || '',
+              discountPrice: order.price?.toString() || '',
+              finalPrice: order.finalPrice,
+              paymentMethod: order.payment || '신용카드',
+              paymentDate: order.paymentDate || order.date,
+              refundStatus: order.refundStatus || '환불대기',
+              confirmStatus: order.confirmStatus || '확인대기',
+              detail: order.requirements || '',
+              request: order.requirements || '',
+              image: order.productImage || '',
+              paymentNumber: order.paymentNumber || '',
+              userName: order.userName || '고객',
+              userEmail: order.userEmail || 'customer@example.com'
+            };
+            return convertedOrder;
+          }
+          // 기존 형식인 경우 그대로 사용
+          return order;
+        });
+        setOrders(convertedOrders);
       }
     } catch (error) {
       console.error('주문 로드 에러:', error);
@@ -248,18 +335,110 @@ const Admin: React.FC = () => {
 
   // 주문 상태 변경
   const updateOrderStatus = (orderId: string, newStatus: string) => {
+    const updatedOrders = orders.map(order => {
+      if (order.orderId === orderId) {
+        // 작업완료 상태일 때 confirmStatus를 '구매확정'으로 설정 (유저가 버튼을 눌러야 함)
+        if (newStatus === '작업완료') {
+          return { ...order, status: newStatus, confirmStatus: '구매확정' };
+        }
+        return { ...order, status: newStatus };
+      }
+      return order;
+    });
+    setOrders(updatedOrders);
+    localStorage.setItem('orderList', JSON.stringify(updatedOrders));
+    
+    // paymentList도 함께 업데이트
     try {
-      const orderList = JSON.parse(localStorage.getItem('orderList') || '[]');
-      const updatedOrderList = orderList.map((order: Order) => {
+      const existingPayments = JSON.parse(localStorage.getItem('paymentList') || '[]');
+      const updatedPayments = existingPayments.map((payment: any) => {
+        if (payment.orderId === orderId) {
+          if (newStatus === '작업완료') {
+            return { ...payment, status: newStatus, confirmStatus: '구매확정' };
+          }
+          return { ...payment, status: newStatus };
+        }
+        return payment;
+      });
+      localStorage.setItem('paymentList', JSON.stringify(updatedPayments));
+    } catch (error) {
+      console.error('결제내역 업데이트 중 오류:', error);
+    }
+  };
+
+  // 입금 확인 함수
+  const confirmPayment = (orderId: string) => {
+    if (window.confirm('입금을 확인하시겠습니까?\n\n입금 확인 후에는 취소할 수 있습니다.')) {
+      const updatedOrders = orders.map(order => {
         if (order.orderId === orderId) {
-          return { ...order, status: newStatus };
+          return { 
+            ...order, 
+            paymentDate: new Date().toISOString()
+            // refundStatus는 설정하지 않음 (정상적인 입금완료 상태)
+          };
         }
         return order;
       });
-      localStorage.setItem('orderList', JSON.stringify(updatedOrderList));
-      setOrders(updatedOrderList);
-    } catch (error) {
-      console.error('주문 상태 업데이트 에러:', error);
+      setOrders(updatedOrders);
+      localStorage.setItem('orderList', JSON.stringify(updatedOrders));
+      
+      // paymentList도 함께 업데이트
+      try {
+        const existingPayments = JSON.parse(localStorage.getItem('paymentList') || '[]');
+        const updatedPayments = existingPayments.map((payment: any) => {
+          if (payment.orderId === orderId) {
+            return { 
+              ...payment, 
+              paymentDate: new Date().toISOString()
+              // refundStatus는 설정하지 않음
+            };
+          }
+          return payment;
+        });
+        localStorage.setItem('paymentList', JSON.stringify(updatedPayments));
+      } catch (error) {
+        console.error('결제내역 업데이트 중 오류:', error);
+      }
+      
+      alert('입금 확인이 완료되었습니다.');
+    }
+  };
+
+  // 입금완료 취소 함수
+  const cancelPayment = (orderId: string) => {
+    if (window.confirm('입금완료를 취소하시겠습니까?\n\n입금확인전 상태로 되돌립니다.')) {
+      const updatedOrders = orders.map(order => {
+        if (order.orderId === orderId) {
+          return { 
+            ...order, 
+            paymentDate: '-'
+            // refundStatus는 설정하지 않음
+          };
+        }
+        return order;
+      });
+      setOrders(updatedOrders);
+      localStorage.setItem('orderList', JSON.stringify(updatedOrders));
+      
+      // paymentList도 함께 업데이트
+      try {
+        const existingPayments = JSON.parse(localStorage.getItem('paymentList') || '[]');
+        const updatedPayments = existingPayments.map((payment: any) => {
+          if (payment.orderId === orderId) {
+            return { 
+              ...payment, 
+              paymentDate: '-'
+              // refundStatus는 설정하지 않음
+            };
+          }
+          return payment;
+        });
+        localStorage.setItem('paymentList', JSON.stringify(updatedPayments));
+      } catch (error) {
+        console.error('결제내역 업데이트 중 오류:', error);
+      }
+      
+      alert('입금완료가 취소되었습니다.');
     }
   };
 
@@ -432,6 +611,120 @@ const Admin: React.FC = () => {
     }
   };
 
+  // 상품관리 탭 클릭 시 무조건 목록으로 이동
+  const handleSidebarTabClick = (tabId: string) => {
+    if (tabId === 'products') {
+      setActiveTab('products');
+      setIsProductFormOpen(false);
+      setEditingProduct(null);
+      setIsMobileSidebarOpen(false); // 모바일에서도 닫기
+    } else if (['dashboard', 'orders', 'reviews', 'customerService', 'users'].includes(tabId)) {
+      setActiveTab(tabId as any);
+      setIsMobileSidebarOpen(false); // 모바일에서도 닫기
+    }
+  };
+
+  // 환불처리 함수
+  const handleRefund = (orderId: string) => {
+    if (window.confirm('환불을 처리하시겠습니까?\n\n환불 처리 후에는 되돌릴 수 없습니다.')) {
+      const updatedOrders = orders.map(order => {
+        if (order.orderId === orderId) {
+          let refundStatus = '카드결제취소';
+          if (order.paymentMethod === 'virtual' || order.paymentMethod === '가상계좌') {
+            refundStatus = '계좌환불완료';
+          }
+          return { 
+            ...order, 
+            refundStatus,
+            status: '취소'
+          };
+        }
+        return order;
+      });
+      setOrders(updatedOrders);
+      localStorage.setItem('orderList', JSON.stringify(updatedOrders));
+      
+      // paymentList도 함께 업데이트
+      try {
+        const existingPayments = JSON.parse(localStorage.getItem('paymentList') || '[]');
+        const updatedPayments = existingPayments.map((payment: any) => {
+          if (payment.orderId === orderId) {
+            let refundStatus = '카드결제취소';
+            if (payment.paymentMethod === 'virtual' || payment.paymentMethod === '가상계좌') {
+              refundStatus = '계좌환불완료';
+            }
+            return { 
+              ...payment, 
+              refundStatus,
+              status: '취소'
+            };
+          }
+          return payment;
+        });
+        localStorage.setItem('paymentList', JSON.stringify(updatedPayments));
+      } catch (error) {
+        console.error('결제내역 업데이트 중 오류:', error);
+      }
+      
+      alert('환불 처리가 완료되었습니다.');
+    }
+  };
+
+  // 환불요청 거절 함수
+  const rejectRefund = (orderId: string) => {
+    if (window.confirm('환불요청을 거절하시겠습니까?')) {
+      const updatedOrders = orders.map(order => 
+        order.orderId === orderId ? { ...order, refundStatus: '환불거절' } : order
+      );
+      setOrders(updatedOrders);
+      localStorage.setItem('orderList', JSON.stringify(updatedOrders));
+      
+      // paymentList도 함께 업데이트
+      try {
+        const existingPayments = JSON.parse(localStorage.getItem('paymentList') || '[]');
+        const updatedPayments = existingPayments.map((payment: any) => {
+          if (payment.orderId === orderId) {
+            return { ...payment, refundStatus: '환불거절' };
+          }
+          return payment;
+        });
+        localStorage.setItem('paymentList', JSON.stringify(updatedPayments));
+      } catch (error) {
+        console.error('결제내역 업데이트 중 오류:', error);
+      }
+      
+      alert('환불요청이 거절되었습니다.');
+    }
+  };
+
+  // 작업시작 함수
+  const startWork = (orderId: string) => {
+    if (window.confirm('작업을 시작하시겠습니까?\n\n주문 상태가 "진행 중"으로 변경됩니다.')) {
+      // orderList 업데이트
+      const updatedOrders = orders.map(order => 
+        order.orderId === orderId ? { ...order, status: '진행 중' } : order
+      );
+      setOrders(updatedOrders);
+      localStorage.setItem('orderList', JSON.stringify(updatedOrders));
+      
+      // paymentList도 함께 업데이트
+      try {
+        const existingPayments = JSON.parse(localStorage.getItem('paymentList') || '[]');
+        const updatedPayments = existingPayments.map((payment: any) => {
+          if (payment.orderId === orderId) {
+            return { ...payment, status: '진행 중' };
+          }
+          return payment;
+        });
+        localStorage.setItem('paymentList', JSON.stringify(updatedPayments));
+      } catch (error) {
+        console.error('결제내역 업데이트 중 오류:', error);
+      }
+      
+      alert('작업이 시작되었습니다. 주문 상태가 "진행 중"으로 변경되었습니다.');
+    }
+  };
+
   return (
     <div className="flex h-screen bg-gray-50">
       {/* 왼쪽 사이드바 - 데스크톱 */}
@@ -468,25 +761,7 @@ const Admin: React.FC = () => {
             {sidebarItems.map((item) => (
               <div key={item.id} className="relative group">
                 <button
-                  onClick={() => {
-                    if (item.action) {
-                      item.action();
-                    } else if (['dashboard', 'products', 'orders', 'reviews', 'customerService', 'users'].includes(item.id)) {
-                      if (item.id === 'customerService') {
-                        // 고객센터 클릭 시 서브메뉴 토글
-                        if (activeTab === 'customerService') {
-                          setActiveTab('dashboard'); // 서브메뉴 닫기
-                        } else {
-                          setActiveTab(item.id as 'dashboard' | 'products' | 'orders' | 'reviews' | 'customerService' | 'users');
-                          setActiveSubTab('notices');
-                        }
-                      } else if (item.id === 'users') {
-                        setActiveTab('users');
-                      } else {
-                        setActiveTab(item.id as 'dashboard' | 'products' | 'orders' | 'reviews' | 'customerService' | 'users');
-                      }
-                    }
-                  }}
+                  onClick={() => handleSidebarTabClick(item.id)}
                   className={`w-full h-12 flex items-center px-6 py-2 transition-all duration-500 ease-in-out ${
                     activeTab === item.id 
                       ? 'bg-orange-100 text-orange-600 border-r-2 border-orange-600 font-semibold' 
@@ -660,29 +935,7 @@ const Admin: React.FC = () => {
             {sidebarItems.map((item) => (
               <div key={item.id} className="relative group">
                 <button
-                  onClick={() => {
-                    if (item.action) {
-                      item.action();
-                    } else if (['dashboard', 'products', 'orders', 'reviews', 'customerService', 'users'].includes(item.id)) {
-                      if (item.id === 'customerService') {
-                        // 고객센터 클릭 시 서브메뉴 토글
-                        if (activeTab === 'customerService') {
-                          setActiveTab('dashboard'); // 서브메뉴 닫기
-                        } else {
-                          setActiveTab(item.id as 'dashboard' | 'products' | 'orders' | 'reviews' | 'customerService' | 'users');
-                          setActiveSubTab('notices');
-                        }
-                      } else if (item.id === 'users') {
-                        setActiveTab('users');
-                      } else {
-                        setActiveTab(item.id as 'dashboard' | 'products' | 'orders' | 'reviews' | 'customerService' | 'users');
-                      }
-                    }
-                    // 모바일에서는 서브메뉴가 없는 메뉴 클릭 시에만 사이드바 닫기
-                    if (!item.subItems) {
-                      setIsMobileSidebarOpen(false);
-                    }
-                  }}
+                  onClick={() => handleSidebarTabClick(item.id)}
                   className={`w-full h-12 flex items-center px-6 py-2 transition-all duration-500 ease-in-out ${
                     activeTab === item.id 
                       ? 'bg-orange-100 text-orange-600 border-r-2 border-orange-600 font-semibold' 
@@ -789,6 +1042,16 @@ const Admin: React.FC = () => {
 
       {/* 메인 컨텐츠 영역 */}
       <div className="flex-1 flex flex-col overflow-hidden">
+        {/* 로딩 오버레이 */}
+        {isLoading && (
+          <div className="fixed inset-0 bg-white bg-opacity-75 flex items-center justify-center z-50">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">데이터를 불러오는 중...</p>
+            </div>
+          </div>
+        )}
+        
         {/* 관리자 헤더 */}
         <header className="relative bg-white shadow-none border-b border-gray-200 px-6 py-2">
           <div className="flex items-center justify-between">
@@ -1087,6 +1350,7 @@ const Admin: React.FC = () => {
                         <span className={`px-2 py-1 text-xs rounded-full ${
                           order.status === '완료' ? 'bg-green-100 text-green-800' :
                           order.status === '대기중' ? 'bg-yellow-100 text-yellow-800' :
+                          order.status === '작업취소' ? 'bg-red-100 text-red-800' :
                           'bg-red-100 text-red-800'
                         }`}>
                           {order.status}
@@ -1209,107 +1473,279 @@ const Admin: React.FC = () => {
                 {/* 검색 및 필터 */}
                 <div className="bg-white p-4 rounded-lg shadow mb-6">
                   <div className="flex flex-col lg:flex-row gap-4">
+                    <div className="flex items-center gap-2">
+                      <div className="relative order-status-dropdown">
+                        <button
+                          onClick={() => setIsOrderStatusDropdownOpen(!isOrderStatusDropdownOpen)}
+                          className="text-sm px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 text-gray-500
+                          focus:ring-orange-500 focus:border-transparent bg-white text-left min-w-[140px] 
+                          flex items-center justify-between"
+                        >
+                          <span className="truncate">
+                            {statusFilter === 'all' ? '전체 상태' : statusFilter}
+                          </span>
+                          <FontAwesomeIcon 
+                            icon={faCaretDown} 
+                            className={`text-gray-400 transition-transform ${isOrderStatusDropdownOpen ? 'rotate-180' : ''} text-xs ml-2 flex-shrink-0`}
+                          />
+                        </button>
+                        
+                        {isOrderStatusDropdownOpen && (
+                          <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg">
+                            <div className="py-1">
+                              <button
+                                onClick={() => { setStatusFilter('all'); setIsOrderStatusDropdownOpen(false); }}
+                                className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
+                              >
+                                전체 상태
+                              </button>
+                              <button
+                                onClick={() => { setStatusFilter('가상계좌발급'); setIsOrderStatusDropdownOpen(false); }}
+                                className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
+                              >
+                                가상계좌발급
+                              </button>
+                              <button
+                                onClick={() => { setStatusFilter('진행 중'); setIsOrderStatusDropdownOpen(false); }}
+                                className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
+                              >
+                                진행 중
+                              </button>
+                              <button
+                                onClick={() => { setStatusFilter('작업완료'); setIsOrderStatusDropdownOpen(false); }}
+                                className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
+                              >
+                                작업완료
+                              </button>
+                              <button
+                                onClick={() => { setStatusFilter('구매완료'); setIsOrderStatusDropdownOpen(false); }}
+                                className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
+                              >
+                                구매완료
+                              </button>
+                              <button
+                                onClick={() => { setStatusFilter('취소'); setIsOrderStatusDropdownOpen(false); }}
+                                className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
+                              >
+                                취소
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      
+                    </div>
                     <div className="flex-1">
                       <div className="relative">
                         <FontAwesomeIcon icon={faSearch} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                         <input
                           type="text"
-                          placeholder="주문번호, 상품명으로 검색..."
+                          placeholder="검색어를 입력하세요."
                           value={searchTerm}
                           onChange={(e) => setSearchTerm(e.target.value)}
-                          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                          className="text-sm w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg outline-none 
+                              max-w-[300px] min-w-[200px]
+                              focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                         />
                       </div>
+                      
                     </div>
-                    <div className="flex items-center gap-2">
-                      <FontAwesomeIcon icon={faFilter} className="text-gray-400" />
-                      <select
-                        value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value)}
-                        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    {/* 새로고침 버튼 */}
+                    <button
+                        onClick={loadOrders}
+                        className="text-sm px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-600 hover:bg-gray-50 hover:border-gray-400 transition-colors duration-200 flex items-center gap-2"
+                        title="주문 목록 새로고침"
                       >
-                        <option value="all">전체 상태</option>
-                        <option value="가상계좌발급">가상계좌발급</option>
-                        <option value="진행 중">진행 중</option>
-                        <option value="작업완료">작업완료</option>
-                        <option value="구매완료">구매완료</option>
-                        <option value="취소">취소</option>
-                      </select>
-                    </div>
+                        <FontAwesomeIcon icon={faSync} className="text-gray-400" />
+                      </button>
                   </div>
                 </div>
 
                 {/* 주문 테이블 */}
                 <div className="bg-white rounded-lg shadow overflow-hidden">
                   <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="bg-gray-50">
+                    <table className="w-full border-collapse border border-gray-300 rounded-lg">
+                      <thead className="bg-gray-50 rounded-t-lg border-b border-gray-200">
                         <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">주문번호</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">상품</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">주문일</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">수량</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">결제방법</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">결제상태</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">주문상태</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">금액</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">관리</th>
+                          <th className="px-3 py-3 text-left text-sm font-medium text-gray-700 uppercase tracking-wider">주문번호(결제번호)</th>
+                          <th className="px-3 py-3 text-left text-sm font-medium text-gray-700 uppercase tracking-wider">주문자</th>
+                          <th className="px-3 py-3 text-left text-sm font-medium text-gray-700 uppercase tracking-wider">상품</th>
+                          <th className="px-3 py-3 text-left text-sm font-medium text-gray-700 uppercase tracking-wider min-w-[80px]">수량</th>
+                          <th className="px-3 py-3 text-left text-sm font-medium text-gray-700 uppercase tracking-wider">금액</th>
+                          <th className="px-3 py-3 text-left text-sm font-medium text-gray-700 uppercase tracking-wider">주문일</th>
+                          <th className="px-3 py-3 text-left text-sm font-medium text-gray-700 uppercase tracking-wider">결제방법</th>
+                          <th className="px-3 py-3 text-left text-sm font-medium text-gray-700 uppercase tracking-wider">상태</th>
+                          <th className="px-3 py-3 text-left text-sm font-medium text-gray-700 uppercase tracking-wider">관리</th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
                         {filteredOrders.map((order) => (
                           <tr key={order.orderId} className="hover:bg-gray-50">
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{order.orderId}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{order.product}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{order.date}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{order.quantity}개</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{order.paymentMethod || '카드결제'}</td>
-                            <td className="px-6 py-4 whitespace-nowrap">
+                            <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                              {order.orderId}
+                              <br />
+                              <span className="text-gray-500 text-xs">(PAY-{order.orderId.replace('-', '')})</span>
+                            </td>
+                            <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
+                              <div>
+                                <div className="text-xs text-gray-500">{order.userEmail || '이메일 없음'}</div>
+                              </div>
+                            </td>
+                            <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
+                              <button
+                                onClick={() => {
+                                  // 해당 상품 찾기
+                                  const product = products.find(p => p.id === order.productId);
+                                  if (product) {
+                                    // 상품 상세 정보를 모달로 표시
+                                    alert(`상품 상세 정보\n\n상품명: ${product.name}\n가격: ${product.price.toLocaleString()}원\n설명: ${product.description || '설명 없음'}\n카테고리: ${product.category || '카테고리 없음'}`);
+                                  } else {
+                                    alert('상품 정보를 찾을 수 없습니다.');
+                                  }
+                                }}
+                                className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                                title="상품 상세 정보 보기"
+                              >
+                                {order.product}
+                              </button>
+                            </td>
+                                                        
+                            <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500 text-center">{order.quantity}일</td>
+                            <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
                               {(() => {
-                                let label = '';
-                                let color = '';
-                                if (order.refundStatus === '카드결제취소') {
-                                  label = '카드결제취소';
-                                  color = 'bg-red-100 text-red-600';
-                                } else if (order.refundStatus === '계좌입금완료') {
-                                  label = '계좌입금완료';
-                                  color = 'bg-red-100 text-red-600';
-                                } else if (order.paymentDate === '-' || !order.paymentDate) {
-                                  label = '입금전';
-                                  color = 'bg-yellow-100 text-yellow-600';
-                                } else if (order.paymentMethod === '가상계좌') {
-                                  label = '입금완료';
-                                  color = 'bg-green-100 text-green-600';
-                                } else {
-                                  label = '결제완료';
-                                  color = 'bg-blue-50 text-blue-500';
+                                // 새로운 주문 형식인 경우 finalPrice 사용, 기존 형식인 경우 price 사용
+                                const priceValue = order.finalPrice || order.price;
+                                if (typeof priceValue === 'number') {
+                                  return priceValue.toLocaleString() + '원';
+                                } else if (typeof priceValue === 'string') {
+                                  // 문자열에서 숫자만 추출 (예: "50,000원" -> 50000)
+                                  const priceNumber = parseInt(priceValue.replace(/[^\d]/g, '')) || 0;
+                                  return priceNumber.toLocaleString() + '원';
                                 }
-                                return (
-                                  <span className={`inline-flex text-xs font-semibold px-2 py-1 rounded-full ${color}`}>
-                                    {label}
-                                  </span>
-                                );
+                                return '0원';
                               })()}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                order.status === '작업완료' ? 'bg-green-100 text-green-800' :
-                                order.status === '진행 중' ? 'bg-blue-100 text-blue-800' :
-                                order.status === '취소' ? 'bg-red-100 text-red-800' :
-                                'bg-gray-100 text-gray-800'
-                              }`}>
-                                {order.status}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
                               {(() => {
-                                // price 문자열에서 숫자만 추출 (예: "50,000원" -> 50000)
-                                const priceNumber = parseInt(order.price.replace(/[^\d]/g, '')) || 0;
-                                const quantity = order.quantity || 1;
-                                return (priceNumber * quantity).toLocaleString() + '원';
+                                try {
+                                  // null, undefined, 빈 문자열 처리
+                                  if (!order.date || order.date === '') {
+                                    const now = new Date();
+                                    return now.toLocaleString('ko-KR', {
+                                      year: '2-digit',
+                                      month: '2-digit',
+                                      day: '2-digit',
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                      hour12: false
+                                    });
+                                  }
+                                  
+                                  // 이미 포맷된 한국어 날짜 문자열인지 확인
+                                  if (typeof order.date === 'string' && (order.date.includes('오전') || order.date.includes('오후') || order.date.includes('년'))) {
+                                    return order.date;
+                                  }
+                                  
+                                  // ISO 형식이나 다른 형식의 날짜인 경우 파싱
+                                  let date = new Date(order.date);
+                                  
+                                  // 파싱이 실패한 경우 현재 시간 사용
+                                  if (isNaN(date.getTime())) {
+                                    date = new Date();
+                                  }
+                                  
+                                  return date.toLocaleString('ko-KR', {
+                                    year: '2-digit',
+                                    month: '2-digit',
+                                    day: '2-digit',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                    hour12: false
+                                  });
+                                } catch (error) {
+                                  // 에러 발생 시 현재 시간으로 표시
+                                  const now = new Date();
+                                  return now.toLocaleString('ko-KR', {
+                                    year: '2-digit',
+                                    month: '2-digit',
+                                    day: '2-digit',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                    hour12: false
+                                  });
+                                }
                               })()}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {order.paymentMethod === 'card' ? '신용카드' : 
+                               order.paymentMethod === 'virtual' ? '가상계좌' : 
+                               order.paymentMethod || '신용카드'}
+                            </td>
+                            <td className="px-3 py-4 whitespace-nowrap">
+                              <div className="space-y-1">
+                                {/* 결제상태 */}
+                                <div>
+                                  {(() => {
+                                    let label = '';
+                                    let color = '';
+                                    if (order.refundStatus === '카드결제취소') {
+                                      label = '카드결제취소';
+                                      color = 'bg-red-100 text-red-600';
+                                    } else if (order.refundStatus === '계좌환불완료') {
+                                      label = '계좌환불완료';
+                                      color = 'bg-red-100 text-red-600';
+                                    } else if (order.refundStatus === '환불요청') {
+                                      // 환불요청 상태일 때는 기존 결제 상태를 유지
+                                      if (order.paymentMethod === 'virtual' || order.paymentMethod === '가상계좌') {
+                                        if (order.paymentDate && order.paymentDate !== '-' && order.paymentDate !== order.date) {
+                                          label = '입금완료';
+                                          color = 'bg-green-100 text-green-600';
+                                        } else {
+                                          label = '입금확인전';
+                                          color = 'bg-yellow-100 text-yellow-600';
+                                        }
+                                      } else {
+                                        label = '결제완료';
+                                        color = 'bg-blue-50 text-blue-500';
+                                      }
+                                    } else if (order.paymentMethod === 'virtual' || order.paymentMethod === '가상계좌') {
+                                      if (order.paymentDate && order.paymentDate !== '-' && order.paymentDate !== order.date) {
+                                        label = '입금완료';
+                                        color = 'bg-green-100 text-green-600';
+                                      } else {
+                                        label = '입금확인전';
+                                        color = 'bg-yellow-100 text-yellow-600';
+                                      }
+                                    } else if (order.paymentMethod === 'card' || order.paymentMethod === '신용카드') {
+                                      label = '결제완료';
+                                      color = 'bg-blue-50 text-blue-500';
+                                    } else {
+                                      label = '결제완료';
+                                      color = 'bg-blue-50 text-blue-500';
+                                    }
+                                    return (
+                                      <span className={`inline-flex text-xs font-semibold px-2 py-1 rounded-full ${color}`}>
+                                        {label}
+                                      </span>
+                                    );
+                                  })()}
+                                </div>
+                                {/* 주문상태 */}
+                                <div>
+                                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                    order.status === '작업완료' ? 'bg-green-100 text-green-800' :
+                                    order.status === '진행 중' ? 'bg-yellow-100 text-yellow-800' :
+                                    order.status === '작업취소' ? 'bg-red-100 text-red-800' :
+                                    order.status === '취소' ? 'bg-red-100 text-red-800' :
+                                    'bg-gray-100 text-gray-800'
+                                  }`}>
+                                    {order.status}
+                                  </span>
+                                </div>
+                              </div>
+                            </td>
+                            
+                            <td className="px-3 py-4 whitespace-nowrap text-sm font-medium min-w-[200px]">
                               <div className="flex flex-wrap gap-1">
                                 <button
                                   onClick={() => setSelectedPaymentOrder(order)}
@@ -1317,6 +1753,54 @@ const Admin: React.FC = () => {
                                 >
                                   결제내역
                                 </button>
+                                {/* 입금확인전 상태일 때 입금 확인 버튼 표시 */}
+                                {((order.paymentMethod === 'virtual' || order.paymentMethod === '가상계좌') && 
+                                  (!order.paymentDate || order.paymentDate === '-')) && (
+                                  <button
+                                    onClick={() => confirmPayment(order.orderId)}
+                                    className="text-green-600 hover:text-green-900 text-xs px-2 py-1 rounded border border-green-300 hover:bg-green-50"
+                                  >
+                                    입금확인
+                                  </button>
+                                )}
+                                {/* 입금완료 상태일 때 입금완료취소 버튼 표시 */}
+                                {((order.paymentMethod === 'virtual' || order.paymentMethod === '가상계좌') && 
+                                  order.paymentDate && order.paymentDate !== '-') && (
+                                  <button
+                                    onClick={() => cancelPayment(order.orderId)}
+                                    className="text-orange-600 hover:text-orange-900 text-xs px-2 py-1 rounded border border-orange-300 hover:bg-orange-50"
+                                  >
+                                    입금취소
+                                  </button>
+                                )}
+                                {/* 환불요청 상태일 때 환불처리 버튼들 표시 */}
+                                {order.refundStatus === '환불요청' && (
+                                  <>
+                                    <button
+                                      onClick={() => handleRefund(order.orderId)}
+                                      className="text-red-600 hover:text-red-900 text-xs px-2 py-1 rounded border border-red-300 hover:bg-red-50"
+                                    >
+                                      환불승인
+                                    </button>
+                                    <button
+                                      onClick={() => rejectRefund(order.orderId)}
+                                      className="text-gray-600 hover:text-gray-900 text-xs px-2 py-1 rounded border border-gray-300 hover:bg-gray-50"
+                                    >
+                                      환불거절
+                                    </button>
+                                  </>
+                                )}
+                                {/* 계좌입금완료 또는 결제완료 상태일 때 작업시작 버튼 표시 */}
+                                {((order.paymentMethod === 'virtual' || order.paymentMethod === '가상계좌') && 
+                                  order.paymentDate && order.paymentDate !== '-' && order.status === '주문접수') || 
+                                  (order.paymentMethod === 'card' && order.paymentDate && order.paymentDate !== '-' && order.status === '주문접수') && (
+                                  <button
+                                    onClick={() => startWork(order.orderId)}
+                                    className="text-green-600 hover:text-green-900 text-xs px-2 py-1 rounded border border-green-300 hover:bg-green-50"
+                                  >
+                                    작업시작
+                                  </button>
+                                )}
                                 {order.status === '진행 중' && (
                                   <button
                                     onClick={() => updateOrderStatus(order.orderId, '작업완료')}
@@ -1340,10 +1824,71 @@ const Admin: React.FC = () => {
                                   </button>
                                 )}
                                 <button
-                                  onClick={() => updateOrderStatus(order.orderId, '취소')}
-                                  className="text-red-600 hover:text-red-900 text-xs px-2 py-1 rounded border border-red-300 hover:bg-red-50"
+                                  onClick={() => {
+                                    // 작업취소 상태인지 확인
+                                    const isCurrentlyCancelled = order.status === '작업취소';
+                                    
+                                    if (isCurrentlyCancelled) {
+                                      // 작업취소 취소 - 원래 상태로 되돌리기
+                                      if (window.confirm('작업취소를 취소하시겠습니까?\n\n원래 상태로 되돌립니다.')) {
+                                        // orderList 업데이트
+                                        const updatedOrders = orders.map(o => 
+                                          o.orderId === order.orderId ? { ...o, status: '진행 중' } : o
+                                        );
+                                        setOrders(updatedOrders);
+                                        localStorage.setItem('orderList', JSON.stringify(updatedOrders));
+                                        
+                                        // paymentList도 함께 업데이트
+                                        try {
+                                          const existingPayments = JSON.parse(localStorage.getItem('paymentList') || '[]');
+                                          const updatedPayments = existingPayments.map((payment: any) => {
+                                            if (payment.orderId === order.orderId) {
+                                              return { ...payment, status: '진행 중' };
+                                            }
+                                            return payment;
+                                          });
+                                          localStorage.setItem('paymentList', JSON.stringify(updatedPayments));
+                                        } catch (error) {
+                                          console.error('결제내역 업데이트 중 오류:', error);
+                                        }
+                                        
+                                        alert('작업취소가 취소되었습니다.');
+                                      }
+                                    } else {
+                                      // 작업취소 실행
+                                      if (window.confirm('작업을 취소하시겠습니까?\n\n작업취소 후에는 되돌릴 수 있습니다.')) {
+                                        // orderList 업데이트
+                                        const updatedOrders = orders.map(o => 
+                                          o.orderId === order.orderId ? { ...o, status: '작업취소' } : o
+                                        );
+                                        setOrders(updatedOrders);
+                                        localStorage.setItem('orderList', JSON.stringify(updatedOrders));
+                                        
+                                        // paymentList도 함께 업데이트
+                                        try {
+                                          const existingPayments = JSON.parse(localStorage.getItem('paymentList') || '[]');
+                                          const updatedPayments = existingPayments.map((payment: any) => {
+                                            if (payment.orderId === order.orderId) {
+                                              return { ...payment, status: '작업취소' };
+                                            }
+                                            return payment;
+                                          });
+                                          localStorage.setItem('paymentList', JSON.stringify(updatedPayments));
+                                        } catch (error) {
+                                          console.error('결제내역 업데이트 중 오류:', error);
+                                        }
+                                        
+                                        alert('작업이 취소되었습니다.');
+                                      }
+                                    }
+                                  }}
+                                  className={`text-xs px-2 py-1 rounded border ${
+                                    order.status === '작업취소' 
+                                      ? 'text-green-600 hover:text-green-900 border-green-300 hover:bg-green-50' 
+                                      : 'text-red-600 hover:text-red-900 border-red-300 hover:bg-red-50'
+                                  }`}
                                 >
-                                  취소
+                                  {order.status === '작업취소' ? '작업취소철회' : '작업취소'}
                                 </button>
                               </div>
                             </td>
@@ -1917,10 +2462,7 @@ const Admin: React.FC = () => {
                     {selectedPaymentOrder.paymentNumber || `PAY-${selectedPaymentOrder.orderId.replace('-', '')}`}
                   </p>
                 </div>
-                <div className="border-b border-gray-200 pb-2">
-                  <p className="text-sm font-medium text-gray-600">주문자</p>
-                  <p className="text-sm text-gray-900">{selectedPaymentOrder.userName || '고객'}</p>
-                </div>
+                
                 <div className="border-b border-gray-200 pb-2">
                   <p className="text-sm font-medium text-gray-600">이메일</p>
                   <p className="text-sm text-gray-900">{selectedPaymentOrder.userEmail || 'customer@example.com'}</p>
@@ -1935,11 +2477,15 @@ const Admin: React.FC = () => {
                 </div>
                 <div className="border-b border-gray-200 pb-2">
                   <p className="text-sm font-medium text-gray-600">수량</p>
-                  <p className="text-sm text-gray-900">{selectedPaymentOrder.quantity}개</p>
+                  <p className="text-sm text-gray-900">{selectedPaymentOrder.quantity}일</p>
                 </div>
                 <div className="border-b border-gray-200 pb-2">
                   <p className="text-sm font-medium text-gray-600">결제방법</p>
-                  <p className="text-sm text-gray-900">{selectedPaymentOrder.paymentMethod || '카드결제'}</p>
+                  <p className="text-sm text-gray-900">
+                    {selectedPaymentOrder.paymentMethod === 'card' ? '신용카드' : 
+                     selectedPaymentOrder.paymentMethod === 'virtual' ? '가상계좌' : 
+                     selectedPaymentOrder.paymentMethod || '신용카드'}
+                  </p>
                 </div>
                 <div className="border-b border-gray-200 pb-2">
                   <p className="text-sm font-medium text-gray-600">결제일</p>
@@ -1956,15 +2502,17 @@ const Admin: React.FC = () => {
                       if (selectedPaymentOrder.refundStatus === '카드결제취소') {
                         label = '카드결제취소';
                         color = 'text-red-600';
-                      } else if (selectedPaymentOrder.refundStatus === '계좌입금완료') {
-                        label = '계좌입금완료';
-                        color = 'text-red-600';
-                      } else if (selectedPaymentOrder.paymentDate === '-' || !selectedPaymentOrder.paymentDate) {
-                        label = '입금전';
-                        color = 'text-yellow-600';
-                      } else if (selectedPaymentOrder.paymentMethod === '가상계좌') {
-                        label = '입금완료';
-                        color = 'text-green-600';
+                      } else if (selectedPaymentOrder.paymentMethod === 'virtual' || selectedPaymentOrder.paymentMethod === '가상계좌') {
+                        if (selectedPaymentOrder.paymentDate && selectedPaymentOrder.paymentDate !== '-') {
+                          label = '입금완료';
+                          color = 'text-green-600';
+                        } else {
+                          label = '입금확인전';
+                          color = 'text-yellow-600';
+                        }
+                      } else if (selectedPaymentOrder.paymentMethod === 'card' || selectedPaymentOrder.paymentMethod === '신용카드') {
+                        label = '결제완료';
+                        color = 'text-blue-600';
                       } else {
                         label = '결제완료';
                         color = 'text-blue-600';
@@ -2024,7 +2572,56 @@ const Admin: React.FC = () => {
                   </div>
                 )}
               </div>
-              <div className="mt-6 flex justify-end">
+              <div className="mt-6 flex justify-end gap-2">
+                {/* 입금확인전 상태일 때 입금 확인 버튼 표시 */}
+                {((selectedPaymentOrder.paymentMethod === 'virtual' || selectedPaymentOrder.paymentMethod === '가상계좌') && 
+                  (!selectedPaymentOrder.paymentDate || selectedPaymentOrder.paymentDate === '-')) && (
+                  <button
+                    onClick={() => {
+                      confirmPayment(selectedPaymentOrder.orderId);
+                      setSelectedPaymentOrder(null);
+                    }}
+                    className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                  >
+                    입금확인
+                  </button>
+                )}
+                {/* 입금완료 상태일 때 입금완료취소 버튼 표시 */}
+                {((selectedPaymentOrder.paymentMethod === 'virtual' || selectedPaymentOrder.paymentMethod === '가상계좌') && 
+                  selectedPaymentOrder.paymentDate && selectedPaymentOrder.paymentDate !== '-') && (
+                  <button
+                    onClick={() => {
+                      cancelPayment(selectedPaymentOrder.orderId);
+                      setSelectedPaymentOrder(null);
+                    }}
+                    className="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700"
+                  >
+                    입금취소
+                  </button>
+                )}
+                {/* 환불요청 상태일 때 환불처리 버튼들 표시 */}
+                {selectedPaymentOrder.refundStatus === '환불요청' && (
+                  <>
+                    <button
+                      onClick={() => {
+                        handleRefund(selectedPaymentOrder.orderId);
+                        setSelectedPaymentOrder(null);
+                      }}
+                      className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                    >
+                      환불승인
+                    </button>
+                    <button
+                      onClick={() => {
+                        rejectRefund(selectedPaymentOrder.orderId);
+                        setSelectedPaymentOrder(null);
+                      }}
+                      className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+                    >
+                      환불거절
+                    </button>
+                  </>
+                )}
                 <button
                   onClick={() => setSelectedPaymentOrder(null)}
                   className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"

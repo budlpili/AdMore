@@ -4,9 +4,12 @@ export interface Product {
   description?: string;
   discountRate?: number;
   originalPrice?: number;
-  price: string | number;
+  price: number;
+  price1Day?: number;
+  price7Days?: number;
+  price30Days?: number;
   category: string;
-  image: string;
+  image?: string;
   background?: string;
   clickCount?: number;
   popular?: boolean;
@@ -14,13 +17,14 @@ export interface Product {
   viewedDate?: string;
   rating?: number;
   reviewCount?: number;
-  status?: 'active' | 'inactive';
+  status?: string;
   stock?: number;
   tags?: string[];
   detailedDescription?: string;
   specifications?: string;
   createdAt?: string;
   updatedAt?: string;
+  productNumber?: string;
 }
 
 export interface Notice {
@@ -53,6 +57,49 @@ export interface FormErrors {
 }
 
 export interface Category {
+  id: number;
+  name: string;
+  description?: string;
+  path?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface NavigationCategory {
   name: string;
   path: string;
+}
+
+export interface Tag {
+  id: number;
+  name: string;
+  color?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface Order {
+  id: number;
+  productId: string;
+  quantity: number;
+  paymentMethod: string;
+  status: string;
+  confirmStatus?: string;
+  userInfo: {
+    name: string;
+    email: string;
+    phone: string;
+  };
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface User {
+  id: number;
+  email: string;
+  name: string;
+  phone?: string;
+  role?: string;
+  createdAt?: string;
+  updatedAt?: string;
 } 

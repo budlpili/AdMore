@@ -1,27 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Category } from '../types/index';
-import { faFacebook, faInstagram, faYoutube, faBlogger, faTwitter, faTelegram } from '@fortawesome/free-brands-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faEye as faEyeRegular, faHeart as faHeartRegular, faUser as faUserSolid } from '@fortawesome/free-regular-svg-icons';
-import { getRecentProducts, clearRecentProducts } from '../utils/recentProducts';
-import { faChevronDown } from '@fortawesome/free-solid-svg-icons';
-import {
-  faUser,
+import { 
+  faSearch, 
+  faUser, 
+  faShoppingCart, 
+  faHeart, 
+  faBars, 
+  faTimes, 
+  faChevronDown,
   faComments,
   faClipboardList,
   faCreditCard,
-  faHeart,
   faTicketAlt,
   faCog,
-  faSignOutAlt,
   faBuilding,
   faBoxOpen,
   faStar,
+  faSignOutAlt,
+  faUserPlus,
   faCommentDots,
-  faHeadset,
-  faUserPlus
+  faHeadset
 } from '@fortawesome/free-solid-svg-icons';
+import { Category, NavigationCategory } from '../types';
+import { faEye as faEyeRegular, faHeart as faHeartRegular, faUser as faUserSolid } from '@fortawesome/free-regular-svg-icons';
+import { getRecentProducts, clearRecentProducts } from '../utils/recentProducts';
 
 const mockRecentProducts = [
   {
@@ -58,7 +61,7 @@ const Header: React.FC<HeaderProps> = ({ setIsChatOpen }) => {
   const [isLoggedIn, setIsLoggedIn] = useState(() => typeof window !== 'undefined' && localStorage.getItem('isLoggedIn') === 'true');
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
-  const categories: Category[] = [
+  const categories: NavigationCategory[] = [
     { name: '페이스북', path: '/products?category=facebook' },
     { name: '인스타그램', path: '/products?category=instagram' },
     { name: '유튜브', path: '/products?category=youtube' },

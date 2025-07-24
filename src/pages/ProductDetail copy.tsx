@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useReducer } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faStar as faSolidStar, faStarHalfAlt, faStar as faRegularStar, faHeart as faSolidHeart, faPen, faTrash } from '@fortawesome/free-solid-svg-icons';
@@ -126,135 +126,9 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ setIsChatOpen }) => {
     }, 1200);
   };
 
-  // quantity 상태 관리를 위한 reducer
-  type QuantityAction = 
-    | { type: 'SET_QUANTITY'; payload: number }
-    | { type: 'TOGGLE_DROPDOWN' };
-
-  const quantityReducer = (state: { quantity: number; dropdownOpen: boolean }, action: QuantityAction) => {
-    switch (action.type) {
-      case 'SET_QUANTITY':
-        console.log('quantityReducer SET_QUANTITY:', action.payload);
-        return { quantity: action.payload, dropdownOpen: false };
-      case 'TOGGLE_DROPDOWN':
-        console.log('quantityReducer TOGGLE_DROPDOWN');
-        return { ...state, dropdownOpen: !state.dropdownOpen };
-      default:
-        return state;
-    }
-  };
-
   const [quantity, setQuantity] = useState(1);
-  const [quantityDropdownOpen, setQuantityDropdownOpen] = useState(false);
-
-  const handleQuantityChange = useCallback((newQuantity: number) => {
-    console.log('handleQuantityChange 호출됨:', newQuantity);
-    setQuantity(newQuantity);
-    setQuantityDropdownOpen(false);
-  }, []);
-
-  const toggleQuantityDropdown = useCallback(() => {
-    console.log('toggleQuantityDropdown 호출됨');
-    setQuantityDropdownOpen(prev => !prev);
-  }, []);
-
-  // quantity 변경 추적
-  useEffect(() => {
-    console.log('quantity 변경됨:', quantity);
-  }, [quantity]);
-
-  // 가격 계산 함수
-  const calculatePrice = (selectedQuantity: number) => {
-    if (!product) return 0;
-    
-    console.log('가격 계산 함수 호출됨:', { selectedQuantity, product });
-    
-    let price = 0;
-    
-    // 기간별 가격 사용
-    if (selectedQuantity === 1 && product.price1Day) {
-      price = typeof product.price1Day === 'number' ? product.price1Day : parseFloat(product.price1Day);
-      console.log('1일 가격 사용:', price);
-    } else if (selectedQuantity === 7 && product.price7Days) {
-      price = typeof product.price7Days === 'number' ? product.price7Days : parseFloat(product.price7Days);
-      console.log('7일 가격 사용:', price);
-    } else if (selectedQuantity === 30 && product.price30Days) {
-      price = typeof product.price30Days === 'number' ? product.price30Days : parseFloat(product.price30Days);
-      console.log('30일 가격 사용:', price);
-    } else {
-      // 기간별 가격이 없으면 1일 가격을 기준으로 계산
-      let basePrice = 0;
-      if (product.price1Day) {
-        basePrice = typeof product.price1Day === 'number' ? product.price1Day : parseFloat(product.price1Day);
-      } else if (product.price) {
-        basePrice = typeof product.price === 'number' ? product.price : parseFloat(product.price);
-      }
-      
-      price = basePrice * selectedQuantity;
-      console.log('기본 가격 * 기간 사용:', { basePrice, selectedQuantity, price });
-    }
-    
-    console.log('최종 가격:', price);
-    return Math.round(price);
-  };
-
-  // 원가 계산 함수 (1일 가격을 기준으로 기간별 계산)
-  const calculateOriginalPrice = (selectedQuantity: number) => {
-    if (!product || !product.price1Day) return 0;
-    
-    // 1일 가격을 기준으로 기간별 원가 계산
-    const basePrice = typeof product.price1Day === 'number' ? product.price1Day : parseFloat(String(product.price1Day));
-    const originalPrice = basePrice * selectedQuantity;
-    
-    return Math.round(originalPrice);
-  };
-
-  // 할인율 계산 함수
-  const calculateDiscountRate = (selectedQuantity: number) => {
-    if (!product || !product.price1Day) return 0;
-    
-    // 1일 가격을 기준으로 원가 계산
-    const basePrice = typeof product.price1Day === 'number' ? product.price1Day : parseFloat(String(product.price1Day));
-    const originalPrice = basePrice * selectedQuantity;
-    
-    // 선택된 기간의 실제 가격
-    let actualPrice = 0;
-    if (selectedQuantity === 1) {
-      actualPrice = basePrice;
-    } else if (selectedQuantity === 7 && product.price7Days) {
-      actualPrice = typeof product.price7Days === 'number' ? product.price7Days : parseFloat(String(product.price7Days));
-    } else if (selectedQuantity === 30 && product.price30Days) {
-      actualPrice = typeof product.price30Days === 'number' ? product.price30Days : parseFloat(String(product.price30Days));
-    } else {
-      actualPrice = originalPrice; // 할인 없음
-    }
-    
-    // 할인율 계산 (1일은 할인 없음)
-    if (selectedQuantity === 1) {
-      return 0;
-    }
-    
-    const discountRate = ((originalPrice - actualPrice) / originalPrice) * 100;
-    return Math.round(discountRate);
-  };
-
-  // 드롭다운 외부 클릭 시 닫기
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Element;
-      if (!target.closest('.quantity-dropdown')) {
-        setQuantityDropdownOpen(false);
-      }
-    };
-
-    if (quantityDropdownOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [quantityDropdownOpen]);
+  const handleDecrease = () => setQuantity(q => Math.max(1, q - 1));
+  const handleIncrease = () => setQuantity(q => Math.min(99, q + 1));
 
   useEffect(() => {
     if (product) addRecentProduct(product);
@@ -834,27 +708,30 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ setIsChatOpen }) => {
       
       try {
         setLoading(true);
+        // 먼저 로컬 데이터에서 찾기
+        let foundProduct = products.find(p => p.id === Number(id));
         
-        // 백엔드에서 활성 상품을 가져와서 찾기
-        const activeProducts = await productAPI.getActiveProducts();
-        const foundProduct = activeProducts.find(p => p.id === Number(id));
+        if (!foundProduct) {
+          // 로컬에 없으면 백엔드에서 모든 상품을 가져와서 찾기
+          const allProducts = await productAPI.getAllProducts();
+          foundProduct = allProducts.find(p => p.id === Number(id));
+        }
         
         if (foundProduct) {
           setProduct(foundProduct);
-          console.log('로드된 상품 데이터:', foundProduct);
-          console.log('상품 ID:', foundProduct.id);
-          console.log('상품명:', foundProduct.name);
-          console.log('상품 설명:', foundProduct.description);
-          console.log('상세 설명:', foundProduct.detailedDescription);
-          console.log('상세 설명 타입:', typeof foundProduct.detailedDescription);
-          console.log('상세 설명 길이:', foundProduct.detailedDescription?.length);
         } else {
           // 상품을 찾을 수 없는 경우
           navigate('/products', { replace: true });
         }
       } catch (error) {
         console.error('상품 로드 에러:', error);
-        navigate('/products', { replace: true });
+        // 에러 발생 시 로컬 데이터에서 다시 찾기
+        const localProduct = products.find(p => p.id === Number(id));
+        if (localProduct) {
+          setProduct(localProduct);
+        } else {
+          navigate('/products', { replace: true });
+        }
       } finally {
         setLoading(false);
       }
@@ -889,29 +766,215 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ setIsChatOpen }) => {
         <div className="mb-8">
           
           {/* 간단설명 */}
-          <div className="text-sm text-gray-700 mb-4">
+          <div className="text-sm text-gray-700">
             {product.description || '상품 설명이 없습니다.'}
           </div>
-          
           {/* 상세설명 */}
-          <div className="mt-8">
-            <h3 className="text-base font-bold mb-4 text-gray-800">상세 설명</h3>
-            {(() => {
-              console.log('렌더링 시 상세 설명:', product.detailedDescription);
-              console.log('렌더링 시 상세 설명 타입:', typeof product.detailedDescription);
-              console.log('렌더링 시 상세 설명 길이:', product.detailedDescription?.length);
+          <div>
+            {product.detailedDescription ? (
+              <div className="mt-8">
+                <h3 className="text-base font-bold mb-4 text-gray-800">상세 설명</h3>
+                <div className="text-sm text-gray-700 whitespace-pre-wrap">
+                  {product.detailedDescription}
+                </div>
+              </div>
+            ) : null}
+            
+            {/* 서비스 진행과정 */}
+            <div className="mt-8">
+              <h3 className="text-base font-bold mb-4 text-gray-800">1. 서비스 진행과정</h3>
+              <div className="space-y-2 text-sm text-gray-700">
+                <p>유입을 원하시는 스토어, 오픈마켓, 쇼핑몰 주소를 보내주시면 참여 유입이 진행됩니다.</p>
+                <p>키워드를 전달해 주시면 키워드 검색 참여 유입이 진행됩니다.</p>
+                <p className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-400">
+                  IP를 변경하는 방식의 불법 프로그램 등은 웹 엔진에 의해 모두 발각되어, 저품질의 원인이 됩니다. 하지만 저희는 이런 서비스와는 매우 다른 성격을 갖고 있으며, 실제 방문자를 통해 진행되며, 기계적인 어뷰징 작업이 아닌, 실제 PC와 모바일에서 진행되는 작업이며, 저품질 상승 및 최적화 특화를 목표로 진행하고 있는 상품입니다. 지금까지 그만큼 견고하고 정확하게 답답한 부분을 직접 경험하고 해결했습니다.
+                </p>
+              </div>
+            </div>
+
+            {/* 서비스 안내 */}
+            <div className="mt-8">
+              <h3 className="text-base font-bold mb-4 text-gray-800">2. 서비스 안내</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-white border border-gray-200 rounded-lg p-4">
+                  <h4 className="font-semibold text-blue-600 mb-2 text-sm">한국 방문자</h4>
+                  <p className="text-sm text-gray-700">기본적인 유입은 한국 트래픽(방문자)로 유입됩니다. 원하시는 국가가 있다면 최대한 맞춰드립니다.</p>
+                </div>
+                <div className="bg-white border border-gray-200 rounded-lg p-4">
+                  <h4 className="font-semibold text-blue-600 mb-2 text-sm">맞춤 키워드 방문자</h4>
+                  <p className="text-sm text-gray-700">프로그램이 아닌, 실제 유저들이 전달해 주신 키워드로 참여 유입이 진행되어 검색 최적화(SEO)에 도움을 줍니다</p>
+                </div>
+                <div className="bg-white border border-gray-200 rounded-lg p-4">
+                  <h4 className="font-semibold text-blue-600 mb-2 text-sm">다양한 애널리틱스에 적용되는 실제 방문자</h4>
+                  <p className="text-sm text-gray-700">구글 또는 네이버 등 포털에서 제공하는 애널리틱스에서 정확한 분석 확인이 가능합니다. *애널리틱스마다 통계수치 체크 로직이 달라 결과치는 달라질 수 있습니다</p>
+                </div>
+                <div className="bg-white border border-gray-200 rounded-lg p-4">
+                  <h4 className="font-semibold text-blue-600 mb-2 text-sm">지속적인 관리 상담 피드백</h4>
+                  <p className="text-sm text-gray-700">진행 참여 후 종료되는 서비스가 아닌, 언제든 문의를 주시면 지속적인 관리 상담 피드백이 가능합니다.</p>
+                </div>
+              </div>
+            </div>
+
+            {/* 상품 상세 안내 */}
+            <div className="mt-8">
+              <h3 className="text-base font-bold mb-4 text-gray-800">3.상품 상세 안내</h3>
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6">
+                <p className="text-sm text-orange-800 font-semibold">*작업 진행 이전 메세지를 통한 상담으로 맞춤진행이 됩니다.</p>
+                <p className="text-sm text-orange-700 mt-1">언제든 메세지 보내주시면 빠르고 친절한 상담 도와 드리겠습니다</p>
+              </div>
               
-              if (product.detailedDescription && product.detailedDescription.trim() !== '') {
-                return (
-                  <div 
-                    className="text-base text-gray-700 prose prose-base max-w-none"
-                    dangerouslySetInnerHTML={{ __html: product.detailedDescription }}
-                  />
-                );
-              } else {
-                return <div className="text-gray-500 text-sm">상세 설명이 없습니다.</div>;
-              }
-            })()}
+              <div className="space-y-4">
+                {/* 스탠다드 패키지 */}
+                <div className="border border-gray-200 rounded-lg p-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h4 className="text-lg font-bold text-gray-800">스탠다드 패키지</h4>
+                    <span className="bg-orange-100 text-orange-800 text-xs font-medium px-2.5 py-0.5 rounded-full">10일</span>
+                  </div>
+                  <div className="text-2xl font-bold text-orange-600 mb-4">10,000원</div>
+                  <p className="text-sm text-gray-700 mb-4 font-semibold">10일간 검색최적화 트래픽(방문자) 유입관리 진행 됩니다.</p>
+                  <ul className="text-sm text-gray-600 space-y-1">
+                    <li>• SEO최적화를 통해 검색시 노출 증가효과</li>
+                    <li>• 방문자 관리를 통해 블로그, 카페, 포털웹사이트 검색최적화</li>
+                    <li>• 키워드 추가금액 있습니다.</li>
+                    <li>• 키워드 추가시 문의메세지 보내주세요.</li>
+                  </ul>
+                </div>
+
+                {/* 디럭스 패키지 */}
+                <div className="border border-gray-200 rounded-lg p-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h4 className="text-lg font-bold text-gray-800">디럭스 패키지</h4>
+                    <span className="bg-orange-100 text-orange-800 text-xs font-medium px-2.5 py-0.5 rounded-full">20일</span>
+                  </div>
+                  <div className="text-2xl font-bold text-orange-600 mb-4">18,000원</div>
+                  <p className="text-sm text-gray-700 mb-4 font-semibold">20일간 검색최적화 트래픽(방문자) 유입관리 진행 됩니다.</p>
+                  <ul className="text-sm text-gray-600 space-y-1">
+                    <li>• SEO최적화를 통해 검색시 노출 증가효과</li>
+                    <li>• 방문자 관리를 통해 블로그, 카페, 포털웹사이트 검색최적화</li>
+                    <li>• 키워드 추가금액 있습니다.</li>
+                    <li>• 키워드 추가시 문의메세지 보내주세요.</li>
+                  </ul>
+                </div>
+
+                {/* 프리미엄 패키지 */}
+                <div className="border border-gray-200 rounded-lg p-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h4 className="text-lg font-bold text-gray-800">프리미엄 패키지</h4>
+                    <span className="bg-orange-100 text-orange-800 text-xs font-medium px-2.5 py-0.5 rounded-full">30일</span>
+                  </div>
+                  <div className="text-2xl font-bold text-orange-600 mb-4">25,000원</div>
+                  <p className="text-sm text-gray-700 mb-4 font-semibold">30일간 검색최적화 트래픽(방문자) 유입관리 진행 됩니다.</p>
+                  <ul className="text-sm text-gray-600 space-y-1">
+                    <li>• SEO최적화를 통해 검색시 노출 증가효과</li>
+                    <li>• 방문자 관리를 통해 블로그, 카페, 포털웹사이트 검색최적화</li>
+                    <li>• 키워드 추가금액 있습니다.</li>
+                    <li>• 키워드 추가시 문의메세지 보내주세요.</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                <p className="text-sm text-gray-700">- 그 외 다양한 검색포털, 스토어, 오픈마켓 등의 전용 트래픽(방문자) 관리도 가능합니다.</p>
+                <p className="text-sm text-gray-700 mt-2">언제든 문의 메시지 보내주세요</p>
+                <p className="text-sm text-gray-700">문의 메시지를 보내주시면 보다 상세한 안내 상담 가능합니다.</p>
+              </div>
+            </div>
+
+            {/* 최적화 상품 상세 안내 */}
+            <div className="mt-8">
+              <h3 className="text-base font-bold mb-4 text-gray-800">4. 최적화 상품 상세 안내</h3>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                <p className="text-sm text-blue-800 font-semibold">* 작업 진행 이전 메시지를 통한 상담으로 맞춤 진행이 됩니다.</p>
+                <p className="text-sm text-blue-700 mt-1">언제든 메시지 보내주시면 빠르고 친절한 상담 도와드리겠습니다</p>
+              </div>
+              
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+                <p className="text-sm text-yellow-800 font-semibold"># 블로그, 카페, 포털 전용 최적화 전용 최적화 키워드 검색 방문자 참여 상품</p>
+                <p className="text-sm text-yellow-700 mt-1">*해당 서비스는 블록,카페,포털 검색후 방문자를 참여시켜 블로그,카페,포털 활성화에 많은 도움을 줍니다.</p>
+                <p className="text-sm text-yellow-700">추가 참여도 가능합니다.</p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="border border-gray-200 rounded-lg p-4">
+                  <div className="flex justify-between items-center mb-2">
+                    <h4 className="font-semibold text-gray-800">* 키워드 1개</h4>
+                    <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">30일관리</span>
+                  </div>
+                  <p className="text-sm text-gray-600 mb-2">블로그, 카페, 포털 전용 최적화 전용 최적화 키워드 검색 방문자 참여</p>
+                  <div className="text-xl font-bold text-blue-600">330,000원</div>
+                </div>
+
+                <div className="border border-gray-200 rounded-lg p-4">
+                  <div className="flex justify-between items-center mb-2">
+                    <h4 className="font-semibold text-gray-800">* 키워드 2개</h4>
+                    <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">30일관리</span>
+                  </div>
+                  <p className="text-sm text-gray-600 mb-2">블로그, 카페, 포털 전용 최적화 전용 최적화 키워드 검색 방문자 참여</p>
+                  <div className="text-xl font-bold text-blue-600">660,000원</div>
+                </div>
+
+                <div className="border border-gray-200 rounded-lg p-4">
+                  <div className="flex justify-between items-center mb-2">
+                    <h4 className="font-semibold text-gray-800">* 키워드 3개</h4>
+                    <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">30일관리</span>
+                  </div>
+                  <p className="text-sm text-gray-600 mb-2">블로그, 카페, 포털 전용 최적화 전용 최적화 키워드 검색 방문자 참여</p>
+                  <div className="text-xl font-bold text-blue-600">990,000원</div>
+                </div>
+              </div>
+
+              <div className="mt-2">
+                <p className="text-xs text-gray-700 font-semibold">*키워드 관리가 가장 적합합니다.</p>
+              </div>
+            </div>
+
+            {/* 작업 문의사항 */}
+            <div className="mt-8">
+              <h3 className="text-base font-bold mb-4 text-gray-800">5. 작업 문의사항</h3>
+              <div className="space-y-4">
+                <div className="border-l-4 border-green-400 pl-4">
+                  <h4 className="font-semibold text-gray-800 mb-1 text-sm">A. 어떻게 진행하면 될까요?</h4>
+                  <p className="text-xs text-gray-700">작업 진행 이전에 미리 메시지를 통해 문의를 주시면 고객님의 상황에 맞게 저희가 패키지 안내를 드리고 있습니다.</p>
+                </div>
+                <div className="border-l-4 border-green-400 pl-4">
+                  <h4 className="font-semibold text-gray-800 mb-1 text-sm">B. 저품질의 위험은 없을까요?</h4>
+                  <p className="text-xs text-gray-700">매크로 서비스가 아닌 다양한 마케팅 방식을 통해 참여 유입 진행되기 때문에 지수 향상에 도움을 줍니다.</p>
+                </div>
+                <div className="border-l-4 border-green-400 pl-4">
+                  <h4 className="font-semibold text-gray-800 mb-1 text-sm">C. 요청 후 언제 트래픽(방문자) 유입 되나요?</h4>
+                  <p className="text-xs text-gray-700">하루에도 정말 많은 블로그와 카페 트래픽(방문자) 진행을 받고 있기 때문에 요청 후 평균 24시간 이내로트래픽(방문자) 유입 반영이 시작됩니다.</p>
+                </div>
+                <div className="border-l-4 border-green-400 pl-4">
+                  <h4 className="font-semibold text-gray-800 mb-1 text-sm">D. 세금계산서 발행도 가능한가요?</h4>
+                  <p className="text-xs text-gray-700">네 저희는 법인사업자로 세금계산서 발행 가능합니다. 주문 전문의하세요.</p>
+                </div>
+              </div>
+            </div>
+
+            {/* 주문방법 */}
+            <div className="mt-8">
+              <h3 className="text-base font-bold mb-4 text-gray-800">6. 주문방법</h3>
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <p className="text-xs text-gray-700 mb-2">원하시는 패키지 상품을 결제하시거나 진행한 문의 메시지를 보내주시면 보다 상세한 설명 진행이 가능합니다.</p>
+                <ul className="text-xs text-gray-700 space-y-1">
+                  <li>• 메시지를 주시면 결제 요청을 드릴 수 있습니다.</li>
+                  <li>• 목표에 따라 견적이 달라질 수 있으므로 결제 전 문의 메세지로 정확한 견적 상담을 받으시길 권장 드립니다.</li>
+                </ul>
+              </div>
+            </div>
+
+            {/* 주의 사항 및 보상 규정 안내 */}
+            <div className="mt-8">
+              <h3 className="text-base font-bold mb-4 text-gray-800">7. 주의 사항 및 보상 규정 안내</h3>
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <ul className="text-xs text-red-800 space-y-2">
+                  <li>• 서비스 거래 전 또는 결제 후, 반드시 문의 메시지를 주셔서 조아요 전문가와 목표에 대한 합의 진행을 해주세요.</li>
+                  <li>• 조아요는 의뢰인이 요청한 목표치 달성을 위해 취선의 노력을 하겠습니다.</li>
+                  <li>• 조아요는 의뢰인과 합의한 요청 목표 수치에 도달하지못할 경우에는, 협의를 통해 전액 환불 또는 추가 서비스 진행을 해드리고 있습니다.</li>
+                  <li>• 의뢰인의 잘못된 피드백으로 인해 원치 않으시는 서비스 요청이 들어간 경우 환불 진행이 되지 않습니다.</li>
+                </ul>
+              </div>
+            </div>
           </div>
           
         </div>
@@ -1366,24 +1429,13 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ setIsChatOpen }) => {
             </button>
           </div>
             
-          <div className="w-full h-48 rounded-lg bg-cover bg-center flex items-center justify-center mb-4 relative overflow-hidden">
-            {product.image ? (
-              <img 
-                src={product.image} 
-                alt={product.name}
-                className="w-full h-full object-cover"
-              />
-            ) : product.background ? (
-              <img 
-                src={product.background} 
-                alt={product.name}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full bg-orange-100 rounded-lg flex items-center justify-center text-orange-600 text-2xl font-bold">
-                {product.name?.charAt(0) || 'A'}
-              </div>
-            )}
+          <div
+            className="w-full h-48 rounded-lg bg-cover bg-center flex items-center justify-center mb-4 relative"
+            style={{
+              backgroundImage: product.background ? `url(${product.background})` : undefined,
+              backgroundColor: !product.background ? '#FFF7ED' : undefined
+            }}
+          >
           </div>
           {/* 상품정보내용 */}
           <div className="flex flex-col justify-between items-end mb-4">
@@ -1406,112 +1458,27 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ setIsChatOpen }) => {
                   }
                   return stars;
                 })()}
-                <span className="text-gray-700 font-medium ml-2 mr-1">{product.rating?.toFixed(1) || '0.0'}</span>
-                <span className="text-gray-400 text-xs">({productReviews.length})</span>
+                <span className="text-gray-700 font-medium ml-2 mr-1">{product.rating?.toFixed(1)}</span>
+                <span className="text-gray-400 text-xs">({product.reviewCount?.toLocaleString()})</span>
               </div>
             </div>
             {/* 수량 */}
-            <div className="flex items-center relative">
-              <div 
-                className="border rounded px-2 py-1 text-sm cursor-pointer flex items-center justify-between min-w-[80px] quantity-dropdown"
-                onClick={toggleQuantityDropdown}
-              >
-                <span className="text-sm min-w-[48px] text-right mr-2">{quantity === 1 ? '1일' : quantity === 7 ? '7일' : '30일'}</span>
-                <svg className={`w-3 h-3 ml-1 transition-transform ${quantityDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-              {quantityDropdownOpen && (
-                <div className="absolute top-full left-0 mt-1 w-full bg-white border border-gray-200 rounded shadow-lg z-10">
-                  <div 
-                    className="px-2 py-1 text-sm hover:bg-gray-100 cursor-pointer text-right pr-8"
-                    onMouseDown={(e) => { 
-                      e.preventDefault();
-                      e.stopPropagation();
-                      console.log('1일 선택됨 - onMouseDown 이벤트');
-                      setQuantity(1); 
-                      setQuantityDropdownOpen(false);
-                      console.log('드롭다운 닫기 시도: 1일');
-                    }}
-                  >
-                    1일
-                  </div>
-                  <div 
-                    className="px-2 py-1 text-sm hover:bg-gray-100 cursor-pointer text-right pr-8"
-                    onMouseDown={(e) => { 
-                      e.preventDefault();
-                      e.stopPropagation();
-                      console.log('7일 선택됨 - onMouseDown 이벤트');
-                      setQuantity(7); 
-                      setQuantityDropdownOpen(false);
-                      console.log('드롭다운 닫기 시도: 7일');
-                    }}
-                  >
-                    7일
-                  </div>
-                  <div 
-                    className="px-2 py-1 text-sm hover:bg-gray-100 cursor-pointer text-right pr-8"
-                    onMouseDown={(e) => { 
-                      e.preventDefault();
-                      e.stopPropagation();
-                      console.log('30일 선택됨 - onMouseDown 이벤트');
-                      setQuantity(30); 
-                      setQuantityDropdownOpen(false);
-                      console.log('드롭다운 닫기 시도: 30일');
-                    }}
-                  >
-                    30일
-                  </div>
-                </div>
-              )}
+            <div className="flex items-center">
+              <button className="w-6 h-6 border rounded text-sm" onClick={handleDecrease} disabled={quantity === 1}>-</button>
+              <span className="mx-3 text-sm">{quantity}</span>
+              <button className="w-6 h-6 border rounded text-sm" onClick={handleIncrease} disabled={quantity === 99}>+</button>
             </div>
           </div>
           
           {/* 가격 */}
-          <div className="flex flex-row items-end justify-end mb-4 w-full" key={`price-section-${quantity}`}>
-            {/* 할인율 표시 */}
-            {(() => {
-              const discountRate = calculateDiscountRate(quantity);
-              console.log('할인율 체크:', { quantity, discountRate, hasDiscount: discountRate > 0 });
-              return discountRate > 0 ? (
-                <div className="flex items-center mb-1">
-                  <span className="text-blue-500 font-bold text-sm mr-2">
-                    {discountRate}%
-                  </span>
-                </div>
-              ) : null;
-            })()}
-            
-            {/* 원가 표시 (할인율이 있을 때만, 선택된 기간 기준) */}
-            {(() => {
-              const discountRate = calculateDiscountRate(quantity);
-              const originalPrice = calculateOriginalPrice(quantity);
-              console.log('원가 체크:', { 
-                quantity, 
-                discountRate, 
-                originalPrice,
-                hasOriginalPrice: originalPrice > 0 && discountRate > 0
-              });
-              return discountRate > 0 && originalPrice > 0 ? (
-                <div className="flex items-center mb-1">
-                  <span className="text-gray-400 line-through text-sm mr-2">
-                    {originalPrice.toLocaleString()}원
-                  </span>
-                </div>
-              ) : null;
-            })()}
-            
-            {/* 결제 금액 표시 */}
-            <div className="flex items-center" key={`price-${quantity}`}>
-              <span className="text-gray-900 font-bold text-lg">
-                {(() => {
-                  console.log('가격 렌더링 - quantity:', quantity);
-                  const finalPrice = calculatePrice(quantity);
-                  console.log('최종 가격:', finalPrice);
-                  return `${finalPrice.toLocaleString()}원`;
-                })()}
-              </span>
-            </div>
+          <div className="flex items-center mb-4 w-full justify-end">
+            {product.discountRate && (
+              <span className="text-blue-600 font-bold text-lg mr-2">{product.discountRate}%</span>
+            )}
+            {product.originalPrice && (
+              <span className="text-gray-400 line-through text-sm mr-4">{(product.originalPrice * quantity).toLocaleString()}원</span>
+            )}
+            <span className="text-gray-900 font-bold text-xl">{typeof product.price === 'number' ? (product.price * quantity).toLocaleString() : product.price}원</span>
           </div>
           
           {/* 수량/주문 버튼 (md 미만에서만 보임) */}

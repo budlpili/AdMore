@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Product } from '../types/index';
-import { products as allProducts } from '../data/products';
 import ProductCard from '../components/ProductCard';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFacebook, faInstagram, faYoutube, faBlogger, faTwitter, faTelegram, IconDefinition } from '@fortawesome/free-brands-svg-icons';
+import { productAPI } from '../services/api';
 
 const FAVORITES_KEY = 'favorites';
 
@@ -36,6 +36,9 @@ const Products: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('전체');
   const [sortBy, setSortBy] = useState<string>('popular');
   const [sortDropdownOpen, setSortDropdownOpen] = useState(false);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const sortRef = useRef<HTMLDivElement>(null);
 
   const categories: string[] = ['전체', '페이스북', '인스타그램', '유튜브', '블로그', '트위터', '텔레그램', '기타'];
@@ -52,8 +55,32 @@ const Products: React.FC = () => {
 
   const [favorites, setFavorites] = useState<number[]>([]);
 
-  // 컴포넌트 마운트 시 즐겨찾기 로드
+  // 상품 데이터 로드
+  const loadProducts = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // 백엔드에서 활성 상품만 가져오기
+      const activeProducts = await productAPI.getActiveProducts();
+      console.log('로드된 모든 상품:', activeProducts);
+      activeProducts.forEach(product => {
+        console.log(`상품 ID: ${product.id}, 이름: ${product.name}, 카테고리: ${product.category}`);
+      });
+      setProducts(activeProducts);
+      
+    } catch (error) {
+      console.error('상품 로드 에러:', error);
+      setError('상품을 불러오는 중 오류가 발생했습니다.');
+      setProducts([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 컴포넌트 마운트 시 상품 데이터와 즐겨찾기 로드
   useEffect(() => {
+    loadProducts();
     const savedFavorites = getFavorites();
     setFavorites(savedFavorites);
   }, []);
@@ -99,21 +126,21 @@ const Products: React.FC = () => {
   }, [sortDropdownOpen]);
 
   const filteredProducts: Product[] = selectedCategory === '전체' 
-    ? allProducts 
-    : allProducts.filter(product => product.category === selectedCategory);
+    ? products 
+    : products.filter(product => product.category === selectedCategory);
 
-  const sortedProducts: Product[] = [...filteredProducts].sort((a, b) => {
+  const sortProducts = (products: Product[]) => {
     switch (sortBy) {
       case 'price-low':
-        return (a.price as number) - (b.price as number);
+        return products.sort((a, b) => a.price - b.price);
       case 'price-high':
-        return (b.price as number) - (a.price as number);
+        return products.sort((a, b) => b.price - a.price);
       case 'popular':
-        return (b.popular ? 1 : 0) - (a.popular ? 1 : 0);
+        return products.sort((a, b) => (b.popular ? 1 : 0) - (a.popular ? 1 : 0));
       default:
-        return 0;
+        return products;
     }
-  });
+  };
 
   const handleCategoryChange = (category: string): void => {
     setSelectedCategory(category);
@@ -139,6 +166,39 @@ const Products: React.FC = () => {
     { value: 'price-high', label: '가격 높은순' },
   ];
   const currentSortLabel = sortOptions.find(opt => opt.value === sortBy)?.label || '정렬';
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-8 pb-20">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">상품을 불러오는 중...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-8 pb-20">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center py-12">
+            <p className="text-red-500 text-lg mb-4">{error}</p>
+            <button
+              onClick={loadProducts}
+              className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
+            >
+              다시 시도
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 pb-20">
@@ -201,7 +261,7 @@ const Products: React.FC = () => {
 
         {/* Products Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {sortedProducts.map((product) => (
+          {sortProducts(filteredProducts).map((product) => (
             <ProductCard
               key={product.id}
               product={product}
@@ -213,7 +273,7 @@ const Products: React.FC = () => {
         </div>
 
         {/* No Products Message */}
-        {sortedProducts.length === 0 && (
+        {sortProducts(filteredProducts).length === 0 && (
           <div className="text-center py-12">
             <p className="text-gray-500 text-lg">해당 카테고리의 상품이 없습니다.</p>
           </div>

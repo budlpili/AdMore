@@ -7,9 +7,10 @@ import CouponCard from '../components/CouponCard';
 import ProductCard from '../components/ProductCard';
 import { products } from '../data/products';
 import { DUMMY_COUPONS, Coupon } from '../data/coupons';
-import { Order, defaultOrderList } from '../data/orderdata';
+import { Order } from '../data/orderdata';
 import { faFacebook, faInstagram, faYoutube, faBlogger, faTwitter, faTelegram, IconDefinition } from '@fortawesome/free-brands-svg-icons';
 import { useDragScroll } from '../hooks/useDragScroll';
+import { ordersAPI } from '../services/api';
 
 interface UserPageProps {
   setIsChatOpen: (open: boolean) => void;
@@ -334,6 +335,62 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
     }
   };
 
+  // 주문 데이터 로드
+  const loadOrders = async () => {
+    try {
+      // 백엔드 API에서 주문 데이터 가져오기
+      const response = await ordersAPI.getUserOrders();
+      if (response && response.orders) {
+        setOrderList(response.orders);
+        console.log('백엔드에서 주문 데이터 로드 완료:', response.orders);
+      } else {
+        // API 응답이 없으면 로컬스토리지에서 가져오기
+        const orderList = JSON.parse(localStorage.getItem('orderList') || '[]');
+        if (orderList.length === 0) {
+          // 테스트 데이터 제거 - 빈 배열로 설정
+          localStorage.setItem('orderList', JSON.stringify([]));
+          setOrderList([]);
+        } else {
+          setOrderList(orderList);
+        }
+        console.log('로컬스토리지에서 주문 데이터 로드 완료');
+      }
+    } catch (error) {
+      console.error('주문 데이터 로드 중 오류:', error);
+      // 에러 발생 시 로컬스토리지에서 가져오기
+      const orderList = JSON.parse(localStorage.getItem('orderList') || '[]');
+      if (orderList.length === 0) {
+        // 테스트 데이터 제거 - 빈 배열로 설정
+        localStorage.setItem('orderList', JSON.stringify([]));
+        setOrderList([]);
+      } else {
+        setOrderList(orderList);
+      }
+    }
+  };
+
+  // 결제내역 데이터 로드 (orderList를 기반으로 처리)
+  const loadPayments = async () => {
+    try {
+      // 백엔드 API에서 주문 데이터 가져오기
+      const response = await ordersAPI.getUserOrders();
+      if (response && response.orders) {
+        // 결제내역은 orderList를 기반으로 처리되므로 별도 상태 업데이트 불필요
+        console.log('결제내역 데이터 로드 완료');
+      } else {
+        console.log('결제내역 데이터는 orderList를 기반으로 처리됩니다.');
+      }
+    } catch (error) {
+      console.error('결제 데이터 로드 중 오류:', error);
+    }
+  };
+
+  // 컴포넌트 마운트 시 데이터 로드
+  useEffect(() => {
+    loadOrders();
+    loadPayments();
+  }, []);
+
   // 주문내역 데이터 배열을 변수로 분리
   const [orderList, setOrderList] = useState<Order[]>(() => {
     // localStorage에서 기존 주문 데이터가 있으면 불러오기
@@ -346,8 +403,8 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
       console.error('저장된 주문 데이터 로드 실패:', error);
     }
     
-    // 기본 주문 데이터
-    return defaultOrderList;
+    // 테스트 데이터 제거 - 빈 배열로 설정
+    return [];
   });
 
   // orderList가 변경될 때마다 localStorage에 저장
@@ -356,10 +413,61 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
   }, [orderList]);
 
   // 구매확정 처리 함수
-  const handleConfirmPurchase = (orderId: string) => {
-    setOrderList((prev: Order[]) => prev.map((order: Order) =>
-      order.orderId === orderId ? { ...order, confirmStatus: '구매완료' } : order
-    ));
+  const handleConfirmPurchase = async (orderId: string) => {
+    try {
+      // 백엔드 API 호출
+      await ordersAPI.updateStatus(orderId, '구매완료');
+      
+      // 로컬 상태 업데이트
+      setOrderList((prev: Order[]) => prev.map((order: Order) =>
+        order.orderId === orderId ? { ...order, confirmStatus: '구매완료' } : order
+      ));
+      
+      alert('구매가 확정되었습니다.');
+    } catch (error) {
+      console.error('구매확정 처리 중 오류:', error);
+      alert('구매확정 처리 중 오류가 발생했습니다.');
+    }
+  };
+
+  // 주문 상태 업데이트 함수 (관리자 페이지와 동일한 로직)
+  const updateOrderStatus = async (orderId: string, newStatus: string) => {
+    try {
+      // 백엔드 API 호출
+      await ordersAPI.updateStatus(orderId, newStatus);
+      
+      // 로컬 상태 업데이트
+      setOrderList((prev: Order[]) => prev.map((order: Order) => {
+        if (order.orderId === orderId) {
+          // 작업완료 상태일 때 confirmStatus를 '구매확정'으로 설정 (유저가 버튼을 눌러야 함)
+          if (newStatus === '작업완료') {
+            return { ...order, status: newStatus, confirmStatus: '구매확정' };
+          }
+          return { ...order, status: newStatus };
+        }
+        return order;
+      }));
+      
+      // paymentList도 함께 업데이트
+      try {
+        const existingPayments = JSON.parse(localStorage.getItem('paymentList') || '[]');
+        const updatedPayments = existingPayments.map((payment: any) => {
+          if (payment.orderId === orderId) {
+            if (newStatus === '작업완료') {
+              return { ...payment, status: newStatus, confirmStatus: '구매확정' };
+            }
+            return { ...payment, status: newStatus };
+          }
+          return payment;
+        });
+        localStorage.setItem('paymentList', JSON.stringify(updatedPayments));
+      } catch (error) {
+        console.error('결제내역 업데이트 중 오류:', error);
+      }
+    } catch (error) {
+      console.error('주문 상태 업데이트 중 오류:', error);
+      alert('주문 상태 업데이트 중 오류가 발생했습니다.');
+    }
   };
 
   // 날짜 필터링 함수
@@ -407,9 +515,71 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
     }
   };
 
-  // 날짜 포맷팅 함수
+  // 날짜 포맷팅 함수 (Date 객체용)
   const formatDate = (date: Date): string => {
     return date.toISOString().split('T')[0];
+  };
+
+  // 날짜 포맷팅 함수 (yy.mm.dd 00:00 형식)
+  const formatOrderDate = (dateString: string): string => {
+    if (!dateString || dateString === '-') return '입금전';
+    
+    try {
+      const date = new Date(dateString);
+      const year = date.getFullYear().toString().slice(-2);
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      
+      return `${year}. ${month}. ${day} ${hours}:${minutes}`;
+    } catch (error) {
+      return dateString;
+    }
+  };
+
+  // 가격 천단위 포맷팅 함수
+  const formatPrice = (price: string | number): string => {
+    if (!price) return '0원';
+    
+    const numPrice = typeof price === 'string' ? parseInt(price.replace(/[^\d]/g, '')) : price;
+    return numPrice.toLocaleString() + '원';
+  };
+
+  // 주문 상태 뱃지 렌더링 함수 (관리자 페이지와 동일한 스타일)
+  const renderOrderStatusBadge = (order: any) => {
+    const statusColors = {
+      '주문접수': 'bg-blue-100 text-blue-800',
+      '대기중': 'bg-gray-100 text-gray-800',
+      '진행 중': 'bg-yellow-100 text-yellow-800',
+      '작업완료': 'bg-green-100 text-green-800',
+      '구매완료': 'bg-purple-100 text-purple-800',
+      '작업취소': 'bg-red-100 text-red-800',
+      '취소': 'bg-red-100 text-red-800'
+    };
+    
+    const color = statusColors[order.status as keyof typeof statusColors] || 'bg-gray-100 text-gray-800';
+    
+    return (
+      <div className="flex flex-col gap-1">
+        <span className={`px-2 py-1 rounded text-xs font-semibold ${color}`}>
+          {order.status}
+        </span>
+        {order.confirmStatus && order.confirmStatus !== '구매확정전' && (
+          <span className="px-2 py-1 rounded text-xs font-semibold bg-purple-100 text-purple-800">
+            {order.confirmStatus}
+          </span>
+        )}
+        {order.status === '작업완료' && order.confirmStatus === '구매확정' && (
+          <button
+            className="text-xs text-white bg-blue-500 rounded-full px-2 py-1 font-semibold hover:bg-blue-600 transition"
+            onClick={() => handleConfirmPurchase(order.orderId)}
+          >
+            구매확정
+          </button>
+        )}
+      </div>
+    );
   };
 
   const formatDisplayDate = (dateString: string): string => {
@@ -466,16 +636,8 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
     if (isStart) {
       setStartDate(dateStr);
       setIsStartDateOpen(false);
-      if (endDate && dateStr > endDate) {
-        setEndDate('');
-      }
     } else {
-      if (startDate && dateStr < startDate) {
-        setStartDate(dateStr);
-        setEndDate(startDate);
-      } else {
-        setEndDate(dateStr);
-      }
+      setEndDate(dateStr);
       setIsEndDateOpen(false);
     }
   };
@@ -679,6 +841,8 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
   const renderPaymentStatusBadge = (order: any) => {
     let label = '';
     let color = '';
+    const originalMethod = getOriginalPaymentMethod(order.paymentMethod);
+    
     if (order.refundStatus === '카드결제취소') {
       label = '카드결제취소';
       color = 'bg-red-100 text-red-600';
@@ -688,9 +852,12 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
     } else if (order.paymentDate === '-' || !order.paymentDate) {
       label = '입금전';
       color = 'bg-yellow-100 text-yellow-600';
-    } else if (order.paymentMethod === '가상계좌') {
+    } else if (originalMethod === 'virtual') {
       label = '입금완료';
       color = 'bg-green-100 text-green-600';
+    } else if (originalMethod === 'card') {
+      label = '결제완료';
+      color = 'bg-blue-50 text-blue-500';
     } else {
       label = '결제완료';
       color = 'bg-blue-50 text-blue-500';
@@ -849,6 +1016,34 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
   }, []);
+
+  // 결제 방법 변환 함수
+  const formatPaymentMethod = (method: string): string => {
+    switch (method) {
+      case 'card':
+        return '신용카드';
+      case 'virtual':
+        return '가상계좌';
+      case '신용카드':
+        return '신용카드';
+      case '가상계좌':
+        return '가상계좌';
+      default:
+        return method;
+    }
+  };
+
+  // 결제 방법 원본 값 반환 함수 (상태 판단용)
+  const getOriginalPaymentMethod = (method: string): string => {
+    switch (method) {
+      case '신용카드':
+        return 'card';
+      case '가상계좌':
+        return 'virtual';
+      default:
+        return method;
+    }
+  };
 
   return (
     <div className="bg-gray-50 py-8 pb-20">
@@ -1302,7 +1497,7 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                                 className="flex items-center justify-between w-36 px-3 py-2 border border-gray-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
                               >
                                 <span className={startDate ? 'text-gray-700 text-xs' : 'text-gray-400 text-xs'}>
-                                  {startDate ? formatDisplayDate(startDate) : '시작일'}
+                                  {startDate ? formatOrderDate(startDate) : '시작일'}
                                 </span>
                                 <FontAwesomeIcon 
                                   icon={faCalendar} 
@@ -1330,7 +1525,7 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                                 className="flex items-center justify-between w-36 px-3 py-2 border border-gray-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
                               >
                                 <span className={endDate ? 'text-gray-700 text-xs' : 'text-gray-400 text-xs'}>
-                                  {endDate ? formatDisplayDate(endDate) : '종료일'}
+                                  {endDate ? formatOrderDate(endDate) : '종료일'}
                                 </span>
                                 <FontAwesomeIcon 
                                   icon={faCalendar} 
@@ -1382,24 +1577,7 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                             <tr key={order.orderId + order.review}>
                               <td className="text-xs text-gray-600 p-2 min-w-[100px] border">{order.orderId}</td>
                               <td className="text-xs text-gray-600 p-2 min-w-[80px] text-center border">
-                                {order.status === '작업완료' && order.confirmStatus === '구매완료' ? null : (
-                                  <div className="text-xs text-gray-600 font-semibold p-2 min-w-[80px] text-center">{order.status}</div>
-                                )}
-                                {order.status === '작업완료' && (
-                                  order.confirmStatus === '구매완료' ? (
-                                    <>
-                                      <span className="block text-xs text-green-600 font-bold mb-1 py-1">구매완료</span>
-                                      <ReviewButtonText order={order} />
-                                    </>
-                                  ) : (
-                                    <button
-                                      className="text-xs text-white bg-blue-500 rounded-full px-2 py-1 font-semibold hover:bg-blue-600 transition"
-                                      onClick={() => handleConfirmPurchase(order.orderId)}
-                                    >
-                                      구매확정
-                                    </button>
-                                  )
-                                )}
+                                {renderOrderStatusBadge(order)}
                               </td>
                               <td className="text-xs text-gray-600 p-2 min-w-[160px] border">
                                 <Link
@@ -1413,9 +1591,9 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                               </td>
                               <td className="text-xs text-gray-600 p-2 min-w-[60px] text-right border">{order.quantity}개</td>
                               <td className="text-xs text-gray-600 p-2 min-w-[100px] max-w-[100px] text-right border">
-                                <div className="font-semibold text-red-600">{order.price}</div>
+                                <div className="font-semibold text-red-600">{formatPrice(order.price)}</div>
                               </td>
-                              <td className="text-xs text-gray-600 p-2 min-w-[100px] text-center border">{order.date === '-' || !order.date ? '입금전' : order.date}</td>
+                              <td className="text-xs text-gray-600 p-2 min-w-[100px] text-center border">{order.date === '-' || !order.date ? '입금전' : formatOrderDate(order.date)}</td>
                               <td className="text-xs text-gray-600 p-2 min-w-[160px] border">{order.request}</td>
                             </tr>
                           ))
@@ -1481,7 +1659,7 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                                 className="flex items-center justify-between w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
                               >
                                 <span className={startDate ? 'text-gray-700 text-xs' : 'text-gray-400 text-xs'}>
-                                  {startDate ? formatDisplayDate(startDate) : '시작일'}
+                                  {startDate ? formatOrderDate(startDate) : '시작일'}
                                 </span>
                                 <FontAwesomeIcon 
                                   icon={faCalendar} 
@@ -1506,7 +1684,7 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                                 className="flex items-center justify-between w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
                               >
                                 <span className={endDate ? 'text-gray-700 text-xs' : 'text-gray-400 text-xs'}>
-                                  {endDate ? formatDisplayDate(endDate) : '종료일'}
+                                  {endDate ? formatOrderDate(endDate) : '종료일'}
                                 </span>
                                 <FontAwesomeIcon 
                                   icon={faCalendar} 
@@ -1565,8 +1743,13 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                               <div>구매일: <span className="font-medium">{order.date}</span></div>
                             </div>
                             <div className="flex flex-col gap-1">
-                              <div>가격: <span className="font-semibold text-red-600">{order.price}</span></div>
-                              <div>요청: <span className="font-medium">{order.request}</span></div>
+                              <div>가격: 
+                                <span className="line-through text-gray-400 ml-1">{formatPrice(order.originalPrice)}</span>
+                                <span className="font-semibold text-red-600 ml-2">{formatPrice(order.price)}</span>
+                                {order.discountPrice !== '0원' && (
+                                  <span className="text-green-600 ml-1">(할인: {formatPrice(order.discountPrice)})</span>
+                                )}
+                              </div>
                             </div>
                           </div>
                           {order.status === '작업완료' && (
@@ -1689,7 +1872,7 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                               className="flex items-center justify-between w-36 px-3 py-2 border border-gray-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
                             >
                               <span className={startDate ? 'text-gray-700 text-xs' : 'text-gray-400 text-xs'}>
-                                {startDate ? formatDisplayDate(startDate) : '시작일'}
+                                {startDate ? formatOrderDate(startDate) : '시작일'}
                               </span>
                               <FontAwesomeIcon 
                                 icon={faCalendar} 
@@ -1714,7 +1897,7 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                               className="flex items-center justify-between w-36 px-3 py-2 border border-gray-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
                             >
                               <span className={endDate ? 'text-gray-700 text-xs' : 'text-gray-400 text-xs'}>
-                                {endDate ? formatDisplayDate(endDate) : '종료일'}
+                                {endDate ? formatOrderDate(endDate) : '종료일'}
                               </span>
                               <FontAwesomeIcon 
                                 icon={faCalendar} 
@@ -1748,7 +1931,6 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                           <tr className="bg-gray-50">
                             <th className="p-2 border">결제번호</th>
                             <th className="p-2 border">상품명</th>
-                            <th className="p-2 border">주문자</th>
                             <th className="p-2 border">가격정보</th>
                             <th className="p-2 border">결제방법</th>
                             <th className="p-2 border">결제(입금)일</th>
@@ -1758,7 +1940,7 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                         <tbody>
                           {paymentsCurrentItems.length === 0 ? (
                             <tr>
-                              <td colSpan={7} className="text-center text-gray-400 py-16">결제한 내역이 없습니다.</td>
+                              <td colSpan={6} className="text-center text-gray-400 py-16">결제한 내역이 없습니다.</td>
                             </tr>
                           ) : (
                             paymentsCurrentItems.map((order: Order) => {
@@ -1781,23 +1963,17 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                                       <div className="text-gray-500 text-[10px]">({order.detail})</div>
                                     </div>
                                   </td>
-                                  <td className="p-2 border min-w-[80px] text-center">
-                                    <div>
-                                      <div className="text-xs font-medium">{order.userName || '고객'}</div>
-                                      <div className="text-gray-500 text-[10px]">{order.userEmail || 'customer@example.com'}</div>
-                                    </div>
-                                  </td>
                                   <td className="p-2 border min-w-[100px] text-right">
                                     <div className="flex flex-col items-end">
-                                      <span className="line-through text-gray-400 text-[10px]">{order.originalPrice}</span>
+                                      <span className="line-through text-gray-400 text-[10px]">{formatPrice(order.originalPrice)}</span>
                                       {order.discountPrice !== '0원' && (
-                                        <span className="text-green-600 text-[10px]">할인: {order.discountPrice}</span>
+                                        <span className="text-green-600 text-[10px]">할인: {formatPrice(order.discountPrice)}</span>
                                       )}
-                                      <span className="font-semibold text-red-600">{order.price}</span>
+                                      <span className="font-semibold text-red-600">{formatPrice(order.price)}</span>
                                     </div>
                                   </td>
-                                  <td className="p-2 border min-w-[100px] text-center">{order.paymentMethod}</td>
-                                  <td className="p-2 border min-w-[100px] text-center">{order.paymentDate === '-' || !order.paymentDate ? '-' : order.paymentDate}</td>
+                                  <td className="p-2 border min-w-[100px] text-center">{formatPaymentMethod(order.paymentMethod)}</td>
+                                  <td className="p-2 border min-w-[100px] text-center">{order.paymentDate === '-' || !order.paymentDate ? '-' : formatOrderDate(order.paymentDate)}</td>
                                   <td className="p-2 border min-w-[100px] text-center">
                                     {renderPaymentStatusBadge(order)}
                                     {!order.refundStatus && order.paymentDate !== '-' && order.paymentDate && (
@@ -1863,7 +2039,7 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                                 className="flex items-center justify-between w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
                               >
                                 <span className={startDate ? 'text-gray-700 text-xs' : 'text-gray-400 text-xs'}>
-                                  {startDate ? formatDisplayDate(startDate) : '시작일'}
+                                  {startDate ? formatOrderDate(startDate) : '시작일'}
                                 </span>
                                 <FontAwesomeIcon 
                                   icon={faCalendar} 
@@ -1888,7 +2064,7 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                                 className="flex items-center justify-between w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
                               >
                                 <span className={endDate ? 'text-gray-700 text-xs' : 'text-gray-400 text-xs'}>
-                                  {endDate ? formatDisplayDate(endDate) : '종료일'}
+                                  {endDate ? formatOrderDate(endDate) : '종료일'}
                                 </span>
                                 <FontAwesomeIcon 
                                   icon={faCalendar} 
@@ -1931,39 +2107,36 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                                   {order.product}
                                 </span>
                                 <span className={`text-xs font-semibold px-2 py-1 rounded-full min-w-[60px] text-center ${
-                                  order.status === '작업완료' ? 'bg-green-100 text-green-600' :
-                                  order.status === '진행 중' ? 'bg-yellow-100 text-yellow-600' :
-                                  order.status === '취소' ? 'bg-red-100 text-red-600' :
-                                  'bg-gray-100 text-gray-600'
+                                  order.refundStatus === '카드결제취소' || order.refundStatus === '계좌입금완료' ? 'bg-red-100 text-red-600' :
+                                  order.paymentDate === '-' || !order.paymentDate ? 'bg-yellow-100 text-yellow-600' :
+                                  getOriginalPaymentMethod(order.paymentMethod) === 'virtual' ? 'bg-green-100 text-green-600' :
+                                  getOriginalPaymentMethod(order.paymentMethod) === 'card' ? 'bg-blue-50 text-blue-500' :
+                                  'bg-blue-50 text-blue-500'
                                 }`}>
-                                  {order.status === '작업완료' ? 
-                                    (order.paymentMethod === '가상계좌' ? '입금완료' : '결제완료') : 
-                                   order.status === '취소' ? '환불완료' : 
-                                   order.status === '진행 중' ? 
-                                    (order.paymentMethod === '가상계좌' ? '입금완료' : '결제완료') : 
-                                    (order.paymentMethod === '가상계좌' ? '입금완료' : '결제완료')}
+                                  {order.refundStatus === '카드결제취소' ? '카드결제취소' :
+                                   order.refundStatus === '계좌입금완료' ? '계좌입금완료' :
+                                   order.paymentDate === '-' || !order.paymentDate ? '입금전' :
+                                   getOriginalPaymentMethod(order.paymentMethod) === 'virtual' ? '입금완료' :
+                                   getOriginalPaymentMethod(order.paymentMethod) === 'card' ? '결제완료' :
+                                   '결제완료'}
                                 </span>
                               </div>
                               <div className="text-xs text-gray-600 mb-1">{order.detail}</div>
                               <div className="flex flex-col text-xs text-gray-600 gap-x-4 gap-y-1 mb-2">
                                 <div className="flex flex-wrap text-xs text-gray-600 gap-x-4 gap-y-1">
                                   <div>결제번호: <span className="font-medium">{order.paymentNumber || `PAY-${order.orderId.replace('-', '')}`}</span></div>
-                                  <div>주문자: <span className="font-medium">{order.userName || '고객'}</span></div>
+                                  <div>결제방식: <span className="font-medium">{formatPaymentMethod(order.paymentMethod)}</span></div>
                                 </div>
                                 <div className="flex flex-wrap text-xs text-gray-600 gap-x-4 gap-y-1">
-                                  <div>결제방식: <span className="font-medium">{order.paymentMethod}</span></div>
-                                  <div>이메일: <span className="font-medium">{order.userEmail || 'customer@example.com'}</span></div>
-                                </div>
-                                <div className="flex flex-wrap text-xs text-gray-600 gap-x-4 gap-y-1">
-                                  <div>결제일: <span className="font-medium">{order.paymentDate === '-' || !order.paymentDate ? '입금전' : order.paymentDate}</span></div>
+                                  <div>결제일: <span className="font-medium">{order.paymentDate === '-' || !order.paymentDate ? '입금전' : formatOrderDate(order.paymentDate)}</span></div>
                                   <div>주문번호: <span className="font-medium">{order.orderId}</span></div>
                                 </div>
                                 <div className="flex flex-col gap-1">
                                   <div>가격: 
-                                    <span className="line-through text-gray-400 ml-1">{order.originalPrice}</span>
-                                    <span className="font-semibold text-red-600 ml-2">{order.price}</span>
+                                    <span className="line-through text-gray-400 ml-1">{formatPrice(order.originalPrice)}</span>
+                                    <span className="font-semibold text-red-600 ml-2">{formatPrice(order.price)}</span>
                                     {order.discountPrice !== '0원' && (
-                                      <span className="text-green-600 ml-1">(할인: {order.discountPrice})</span>
+                                      <span className="text-green-600 ml-1">(할인: {formatPrice(order.discountPrice)})</span>
                                     )}
                                   </div>
                                 </div>

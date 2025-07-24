@@ -17,16 +17,18 @@ import UserPage from './pages/UserPage';
 import MobileNavBar from './components/MobileNavBar';
 import ReviewWritePage from './pages/ReviewWritePage';
 import Admin from './pages/Admin';
+import ApiTest from './components/ApiTest';
 
 const AppRoutes: React.FC<{ isChatOpen: boolean; setIsChatOpen: (open: boolean) => void }> = ({ isChatOpen, setIsChatOpen }) => {
   const location = useLocation();
   const isOrderPage = location.pathname.startsWith('/order');
   const isProductDetailPage = location.pathname.startsWith('/products/') && location.pathname !== '/products';
   const isAdminPage = location.pathname === '/admin';
+  const isApiTestPage = location.pathname === '/api-test';
   
   return (
     <>
-      {!isAdminPage && (
+      {!isAdminPage && !isApiTestPage && (
         <div className="min-h-screen flex flex-col">
           <Header setIsChatOpen={setIsChatOpen} />
           <main className="flex-grow">
@@ -41,8 +43,10 @@ const AppRoutes: React.FC<{ isChatOpen: boolean; setIsChatOpen: (open: boolean) 
               <Route path="/reviews" element={<Reviews />} />
               <Route path="/about" element={<About />} />
               <Route path="/mypage" element={<UserPage setIsChatOpen={setIsChatOpen} />} />
+              <Route path="/user" element={<UserPage setIsChatOpen={setIsChatOpen} />} />
               <Route path="/review/write" element={<ReviewWritePage />} />
               <Route path="/admin" element={<Admin />} />
+              <Route path="/api-test" element={<ApiTest />} />
             </Routes>
           </main>
           <Footer />
@@ -54,9 +58,15 @@ const AppRoutes: React.FC<{ isChatOpen: boolean; setIsChatOpen: (open: boolean) 
           <Route path="/admin" element={<Admin />} />
         </Routes>
       )}
+
+      {isApiTestPage && (
+        <Routes>
+          <Route path="/api-test" element={<ApiTest />} />
+        </Routes>
+      )}
       
-      {!isAdminPage && <ChatWidget isChatOpen={isChatOpen} setIsChatOpen={setIsChatOpen} />}
-      {!isOrderPage && !isProductDetailPage && !isAdminPage && <MobileNavBar setIsChatOpen={setIsChatOpen} isChatOpen={isChatOpen} type="global" />}
+      {!isAdminPage && !isApiTestPage && <ChatWidget isChatOpen={isChatOpen} setIsChatOpen={setIsChatOpen} />}
+      {!isOrderPage && !isProductDetailPage && !isAdminPage && !isApiTestPage && <MobileNavBar setIsChatOpen={setIsChatOpen} isChatOpen={isChatOpen} type="global" />}
       {isOrderPage && <MobileNavBar setIsChatOpen={setIsChatOpen} isChatOpen={isChatOpen} type="order" />}
     </>
   );
