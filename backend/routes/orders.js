@@ -6,6 +6,7 @@ const {
   getOrderById, 
   updateOrderStatus, 
   updateOrderStatusByOrderId,
+  updateOrderRequestByOrderId,
   confirmPurchase, 
   getAllOrders, 
   deleteOrder,
@@ -24,6 +25,9 @@ router.get('/', getAllOrders);
 
 // 주문 상태 업데이트 (orderId로) - 이 라우트가 :id 라우트보다 먼저 와야 함
 router.put('/order/:orderId/status', updateOrderStatusByOrderId);
+
+// 요청사항 업데이트 (orderId로)
+router.put('/order/:orderId/request', updateOrderRequestByOrderId);
 
 // 특정 주문 조회
 router.get('/:id', getOrderById);

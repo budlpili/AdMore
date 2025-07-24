@@ -67,6 +67,17 @@ interface SidebarItem {
   subItems?: SidebarItem[];
 }
 
+// 이메일 마스킹 함수
+const maskEmail = (email: string): string => {
+  if (!email || !email.includes('@')) return email;
+  
+  const [localPart, domain] = email.split('@');
+  if (localPart.length <= 2) return email;
+  
+  const maskedLocalPart = localPart.slice(0, -2) + '**';
+  return `${maskedLocalPart}@${domain}`;
+};
+
 const Admin: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -317,7 +328,7 @@ const Admin: React.FC = () => {
   };
 
   // 주문 상태 변경
-  const updateOrderStatus = async (orderId: string, newStatus: string) => {
+  const updateOrderStatus = async (orderId: string, newStatus: string, confirmStatus?: string) => {
     if (window.confirm(`주문 상태를 "${newStatus}"로 변경하시겠습니까?`)) {
       try {
         // 백엔드 API 호출
@@ -327,7 +338,8 @@ const Admin: React.FC = () => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            status: newStatus
+            status: newStatus,
+            confirmStatus: confirmStatus
           })
         });
 
@@ -663,33 +675,84 @@ const Admin: React.FC = () => {
 
   // 작업시작 함수
   const startWork = async (orderId: string) => {
-    if (window.confirm('작업을 시작하시겠습니까?\n\n주문 상태가 "진행 중"으로 변경됩니다.')) {
+    if (window.confirm('작업을 시작하시겠습니까?\n\n작업시작 후에는 상태가 "진행 중"으로 변경됩니다.')) {
       try {
-        // 백엔드 API 호출
-        const response = await fetch(`/api/orders/order/${orderId}/status`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            status: '진행 중'
-          })
-        });
-
-        if (response.ok) {
-          // 성공 시 주문 목록 다시 로드
-          await loadOrders();
-          alert('작업이 시작되었습니다. 주문 상태가 "진행 중"으로 변경되었습니다.');
-        } else {
-          console.error('작업 시작 실패:', response.status);
-          alert('작업 시작에 실패했습니다.');
-        }
+        await updateOrderStatus(orderId, '진행 중');
+        alert('작업이 시작되었습니다.');
       } catch (error) {
         console.error('작업 시작 중 오류:', error);
         alert('작업 시작 중 오류가 발생했습니다.');
       }
     }
   };
+
+  // 요청사항 수정 시작
+  const startEditRequest = (orderId: string, currentRequest: string) => {
+    setEditingRequestOrderId(orderId);
+    setEditingRequestText(currentRequest || '');
+  };
+
+  // 요청사항 수정 취소
+  const cancelEditRequest = () => {
+    setEditingRequestOrderId(null);
+    setEditingRequestText('');
+    setExpandedRequestOrderId(null);
+  };
+
+  // 요청사항 저장
+  const saveRequest = async (orderId: string) => {
+    try {
+      // 백엔드 API 호출
+      const response = await fetch(`/api/orders/order/${orderId}/request`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          request: editingRequestText
+        })
+      });
+
+      if (response.ok) {
+        // orderList 업데이트
+        const updatedOrders = orders.map(order => 
+          order.orderId === orderId ? { ...order, request: editingRequestText } : order
+        );
+        setOrders(updatedOrders);
+        localStorage.setItem('orderList', JSON.stringify(updatedOrders));
+        
+        // paymentList도 함께 업데이트
+        try {
+          const existingPayments = JSON.parse(localStorage.getItem('paymentList') || '[]');
+          const updatedPayments = existingPayments.map((payment: any) => {
+            if (payment.orderId === orderId) {
+              return { ...payment, request: editingRequestText };
+            }
+            return payment;
+          });
+          localStorage.setItem('paymentList', JSON.stringify(updatedPayments));
+        } catch (error) {
+          console.error('결제내역 업데이트 중 오류:', error);
+        }
+        
+        setEditingRequestOrderId(null);
+        setEditingRequestText('');
+        setExpandedRequestOrderId(null);
+        alert('요청사항이 저장되었습니다.');
+      } else {
+        console.error('요청사항 저장 실패:', response.status);
+        alert('요청사항 저장에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('요청사항 저장 중 오류:', error);
+      alert('요청사항 저장 중 오류가 발생했습니다.');
+    }
+  };
+
+  // 요청사항 수정 관련 상태
+  const [editingRequestOrderId, setEditingRequestOrderId] = useState<string | null>(null);
+  const [editingRequestText, setEditingRequestText] = useState('');
+  const [expandedRequestOrderId, setExpandedRequestOrderId] = useState<string | null>(null);
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -1533,32 +1596,32 @@ const Admin: React.FC = () => {
                     <table className="w-full border-collapse border border-gray-300 rounded-lg">
                       <thead className="bg-gray-50 rounded-t-lg border-b border-gray-200">
                         <tr>
-                          <th className="px-3 py-3 text-left text-sm font-medium text-gray-700 uppercase tracking-wider">주문번호(결제번호)</th>
-                          <th className="px-3 py-3 text-left text-sm font-medium text-gray-700 uppercase tracking-wider">주문자</th>
-                          <th className="px-3 py-3 text-left text-sm font-medium text-gray-700 uppercase tracking-wider">상품명</th>
-                          <th className="px-3 py-3 text-left text-sm font-medium text-gray-700 uppercase tracking-wider">가격정보</th>
-                          <th className="px-3 py-3 text-left text-sm font-medium text-gray-700 uppercase tracking-wider">주문일</th>
-                          <th className="px-3 py-3 text-left text-sm font-medium text-gray-700 uppercase tracking-wider">결제방법</th>
-                          <th className="px-3 py-3 text-left text-sm font-medium text-gray-700 uppercase tracking-wider">상태</th>
-                          <th className="px-3 py-3 text-left text-sm font-medium text-gray-700 uppercase tracking-wider">관리</th>
+                          <th className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">주문번호(결제번호)</th>
+                          <th className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">주문자</th>
+                          <th className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">상품정보</th>
+                          <th className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">가격정보</th>
+                          <th className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">주문일</th>
+                          <th className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">결제방법</th>
+                          <th className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">상태</th>
+                          <th className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">관리</th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
                         {filteredOrders.map((order) => (
                           <tr key={order.orderId} className="hover:bg-gray-50">
-                            <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            <td className="px-3 py-4 whitespace-nowrap text-xs font-medium text-gray-900">
                               {order.orderId}
                               <br />
                               <span className="text-gray-500 text-xs">(PAY-{order.orderId.replace('-', '')})</span>
                             </td>
-                            <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-900">
                               <div>
                                 <div className="text-xs text-gray-500">{order.userEmail || '이메일 없음'}</div>
                               </div>
                             </td>
-                            <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <td className="px-3 py-4 text-sm text-gray-900 max-w-[300px]">
                               {order.productNumber && (
-                                <div className="text-xs text-gray-500 mb-1">상품번호: {order.productNumber}</div>
+                                <div className="text-[10px] text-gray-500 mb-1">상품번호: {order.productNumber}</div>
                               )}
                               <Link
                                 to={`/products/${order.productId}`}
@@ -1572,7 +1635,62 @@ const Admin: React.FC = () => {
                               <br />
                               <span className="text-xs text-gray-500">{order.detail}</span>
                               <br />
-                              <span className="text-xs text-gray-500 font-semibold">( 수량: {order.quantity}일 )</span>
+                              <span className="text-xs text-gray-500 font-semibold">수량: {order.quantity}일</span>
+                              <div className="mt-1 p-2 bg-white border border-gray-300 rounded text-xs flex flex-col gap-1">
+                                <div className="flex justify-between items-center">
+                                  <span className="block font-semibold text-gray-700 text-xs">요청사항</span>
+                                  {editingRequestOrderId === order.orderId ? (
+                                    <div className="flex gap-1">
+                                      
+                                      <button
+                                        onClick={cancelEditRequest}
+                                        className="text-[10px] text-gray-600 px-2 py-1 rounded hover:text-gray-700 flex items-center gap-1"
+                                      >
+                                        <FontAwesomeIcon icon={faTimes} className="w-2 h-2" />
+                                      </button>
+                                      <button
+                                        onClick={() => saveRequest(order.orderId)}
+                                        className="text-[10px] text-green-600 px-2 py-1 rounded hover:text-green-700 flex items-center gap-1"
+                                      >
+                                        <FontAwesomeIcon icon={faCheck} className="w-2 h-2" />
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      onClick={() => startEditRequest(order.orderId, order.request || '')}
+                                      className="text-[10px] text-gray-500 px-2 py-1 rounded hover:text-gray-700 flex items-center gap-1"
+                                    >
+                                      <FontAwesomeIcon icon={faEdit} className="w-2 h-2" />
+                                    </button>
+                                  )}
+                                </div>
+                                {editingRequestOrderId === order.orderId ? (
+                                  <textarea
+                                    value={editingRequestText}
+                                    onChange={(e) => setEditingRequestText(e.target.value)}
+                                    className="w-full p-2 border border-blue-300 rounded text-xs resize-none"
+                                    rows={3}
+                                    placeholder="고객의 요청사항을 입력하세요."
+                                    autoFocus
+                                  />
+                                ) : (
+                                  <div className="flex flex-col gap-1">
+                                    <div className={`${expandedRequestOrderId === order.orderId ? 'max-h-none' : 'max-h-4 overflow-hidden'} transition-all duration-300 ease-in-out`}>
+                                      <span className={`block ${order.request ? 'text-gray-500' : 'text-gray-400 italic'}`}>
+                                        {order.request || '요청사항 없음'}
+                                      </span>
+                                    </div>
+                                    {order.request && order.request.length > 30 && (
+                                      <button
+                                        onClick={() => setExpandedRequestOrderId(expandedRequestOrderId === order.orderId ? null : order.orderId)}
+                                        className="text-[10px] text-gray-500 hover:text-gray-700 self-start transition-colors duration-200"
+                                      >
+                                        {expandedRequestOrderId === order.orderId ? '접기' : '더보기'}
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
                             </td>
                                                         
                             <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -1678,7 +1796,7 @@ const Admin: React.FC = () => {
                                 </div>
                               </div>
                             </td>
-                            <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500">
                               {(() => {
                                 try {
                                   // null, undefined, 빈 문자열 처리
@@ -1729,7 +1847,7 @@ const Admin: React.FC = () => {
                                 }
                               })()}
                             </td>
-                            <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500">
                               {order.paymentMethod === 'card' ? '신용카드' : 
                                order.paymentMethod === 'virtual' ? '가상계좌' : 
                                order.paymentMethod || '신용카드'}
@@ -1929,7 +2047,7 @@ const Admin: React.FC = () => {
                                   {/* 작업완료 버튼 */}
                                   {order.status === '진행 중' && (
                                     <button
-                                      onClick={() => updateOrderStatus(order.orderId, '작업완료')}
+                                      onClick={() => updateOrderStatus(order.orderId, '작업완료', '구매확정 대기 중')}
                                       className="flex-1 text-white bg-green-600 hover:text-green-900 text-xs px-2 py-1 rounded border border-green-600 hover:bg-green-50"
                                     >
                                       작업완료
@@ -1971,22 +2089,15 @@ const Admin: React.FC = () => {
                                   )}
                                 </div>
 
-                                {order.status === '작업완료' && order.confirmStatus !== '구매완료' && (
-                                  <button
-                                    onClick={() => {
-                                      if (window.confirm('구매를 확정하시겠습니까?\n\n구매확정 후에는 되돌릴 수 없습니다.')) {
-                                        const updatedOrders = orders.map(o => 
-                                          o.orderId === order.orderId ? { ...o, confirmStatus: '구매완료' } : o
-                                        );
-                                        setOrders(updatedOrders);
-                                        localStorage.setItem('orderList', JSON.stringify(updatedOrders));
-                                        alert('구매가 확정되었습니다.');
-                                      }
-                                    }}
-                                    className="flex-1 text-white bg-blue-600 hover:text-blue-900 text-xs px-2 py-1 rounded border border-blue-600 hover:bg-blue-50"
-                                  >
-                                    구매확정
-                                  </button>
+                                {order.status === '작업완료' && order.confirmStatus !== '구매완료' && order.confirmStatus !== '구매확정완료' && (
+                                  <div className="text-xs text-gray-400 px-2 py-1 text-center">
+                                    구매확정 대기 중
+                                  </div>
+                                )}
+                                {order.status === '작업완료' && order.confirmStatus === '구매확정완료' && (
+                                  <div className="text-xs text-green-600 px-2 py-1 text-center font-semibold">
+                                    구매확정 완료
+                                  </div>
                                 )}
                               </div>
                             </td>
@@ -2009,7 +2120,7 @@ const Admin: React.FC = () => {
                       <div key={review.id} className="border border-gray-200 rounded-lg p-4">
                         <div className="flex justify-between items-start mb-2">
                           <div>
-                            <p className="font-medium">{review.user}</p>
+                            <p className="font-medium">{maskEmail(review.user)}</p>
                             <div className="flex items-center mt-1">
                               {[...Array(5)].map((_, i) => (
                                 <FontAwesomeIcon
@@ -2516,7 +2627,7 @@ const Admin: React.FC = () => {
             <div className="mt-3">
               <h3 className="text-lg font-medium text-gray-900 mb-4">리뷰 상세</h3>
               <div className="space-y-2">
-                <p><strong>작성자:</strong> {selectedReview.user}</p>
+                <p><strong>작성자:</strong> {maskEmail(selectedReview.user)}</p>
                 <p><strong>별점:</strong> {selectedReview.rating}/5</p>
                 <p><strong>작성일:</strong> {selectedReview.time}</p>
                 <p><strong>상품:</strong> {selectedReview.product}</p>

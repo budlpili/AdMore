@@ -199,48 +199,81 @@ const getOrderById = (req, res) => {
   });
 };
 
-// 주문 상태 업데이트 (관리자용) - orderId로 찾기
+// 주문 상태 업데이트 (orderId로)
 const updateOrderStatusByOrderId = (req, res) => {
   const { orderId } = req.params;
   const { status, paymentDate, confirmStatus } = req.body;
 
-  let sql = 'UPDATE orders SET';
+  // 업데이트할 필드들을 동적으로 구성
+  const updateFields = [];
   const params = [];
-  const updates = [];
 
-  if (status) {
-    updates.push('status = ?');
+  if (status !== undefined) {
+    updateFields.push('status = ?');
     params.push(status);
   }
 
   if (paymentDate !== undefined) {
-    updates.push('paymentDate = ?');
+    updateFields.push('paymentDate = ?');
     params.push(paymentDate);
   }
 
-  if (confirmStatus) {
-    updates.push('confirmStatus = ?');
+  if (confirmStatus !== undefined) {
+    updateFields.push('confirmStatus = ?');
     params.push(confirmStatus);
   }
 
-  if (updates.length === 0) {
-    return res.status(400).json({ message: '업데이트할 데이터가 없습니다.' });
+  if (updateFields.length === 0) {
+    return res.status(400).json({ message: '업데이트할 필드가 없습니다.' });
   }
 
-  sql += ' ' + updates.join(', ');
-  sql += ' WHERE orderId = ?';
   params.push(orderId);
+
+  const sql = `UPDATE orders SET ${updateFields.join(', ')} WHERE orderId = ?`;
 
   db.run(sql, params, function(err) {
     if (err) {
-      return res.status(500).json({ message: '주문 상태 업데이트에 실패했습니다.' });
+      console.error('주문 상태 업데이트 오류:', err);
+      return res.status(500).json({ message: '주문 상태 업데이트 중 오류가 발생했습니다.' });
     }
 
     if (this.changes === 0) {
-      return res.status(404).json({ message: '주문을 찾을 수 없습니다.' });
+      return res.status(404).json({ message: '해당 주문을 찾을 수 없습니다.' });
     }
 
-    res.json({ message: '주문 상태가 업데이트되었습니다.' });
+    res.json({ 
+      message: '주문 상태가 성공적으로 업데이트되었습니다.',
+      changes: this.changes
+    });
+  });
+};
+
+// 요청사항 업데이트 (orderId로)
+const updateOrderRequestByOrderId = (req, res) => {
+  const { orderId } = req.params;
+  const { request } = req.body;
+
+  if (request === undefined) {
+    return res.status(400).json({ message: '요청사항이 누락되었습니다.' });
+  }
+
+  const sql = 'UPDATE orders SET request = ? WHERE orderId = ?';
+  const params = [request, orderId];
+
+  db.run(sql, params, function(err) {
+    if (err) {
+      console.error('요청사항 업데이트 오류:', err);
+      return res.status(500).json({ message: '요청사항 업데이트 중 오류가 발생했습니다.' });
+    }
+
+    if (this.changes === 0) {
+      return res.status(404).json({ message: '해당 주문을 찾을 수 없습니다.' });
+    }
+
+    res.json({ 
+      message: '요청사항이 성공적으로 업데이트되었습니다.',
+      changes: this.changes
+    });
   });
 };
 
@@ -408,5 +441,6 @@ module.exports = {
   confirmPurchase, 
   getAllOrders, 
   deleteOrder,
-  updateExistingCardPayments 
+  updateExistingCardPayments,
+  updateOrderRequestByOrderId
 }; 

@@ -13,7 +13,7 @@ export interface Review {
 export const mockReviews: Review[] = [
   {
     id: 1,
-    user: 'Sol****',
+    user: 'sol@example.com',
     time: '24-01-15 14:30',
     content: '진행 과정도 결과도 만족합니다. 그리고 문의에 친절하게 설명해주십니다.',
     product: '유튜브 구독자,조회수,쇼츠,시청시간,수익창출,스트리밍',
@@ -24,7 +24,7 @@ export const mockReviews: Review[] = [
   },
   {
     id: 2,
-    user: '살*****',
+    user: 'sal@example.com',
     time: '24-01-14 18:45',
     content: '친절하게 잘 설명해주시고 바로바로 피드백 주셔서 너무 좋습니다!',
     product: '애드모어',
@@ -35,7 +35,7 @@ export const mockReviews: Review[] = [
   },
   {
     id: 3,
-    user: 'K31***',
+    user: 'k31@example.com',
     time: '24-01-14 10:20',
     content: '수고하셨습니다. 감사합니다.',
     product: '인스타그램 팔로워,릴스,좋아요,조회수,인기게시물 관리',
@@ -46,7 +46,7 @@ export const mockReviews: Review[] = [
   },
   {
     id: 4,
-    user: '방**',
+    user: 'bang@example.com',
     time: '24-01-14 09:15',
     content: '빠른 대응과 기대이상의 결과물로 매우 만족 합니다.',
     product: '유튜브 구독자,조회수,쇼츠,시청시간,수익창출,스트리밍',
@@ -57,7 +57,7 @@ export const mockReviews: Review[] = [
   },
   {
     id: 5,
-    user: '에*****',
+    user: 'e@example.com',
     time: '24-01-13 16:30',
     content: '항상 작업물의 퀄리티, 속도와 처리가 매우 만족을 줍니다. 다음에 또 구매하겠습니다.',
     product: '유튜브 구독자,조회수,쇼츠,시청시간,수익창출,스트리밍',

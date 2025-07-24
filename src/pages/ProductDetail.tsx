@@ -73,6 +73,17 @@ const formatDateTime = (date: Date, isModified: boolean = false): string => {
   return isModified ? `${formattedDate} ${formattedTime} (수정됨)` : `${formattedDate} ${formattedTime}`;
 };
 
+// 이메일 마스킹 함수
+const maskEmail = (email: string): string => {
+  if (!email || !email.includes('@')) return email;
+  
+  const [localPart, domain] = email.split('@');
+  if (localPart.length <= 2) return email;
+  
+  const maskedLocalPart = localPart.slice(0, -2) + '**';
+  return `${maskedLocalPart}@${domain}`;
+};
+
 const ProductDetail: React.FC<ProductDetailProps> = ({ setIsChatOpen }) => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -393,27 +404,42 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ setIsChatOpen }) => {
 
   // 현재 상품에 대한 리뷰 작성 여부 확인
   useEffect(() => {
-    const checkIfReviewWritten = () => {
-      // 주문에서 온 경우에는 리뷰 작성 여부를 확인하지 않음
-      if (location.state?.fromOrder) {
-        setHasWrittenReview(false);
-        return;
-      }
-      
+    const checkReviewEligibility = () => {
       try {
-        const existingReviews = JSON.parse(localStorage.getItem('mockReviews') || '[]');
-        const hasReview = existingReviews.some((review: any) => 
-          review.productId === product?.id && review.user === '나'
-        );
-        setHasWrittenReview(hasReview);
+        const orderList = JSON.parse(localStorage.getItem('orderList') || '[]');
+        // 현재 상품에 대한 주문만 확인
+        const hasWritableReview = orderList.some((order: any) => {
+          return order.productId === product?.id && 
+                 (order.status === '작업완료' || order.status === '구매완료') && 
+                 order.review === '리뷰 작성하기';
+        });
+        
+        // 리뷰가 이미 작성되었는지 확인
+        const hasWrittenReview = orderList.some((order: any) => {
+          return order.productId === product?.id && 
+                 (order.status === '작업완료' || order.status === '구매완료') && 
+                 (order.review === '리뷰확인' || order.review === '리뷰보러가기');
+        });
+        
+        setCanWriteReview(hasWritableReview);
+        setHasWrittenReview(hasWrittenReview);
       } catch (error) {
-        console.error('리뷰 작성 여부 확인 중 오류:', error);
+        console.error('주문내역 확인 중 오류:', error);
+        setCanWriteReview(false);
         setHasWrittenReview(false);
       }
     };
 
-    checkIfReviewWritten();
-  }, [product?.id, location.state?.fromOrder]);
+    checkReviewEligibility();
+    
+    // 페이지 포커스 시 주문내역 재확인
+    const handleFocus = () => {
+      checkReviewEligibility();
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [product?.id]); // location.state?.fromOrder 의존성 제거
 
   // 주문에서 리뷰 작성하기로 온 경우 리뷰 작성 폼 자동 열기
   useEffect(() => {
@@ -485,9 +511,20 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ setIsChatOpen }) => {
       return;
     }
 
+    // 로그인 상태 확인
+    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+    if (!isLoggedIn) {
+      alert('리뷰를 작성하려면 로그인이 필요합니다.');
+      return;
+    }
+
+    // 현재 로그인한 유저의 이메일 가져오기
+    const userEmail = localStorage.getItem('userEmail') || 'guest@example.com';
+    console.log('리뷰 작성자 이메일:', userEmail);
+
     const newReview = {
       id: Date.now(),
-      user: '나',
+      user: userEmail, // 현재 로그인한 유저의 이메일 사용
       rating: reviewRating,
       content: reviewContent.trim(),
       time: formatDateTime(new Date()),
@@ -510,6 +547,47 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ setIsChatOpen }) => {
       // 저장된 리뷰를 먼저 표시하고, 그 다음에 mockReviews 표시
       const allReviews = [...sortedCurrentProductReviews, ...mockReviews];
       setProductReviews(allReviews);
+      
+      // 상품의 평균 별점 계산 및 업데이트
+      const allProductReviews = allReviews.filter((review: any) => review.productId === product?.id);
+      console.log('평균 별점 계산 - 모든 리뷰:', allProductReviews);
+      
+      if (allProductReviews.length > 0) {
+        const totalRating = allProductReviews.reduce((sum: number, review: any) => sum + review.rating, 0);
+        const averageRating = totalRating / allProductReviews.length;
+        
+        console.log('평균 별점 계산 결과:', { totalRating, averageRating, reviewCount: allProductReviews.length });
+        
+        // 상품 정보 업데이트
+        setProduct(prevProduct => {
+          if (prevProduct) {
+            const updatedProduct = {
+              ...prevProduct,
+              rating: Math.round(averageRating * 10) / 10 // 소수점 첫째 자리까지 반올림
+            };
+            console.log('상품 별점 업데이트:', { before: prevProduct.rating, after: updatedProduct.rating });
+            return updatedProduct;
+          }
+          return prevProduct;
+        });
+        
+        // localStorage에 상품 정보 업데이트
+        try {
+          const savedProducts = JSON.parse(localStorage.getItem('products') || '[]');
+          const updatedProducts = savedProducts.map((savedProduct: any) => {
+            if (savedProduct.id === product?.id) {
+              return {
+                ...savedProduct,
+                rating: Math.round(averageRating * 10) / 10
+              };
+            }
+            return savedProduct;
+          });
+          localStorage.setItem('products', JSON.stringify(updatedProducts));
+        } catch (error) {
+          console.error('상품 정보 업데이트 중 오류:', error);
+        }
+      }
     } catch (error) {
       console.error('리뷰 저장 중 오류:', error);
     }
@@ -530,7 +608,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ setIsChatOpen }) => {
             order.review === '리뷰 작성하기') {
           return {
             ...order,
-            review: '리뷰 확인'
+            review: '리뷰확인'
           };
         }
         return order;
@@ -710,6 +788,16 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ setIsChatOpen }) => {
       return;
     }
 
+    // 현재 로그인한 유저의 이메일 가져오기
+    const userEmail = localStorage.getItem('userEmail');
+    const currentReview = productReviews.find(review => review.id === reviewId);
+    
+    // 리뷰 작성자와 현재 로그인한 유저가 같은지 확인
+    if (currentReview && currentReview.user !== userEmail) {
+      alert('자신이 작성한 리뷰만 수정할 수 있습니다.');
+      return;
+    }
+
     const updatedReviews = productReviews.map(review => {
       if (review.id === reviewId) {
         return {
@@ -739,6 +827,85 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ setIsChatOpen }) => {
         return review;
       });
       localStorage.setItem('mockReviews', JSON.stringify(updatedLocalReviews));
+      
+      // 상품의 평균 별점 계산 및 업데이트
+      const allProductReviews = updatedReviews.filter((review: any) => review.productId === product?.id);
+      if (allProductReviews.length > 0) {
+        const totalRating = allProductReviews.reduce((sum: number, review: any) => sum + review.rating, 0);
+        const averageRating = totalRating / allProductReviews.length;
+        
+        // 상품 정보 업데이트
+        setProduct(prevProduct => {
+          if (prevProduct) {
+            return {
+              ...prevProduct,
+              rating: Math.round(averageRating * 10) / 10
+            };
+          }
+          return prevProduct;
+        });
+        
+        // localStorage에 상품 정보 업데이트
+        try {
+          const savedProducts = JSON.parse(localStorage.getItem('products') || '[]');
+          const updatedProducts = savedProducts.map((savedProduct: any) => {
+            if (savedProduct.id === product?.id) {
+              return {
+                ...savedProduct,
+                rating: Math.round(averageRating * 10) / 10
+              };
+            }
+            return savedProduct;
+          });
+          localStorage.setItem('products', JSON.stringify(updatedProducts));
+        } catch (error) {
+          console.error('상품 정보 업데이트 중 오류:', error);
+        }
+      } else {
+        // 리뷰가 없으면 별점을 0으로 설정
+        setProduct(prevProduct => {
+          if (prevProduct) {
+            return {
+              ...prevProduct,
+              rating: 0
+            };
+          }
+          return prevProduct;
+        });
+        
+        // localStorage에 상품 정보 업데이트
+        try {
+          const savedProducts = JSON.parse(localStorage.getItem('products') || '[]');
+          const updatedProducts = savedProducts.map((savedProduct: any) => {
+            if (savedProduct.id === product?.id) {
+              return {
+                ...savedProduct,
+                rating: 0
+              };
+            }
+            return savedProduct;
+          });
+          localStorage.setItem('products', JSON.stringify(updatedProducts));
+        } catch (error) {
+          console.error('상품 정보 업데이트 중 오류:', error);
+        }
+      }
+      
+      // 주문내역에서 해당 상품의 리뷰 상태를 '리뷰 작성하기'로 변경
+      const orderList = JSON.parse(localStorage.getItem('orderList') || '[]');
+      const updatedOrderList = orderList.map((order: any) => {
+        if (order.productId === product?.id && 
+            (order.status === '작업완료' || order.status === '구매완료') && 
+            (order.review === '리뷰확인' || order.review === '리뷰보러가기')) {
+          return { ...order, review: '리뷰 작성하기' };
+        }
+        return order;
+      });
+      localStorage.setItem('orderList', JSON.stringify(updatedOrderList));
+      
+      // 리뷰 작성 상태 업데이트
+      setHasWrittenReview(false);
+      setCanWriteReview(true);
     } catch (error) {
       console.error('리뷰 수정 중 오류:', error);
     }
@@ -751,6 +918,16 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ setIsChatOpen }) => {
 
   // 사용자 리뷰 삭제 핸들러
   const handleDeleteUserReview = (reviewId: number) => {
+    // 현재 로그인한 유저의 이메일 가져오기
+    const userEmail = localStorage.getItem('userEmail');
+    const currentReview = productReviews.find(review => review.id === reviewId);
+    
+    // 리뷰 작성자와 현재 로그인한 유저가 같은지 확인
+    if (currentReview && currentReview.user !== userEmail) {
+      alert('자신이 작성한 리뷰만 삭제할 수 있습니다.');
+      return;
+    }
+
     if (window.confirm('정말로 이 리뷰를 삭제하시겠습니까?')) {
       const updatedReviews = productReviews.filter(review => review.id !== reviewId);
       setProductReviews(updatedReviews);
@@ -761,10 +938,75 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ setIsChatOpen }) => {
         const updatedLocalReviews = existingReviews.filter((review: any) => review.id !== reviewId);
         localStorage.setItem('mockReviews', JSON.stringify(updatedLocalReviews));
         
+        // 상품의 평균 별점 계산 및 업데이트
+        const allProductReviews = updatedReviews.filter((review: any) => review.productId === product?.id);
+        if (allProductReviews.length > 0) {
+          const totalRating = allProductReviews.reduce((sum: number, review: any) => sum + review.rating, 0);
+          const averageRating = totalRating / allProductReviews.length;
+          
+          // 상품 정보 업데이트
+          setProduct(prevProduct => {
+            if (prevProduct) {
+              return {
+                ...prevProduct,
+                rating: Math.round(averageRating * 10) / 10
+              };
+            }
+            return prevProduct;
+          });
+          
+          // localStorage에 상품 정보 업데이트
+          try {
+            const savedProducts = JSON.parse(localStorage.getItem('products') || '[]');
+            const updatedProducts = savedProducts.map((savedProduct: any) => {
+              if (savedProduct.id === product?.id) {
+                return {
+                  ...savedProduct,
+                  rating: Math.round(averageRating * 10) / 10
+                };
+              }
+              return savedProduct;
+            });
+            localStorage.setItem('products', JSON.stringify(updatedProducts));
+          } catch (error) {
+            console.error('상품 정보 업데이트 중 오류:', error);
+          }
+        } else {
+          // 리뷰가 없으면 별점을 0으로 설정
+          setProduct(prevProduct => {
+            if (prevProduct) {
+              return {
+                ...prevProduct,
+                rating: 0
+              };
+            }
+            return prevProduct;
+          });
+          
+          // localStorage에 상품 정보 업데이트
+          try {
+            const savedProducts = JSON.parse(localStorage.getItem('products') || '[]');
+            const updatedProducts = savedProducts.map((savedProduct: any) => {
+              if (savedProduct.id === product?.id) {
+                return {
+                  ...savedProduct,
+                  rating: 0
+                };
+              }
+              return savedProduct;
+            });
+            localStorage.setItem('products', JSON.stringify(updatedProducts));
+          } catch (error) {
+            console.error('상품 정보 업데이트 중 오류:', error);
+          }
+        }
+        
         // 주문내역에서 해당 상품의 리뷰 상태를 '리뷰 작성하기'로 변경
         const orderList = JSON.parse(localStorage.getItem('orderList') || '[]');
         const updatedOrderList = orderList.map((order: any) => {
-          if (order.productId === product?.id) {
+          if (order.productId === product?.id && 
+              (order.status === '작업완료' || order.status === '구매완료') && 
+              (order.review === '리뷰확인' || order.review === '리뷰보러가기')) {
             return { ...order, review: '리뷰 작성하기' };
           }
           return order;
@@ -809,10 +1051,20 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ setIsChatOpen }) => {
                  (order.status === '작업완료' || order.status === '구매완료') && 
                  order.review === '리뷰 작성하기';
         });
+        
+        // 리뷰가 이미 작성되었는지 확인
+        const hasWrittenReview = orderList.some((order: any) => {
+          return order.productId === product?.id && 
+                 (order.status === '작업완료' || order.status === '구매완료') && 
+                 (order.review === '리뷰확인' || order.review === '리뷰보러가기');
+        });
+        
         setCanWriteReview(hasWritableReview);
+        setHasWrittenReview(hasWrittenReview);
       } catch (error) {
         console.error('주문내역 확인 중 오류:', error);
         setCanWriteReview(false);
+        setHasWrittenReview(false);
       }
     };
 
@@ -845,12 +1097,24 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ setIsChatOpen }) => {
           console.log('상품 ID:', foundProduct.id);
           console.log('상품명:', foundProduct.name);
           console.log('상품 설명:', foundProduct.description);
+          console.log('상품 이미지:', foundProduct.image);
+          console.log('상품 배경:', foundProduct.background);
+          console.log('이미지 타입:', typeof foundProduct.image);
+          console.log('배경 타입:', typeof foundProduct.background);
           console.log('상세 설명:', foundProduct.detailedDescription);
           console.log('상세 설명 타입:', typeof foundProduct.detailedDescription);
           console.log('상세 설명 길이:', foundProduct.detailedDescription?.length);
         } else {
-          // 상품을 찾을 수 없는 경우
-          navigate('/products', { replace: true });
+          // 백엔드에서 상품을 찾을 수 없는 경우, 로컬 상품 데이터에서 찾기
+          console.log('백엔드에서 상품을 찾을 수 없음, 로컬 데이터에서 검색');
+          const localProduct = products.find(p => p.id === Number(id));
+          if (localProduct) {
+            setProduct(localProduct);
+            console.log('로컬에서 상품 데이터 로드:', localProduct);
+          } else {
+            // 상품을 찾을 수 없는 경우
+            navigate('/products', { replace: true });
+          }
         }
       } catch (error) {
         console.error('상품 로드 에러:', error);
@@ -942,22 +1206,102 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ setIsChatOpen }) => {
                 {/* <h4 className="font-semibold text-gray-800 mb-2 text-sm">주문 상품 정보</h4> */}
                 <div className="flex items-center space-x-3 mb-2">
                   <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center overflow-hidden">
-                    {product?.background ? (
-                      <img 
-                        src={product.background} 
-                        alt={orderInfo?.product || product?.name || '상품 이미지'}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          const target = e.currentTarget as HTMLImageElement;
-                          target.style.display = 'none';
-                          const fallback = target.nextElementSibling as HTMLElement;
-                          if (fallback) {
-                            fallback.style.display = 'flex';
-                          }
-                        }}
-                      />
-                    ) : null}
-                    <div className={`w-full h-full bg-orange-100 rounded-lg items-center justify-center text-orange-600 text-xs font-bold ${product?.background ? 'hidden' : 'flex'}`}>
+                    {(() => {
+                      console.log('리뷰 작성 폼 - 상품 이미지 정보:', {
+                        productId: product?.id,
+                        productName: product?.name,
+                        image: product?.image,
+                        background: product?.background,
+                        orderInfo: orderInfo
+                      });
+                      
+                      if (product?.image) {
+                        // 이미지 경로 처리 개선
+                        let imageSrc = product.image;
+                        if (product.image.startsWith('data:')) {
+                          // base64 이미지
+                          imageSrc = product.image;
+                        } else if (product.image.startsWith('http')) {
+                          // 외부 URL
+                          imageSrc = product.image;
+                        } else if (product.image.startsWith('/')) {
+                          // 절대 경로
+                          imageSrc = product.image;
+                        } else {
+                          // 상대 경로
+                          imageSrc = `/images/${product.image}`;
+                        }
+                        
+                        console.log('이미지 소스:', imageSrc);
+                        return (
+                          <img 
+                            src={imageSrc}
+                            alt={orderInfo?.product || product?.name || '상품 이미지'}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              console.log('이미지 로드 실패:', imageSrc);
+                              const target = e.currentTarget as HTMLImageElement;
+                              target.style.display = 'none';
+                              const fallback = target.nextElementSibling as HTMLElement;
+                              if (fallback) {
+                                fallback.style.display = 'flex';
+                              }
+                            }}
+                            onLoad={() => {
+                              console.log('이미지 로드 성공:', imageSrc);
+                            }}
+                          />
+                        );
+                      } else if (product?.background) {
+                        // 배경 이미지 경로 처리 개선
+                        let backgroundSrc = product.background;
+                        if (product.background.startsWith('data:')) {
+                          // base64 이미지
+                          backgroundSrc = product.background;
+                        } else if (product.background.startsWith('http')) {
+                          // 외부 URL
+                          backgroundSrc = product.background;
+                        } else if (product.background.startsWith('/')) {
+                          // 절대 경로
+                          backgroundSrc = product.background;
+                        } else {
+                          // 상대 경로
+                          backgroundSrc = `/images/${product.background}`;
+                        }
+                        
+                        console.log('배경 이미지 소스:', backgroundSrc);
+                        return (
+                          <img 
+                            src={backgroundSrc}
+                            alt={orderInfo?.product || product?.name || '상품 이미지'}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              console.log('배경 이미지 로드 실패:', backgroundSrc);
+                              const target = e.currentTarget as HTMLImageElement;
+                              target.style.display = 'none';
+                              const fallback = target.nextElementSibling as HTMLElement;
+                              if (fallback) {
+                                fallback.style.display = 'flex';
+                              }
+                            }}
+                            onLoad={() => {
+                              console.log('배경 이미지 로드 성공:', backgroundSrc);
+                            }}
+                          />
+                        );
+                      } else {
+                        console.log('이미지 없음 - 폴백 표시');
+                        // 기본 이미지 표시
+                        return (
+                          <div className="w-full h-full bg-gradient-to-br from-orange-100 to-orange-200 rounded-lg flex items-center justify-center">
+                            <div className="text-orange-600 text-xs font-bold">
+                              {product?.name?.charAt(0) || 'A'}
+                            </div>
+                          </div>
+                        );
+                      }
+                    })()}
+                    <div className={`w-full h-full bg-orange-100 rounded-lg items-center justify-center text-orange-600 text-xs font-bold ${(product?.image || product?.background) ? 'hidden' : 'flex'}`}>
                       {product?.name?.charAt(0) || 'A'}
                     </div>
                   </div>
@@ -1065,7 +1409,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ setIsChatOpen }) => {
               {productReviews.slice(0, visibleReviews).map((review: any) => (
                 <div key={review.id} className="border-b border-gray-100 pb-6 mb-4 last:border-b-0 last:mb-0">
                   <div className="flex items-center pt-2 mb-2">
-                    <span className="font-semibold text-blue-600 mr-2 text-xs">{review.user}</span>
+                    <span className="font-semibold text-blue-600 mr-2 text-xs">{maskEmail(review.user)}</span>
                     <span className="flex items-center text-xs">
                       {Array.from({ length: 5 }).map((_, i) => (
                         <FontAwesomeIcon
@@ -1085,22 +1429,102 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ setIsChatOpen }) => {
                       <div className="flex flex-row justify-between bg-white border border-gray-200 rounded-lg p-3 mb-4">
                         <div className="flex items-center space-x-3 mb-2">
                           <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center overflow-hidden">
-                            {product?.background ? (
-                              <img 
-                                src={product.background} 
-                                alt={orderInfo?.product || product?.name || '상품 이미지'}
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                  const target = e.currentTarget as HTMLImageElement;
-                                  target.style.display = 'none';
-                                  const fallback = target.nextElementSibling as HTMLElement;
-                                  if (fallback) {
-                                    fallback.style.display = 'flex';
-                                  }
-                                }}
-                              />
-                            ) : null}
-                            <div className={`w-full h-full bg-orange-100 rounded-lg items-center justify-center text-orange-600 text-xs font-bold ${product?.background ? 'hidden' : 'flex'}`}>
+                            {(() => {
+                              console.log('리뷰 작성 폼 - 상품 이미지 정보:', {
+                                productId: product?.id,
+                                productName: product?.name,
+                                image: product?.image,
+                                background: product?.background,
+                                orderInfo: orderInfo
+                              });
+                              
+                              if (product?.image) {
+                                // 이미지 경로 처리 개선
+                                let imageSrc = product.image;
+                                if (product.image.startsWith('data:')) {
+                                  // base64 이미지
+                                  imageSrc = product.image;
+                                } else if (product.image.startsWith('http')) {
+                                  // 외부 URL
+                                  imageSrc = product.image;
+                                } else if (product.image.startsWith('/')) {
+                                  // 절대 경로
+                                  imageSrc = product.image;
+                                } else {
+                                  // 상대 경로
+                                  imageSrc = `/images/${product.image}`;
+                                }
+                                
+                                console.log('이미지 소스:', imageSrc);
+                                return (
+                                  <img 
+                                    src={imageSrc}
+                                    alt={orderInfo?.product || product?.name || '상품 이미지'}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      console.log('이미지 로드 실패:', imageSrc);
+                                      const target = e.currentTarget as HTMLImageElement;
+                                      target.style.display = 'none';
+                                      const fallback = target.nextElementSibling as HTMLElement;
+                                      if (fallback) {
+                                        fallback.style.display = 'flex';
+                                      }
+                                    }}
+                                    onLoad={() => {
+                                      console.log('이미지 로드 성공:', imageSrc);
+                                    }}
+                                  />
+                                );
+                              } else if (product?.background) {
+                                // 배경 이미지 경로 처리 개선
+                                let backgroundSrc = product.background;
+                                if (product.background.startsWith('data:')) {
+                                  // base64 이미지
+                                  backgroundSrc = product.background;
+                                } else if (product.background.startsWith('http')) {
+                                  // 외부 URL
+                                  backgroundSrc = product.background;
+                                } else if (product.background.startsWith('/')) {
+                                  // 절대 경로
+                                  backgroundSrc = product.background;
+                                } else {
+                                  // 상대 경로
+                                  backgroundSrc = `/images/${product.background}`;
+                                }
+                                
+                                console.log('배경 이미지 소스:', backgroundSrc);
+                                return (
+                                  <img 
+                                    src={backgroundSrc}
+                                    alt={orderInfo?.product || product?.name || '상품 이미지'}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      console.log('배경 이미지 로드 실패:', backgroundSrc);
+                                      const target = e.currentTarget as HTMLImageElement;
+                                      target.style.display = 'none';
+                                      const fallback = target.nextElementSibling as HTMLElement;
+                                      if (fallback) {
+                                        fallback.style.display = 'flex';
+                                      }
+                                    }}
+                                    onLoad={() => {
+                                      console.log('배경 이미지 로드 성공:', backgroundSrc);
+                                    }}
+                                  />
+                                );
+                              } else {
+                                console.log('이미지 없음 - 폴백 표시');
+                                // 기본 이미지 표시
+                                return (
+                                  <div className="w-full h-full bg-gradient-to-br from-orange-100 to-orange-200 rounded-lg flex items-center justify-center">
+                                    <div className="text-orange-600 text-xs font-bold">
+                                      {product?.name?.charAt(0) || 'A'}
+                                    </div>
+                                  </div>
+                                );
+                              }
+                            })()}
+                            <div className={`w-full h-full bg-orange-100 rounded-lg items-center justify-center text-orange-600 text-xs font-bold ${(product?.image || product?.background) ? 'hidden' : 'flex'}`}>
                               {product?.name?.charAt(0) || 'A'}
                             </div>
                           </div>
@@ -1194,20 +1618,25 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ setIsChatOpen }) => {
                   {/* 사용자 리뷰 버튼들 - 수정 모드가 아닐 때만 표시 */}
                   {!editingUserReview[review.id] && (
                     <div className="mt-2 flex space-x-3">
-                      <button
-                        onClick={() => toggleEditUserReview(review.id, review.content, review.rating)}
-                        className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center"
-                      >
-                        <FontAwesomeIcon icon={faPen} className="mr-1 text-xs" />
-                        수정하기
-                      </button>
-                      <button
-                        onClick={() => handleDeleteUserReview(review.id)}
-                        className="text-xs text-red-600 hover:text-red-800 font-medium flex items-center"
-                      >
-                        <FontAwesomeIcon icon={faTrash} className="mr-1 text-xs" />
-                        삭제하기
-                      </button>
+                      {/* 현재 로그인한 유저의 리뷰인 경우에만 편집/삭제 버튼 표시 */}
+                      {review.user === localStorage.getItem('userEmail') && (
+                        <>
+                          <button
+                            onClick={() => toggleEditUserReview(review.id, review.content, review.rating)}
+                            className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center"
+                          >
+                            <FontAwesomeIcon icon={faPen} className="mr-1 text-xs" />
+                            수정하기
+                          </button>
+                          <button
+                            onClick={() => handleDeleteUserReview(review.id)}
+                            className="text-xs text-red-600 hover:text-red-800 font-medium flex items-center"
+                          >
+                            <FontAwesomeIcon icon={faTrash} className="mr-1 text-xs" />
+                            삭제하기
+                          </button>
+                        </>
+                      )}
                     </div>
                   )}
                   

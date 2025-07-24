@@ -1,9 +1,20 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faRotateRight, faStar, faClock, faPen, faComments } from '@fortawesome/free-solid-svg-icons';
 import { useNavigate } from 'react-router-dom';
 import { Review, mockReviews } from '../data/reviews-list';
 import { products } from '../data/products';
+
+// 이메일 마스킹 함수
+const maskEmail = (email: string): string => {
+  if (!email || !email.includes('@')) return email;
+  
+  const [localPart, domain] = email.split('@');
+  if (localPart.length <= 2) return email;
+  
+  const maskedLocalPart = localPart.slice(0, -2) + '**';
+  return `${maskedLocalPart}@${domain}`;
+};
 
 const REVIEWS_PER_PAGE = 5;
 
@@ -430,7 +441,7 @@ const Reviews: React.FC = () => {
               <div key={review.id} className="bg-white rounded-lg shadow p-6">
                 <div className="flex flex-col xxs:flex-row xxs:items-center mb-2 gap-1 sm:gap-0">
                   <div className="flex items-center">
-                    <span className="font-semibold text-blue-600 mr-2">{review.user}</span>
+                    <span className="font-semibold text-blue-600 mr-2">{maskEmail(review.user)}</span>
                     <span className="flex items-center mr-3">
                       {Array.from({ length: 5 }).map((_, i) => (
                         <svg
