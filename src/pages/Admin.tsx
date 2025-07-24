@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBars, faBell, faUser, faCog, faSignOutAlt, faHome, faShoppingCart, faUsers, faComments, faStar, faChartBar, faBox, faTachometerAlt, faChevronDown, faSearch, faEye, faEdit, faTrash, faPlus, faTimes, faCheck, faXmark, faCaretDown, faChevronLeft, faChevronRight, faSync } from '@fortawesome/free-solid-svg-icons';
 import { faStar as faStarRegular } from '@fortawesome/free-regular-svg-icons';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { products as initialProducts, getProducts, saveProducts, resetProducts } from '../data/products';
 import { mockReviews } from '../data/reviews-list';
 import { defaultUsers, User } from '../data/users';
@@ -33,6 +33,7 @@ interface Order {
   paymentNumber?: string;
   userName?: string;
   userEmail?: string;
+  points?: number;
 }
 
 interface Review {
@@ -247,54 +248,35 @@ const Admin: React.FC = () => {
     setCurrentUserPage(1);
   }, [userSearchTerm, userRoleFilter, userStatusFilter, usersPerPage]);
 
-  const loadOrders = () => {
+  const loadOrders = async () => {
     try {
+      // 백엔드 API에서 주문 데이터 가져오기
+      const response = await fetch('/api/orders');
+      if (response.ok) {
+        const data = await response.json();
+        setOrders(data.orders);
+        console.log('백엔드에서 주문 데이터 로드 완료:', data.orders);
+      } else {
+        console.error('주문 데이터 로드 실패:', response.status);
+        // 백엔드 실패 시 로컬스토리지 사용
+        const orderList = JSON.parse(localStorage.getItem('orderList') || '[]');
+        if (orderList.length === 0) {
+          localStorage.setItem('orderList', JSON.stringify(defaultOrderList));
+          setOrders(defaultOrderList);
+        } else {
+          setOrders(orderList);
+        }
+      }
+    } catch (error) {
+      console.error('주문 데이터 로드 중 오류:', error);
+      // 에러 발생 시 로컬스토리지 사용
       const orderList = JSON.parse(localStorage.getItem('orderList') || '[]');
-      
       if (orderList.length === 0) {
-        // 기본 주문 데이터가 없으면 기본 데이터 사용
         localStorage.setItem('orderList', JSON.stringify(defaultOrderList));
         setOrders(defaultOrderList);
       } else {
-        // 새로운 주문 형식과 기존 형식을 호환하도록 변환
-        const convertedOrders = orderList.map((order: any) => {
-          // 새로운 주문 형식인 경우
-          if (order.productName) {
-            const convertedOrder = {
-              orderId: order.orderId,
-              productId: order.productId,
-              product: order.productName,
-              date: order.date,
-              quantity: order.quantity,
-              status: order.status,
-              review: order.review || '리뷰 작성하기',
-              price: order.finalPrice?.toString() || order.price?.toString() || '0',
-              originalPrice: order.originalPrice?.toString() || '',
-              discountPrice: order.price?.toString() || '',
-              finalPrice: order.finalPrice,
-              paymentMethod: order.payment || '신용카드',
-              paymentDate: order.paymentDate || order.date,
-              refundStatus: order.refundStatus || '환불대기',
-              confirmStatus: order.confirmStatus || '확인대기',
-              detail: order.requirements || '',
-              request: order.requirements || '',
-              image: order.productImage || '',
-              paymentNumber: order.paymentNumber || '',
-              userName: order.userName || '고객',
-              userEmail: order.userEmail || 'customer@example.com'
-            };
-            return convertedOrder;
-          }
-          // 기존 형식인 경우 그대로 사용
-          return order;
-        });
-        setOrders(convertedOrders);
+        setOrders(orderList);
       }
-    } catch (error) {
-      console.error('주문 로드 에러:', error);
-      // 에러 발생 시 기본 데이터 사용
-      localStorage.setItem('orderList', JSON.stringify(defaultOrderList));
-      setOrders(defaultOrderList);
     }
   };
 
@@ -334,111 +316,89 @@ const Admin: React.FC = () => {
   };
 
   // 주문 상태 변경
-  const updateOrderStatus = (orderId: string, newStatus: string) => {
-    const updatedOrders = orders.map(order => {
-      if (order.orderId === orderId) {
-        // 작업완료 상태일 때 confirmStatus를 '구매확정'으로 설정 (유저가 버튼을 눌러야 함)
-        if (newStatus === '작업완료') {
-          return { ...order, status: newStatus, confirmStatus: '구매확정' };
-        }
-        return { ...order, status: newStatus };
-      }
-      return order;
-    });
-    setOrders(updatedOrders);
-    localStorage.setItem('orderList', JSON.stringify(updatedOrders));
-    
-    // paymentList도 함께 업데이트
+  const updateOrderStatus = async (orderId: string, newStatus: string) => {
     try {
-      const existingPayments = JSON.parse(localStorage.getItem('paymentList') || '[]');
-      const updatedPayments = existingPayments.map((payment: any) => {
-        if (payment.orderId === orderId) {
-          if (newStatus === '작업완료') {
-            return { ...payment, status: newStatus, confirmStatus: '구매확정' };
-          }
-          return { ...payment, status: newStatus };
-        }
-        return payment;
+      // 백엔드 API 호출
+      const response = await fetch(`/api/orders/order/${orderId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: newStatus
+        })
       });
-      localStorage.setItem('paymentList', JSON.stringify(updatedPayments));
+
+      if (response.ok) {
+        // 성공 시 주문 목록 다시 로드
+        await loadOrders();
+      } else {
+        console.error('주문 상태 업데이트 실패:', response.status);
+        alert('주문 상태 업데이트에 실패했습니다.');
+      }
     } catch (error) {
-      console.error('결제내역 업데이트 중 오류:', error);
+      console.error('주문 상태 업데이트 중 오류:', error);
+      alert('주문 상태 업데이트 중 오류가 발생했습니다.');
     }
   };
 
   // 입금 확인 함수
-  const confirmPayment = (orderId: string) => {
+  const confirmPayment = async (orderId: string) => {
     if (window.confirm('입금을 확인하시겠습니까?\n\n입금 확인 후에는 취소할 수 있습니다.')) {
-      const updatedOrders = orders.map(order => {
-        if (order.orderId === orderId) {
-          return { 
-            ...order, 
-            paymentDate: new Date().toISOString()
-            // refundStatus는 설정하지 않음 (정상적인 입금완료 상태)
-          };
-        }
-        return order;
-      });
-      setOrders(updatedOrders);
-      localStorage.setItem('orderList', JSON.stringify(updatedOrders));
-      
-      // paymentList도 함께 업데이트
       try {
-        const existingPayments = JSON.parse(localStorage.getItem('paymentList') || '[]');
-        const updatedPayments = existingPayments.map((payment: any) => {
-          if (payment.orderId === orderId) {
-            return { 
-              ...payment, 
-              paymentDate: new Date().toISOString()
-              // refundStatus는 설정하지 않음
-            };
-          }
-          return payment;
+        // 백엔드 API 호출
+        const response = await fetch(`/api/orders/order/${orderId}/status`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            paymentDate: new Date().toISOString()
+          })
         });
-        localStorage.setItem('paymentList', JSON.stringify(updatedPayments));
+
+        if (response.ok) {
+          // 성공 시 주문 목록 다시 로드
+          await loadOrders();
+          alert('입금 확인이 완료되었습니다.');
+        } else {
+          console.error('입금 확인 실패:', response.status);
+          alert('입금 확인에 실패했습니다.');
+        }
       } catch (error) {
-        console.error('결제내역 업데이트 중 오류:', error);
+        console.error('입금 확인 중 오류:', error);
+        alert('입금 확인 중 오류가 발생했습니다.');
       }
-      
-      alert('입금 확인이 완료되었습니다.');
     }
   };
 
   // 입금완료 취소 함수
-  const cancelPayment = (orderId: string) => {
+  const cancelPayment = async (orderId: string) => {
     if (window.confirm('입금완료를 취소하시겠습니까?\n\n입금확인전 상태로 되돌립니다.')) {
-      const updatedOrders = orders.map(order => {
-        if (order.orderId === orderId) {
-          return { 
-            ...order, 
-            paymentDate: '-'
-            // refundStatus는 설정하지 않음
-          };
-        }
-        return order;
-      });
-      setOrders(updatedOrders);
-      localStorage.setItem('orderList', JSON.stringify(updatedOrders));
-      
-      // paymentList도 함께 업데이트
       try {
-        const existingPayments = JSON.parse(localStorage.getItem('paymentList') || '[]');
-        const updatedPayments = existingPayments.map((payment: any) => {
-          if (payment.orderId === orderId) {
-            return { 
-              ...payment, 
-              paymentDate: '-'
-              // refundStatus는 설정하지 않음
-            };
-          }
-          return payment;
+        // 백엔드 API 호출
+        const response = await fetch(`/api/orders/order/${orderId}/status`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            paymentDate: '-'
+          })
         });
-        localStorage.setItem('paymentList', JSON.stringify(updatedPayments));
+
+        if (response.ok) {
+          // 성공 시 주문 목록 다시 로드
+          await loadOrders();
+          alert('입금완료가 취소되었습니다.');
+        } else {
+          console.error('입금완료 취소 실패:', response.status);
+          alert('입금완료 취소에 실패했습니다.');
+        }
       } catch (error) {
-        console.error('결제내역 업데이트 중 오류:', error);
+        console.error('입금완료 취소 중 오류:', error);
+        alert('입금완료 취소 중 오류가 발생했습니다.');
       }
-      
-      alert('입금완료가 취소되었습니다.');
     }
   };
 
@@ -698,30 +658,32 @@ const Admin: React.FC = () => {
   };
 
   // 작업시작 함수
-  const startWork = (orderId: string) => {
+  const startWork = async (orderId: string) => {
     if (window.confirm('작업을 시작하시겠습니까?\n\n주문 상태가 "진행 중"으로 변경됩니다.')) {
-      // orderList 업데이트
-      const updatedOrders = orders.map(order => 
-        order.orderId === orderId ? { ...order, status: '진행 중' } : order
-      );
-      setOrders(updatedOrders);
-      localStorage.setItem('orderList', JSON.stringify(updatedOrders));
-      
-      // paymentList도 함께 업데이트
       try {
-        const existingPayments = JSON.parse(localStorage.getItem('paymentList') || '[]');
-        const updatedPayments = existingPayments.map((payment: any) => {
-          if (payment.orderId === orderId) {
-            return { ...payment, status: '진행 중' };
-          }
-          return payment;
+        // 백엔드 API 호출
+        const response = await fetch(`/api/orders/order/${orderId}/status`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            status: '진행 중'
+          })
         });
-        localStorage.setItem('paymentList', JSON.stringify(updatedPayments));
+
+        if (response.ok) {
+          // 성공 시 주문 목록 다시 로드
+          await loadOrders();
+          alert('작업이 시작되었습니다. 주문 상태가 "진행 중"으로 변경되었습니다.');
+        } else {
+          console.error('작업 시작 실패:', response.status);
+          alert('작업 시작에 실패했습니다.');
+        }
       } catch (error) {
-        console.error('결제내역 업데이트 중 오류:', error);
+        console.error('작업 시작 중 오류:', error);
+        alert('작업 시작 중 오류가 발생했습니다.');
       }
-      
-      alert('작업이 시작되었습니다. 주문 상태가 "진행 중"으로 변경되었습니다.');
     }
   };
 
@@ -1569,9 +1531,8 @@ const Admin: React.FC = () => {
                         <tr>
                           <th className="px-3 py-3 text-left text-sm font-medium text-gray-700 uppercase tracking-wider">주문번호(결제번호)</th>
                           <th className="px-3 py-3 text-left text-sm font-medium text-gray-700 uppercase tracking-wider">주문자</th>
-                          <th className="px-3 py-3 text-left text-sm font-medium text-gray-700 uppercase tracking-wider">상품</th>
-                          <th className="px-3 py-3 text-left text-sm font-medium text-gray-700 uppercase tracking-wider min-w-[80px]">수량</th>
-                          <th className="px-3 py-3 text-left text-sm font-medium text-gray-700 uppercase tracking-wider">금액</th>
+                          <th className="px-3 py-3 text-left text-sm font-medium text-gray-700 uppercase tracking-wider">상품명</th>
+                          <th className="px-3 py-3 text-left text-sm font-medium text-gray-700 uppercase tracking-wider">가격정보</th>
                           <th className="px-3 py-3 text-left text-sm font-medium text-gray-700 uppercase tracking-wider">주문일</th>
                           <th className="px-3 py-3 text-left text-sm font-medium text-gray-700 uppercase tracking-wider">결제방법</th>
                           <th className="px-3 py-3 text-left text-sm font-medium text-gray-700 uppercase tracking-wider">상태</th>
@@ -1592,38 +1553,123 @@ const Admin: React.FC = () => {
                               </div>
                             </td>
                             <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
-                              <button
-                                onClick={() => {
-                                  // 해당 상품 찾기
-                                  const product = products.find(p => p.id === order.productId);
-                                  if (product) {
-                                    // 상품 상세 정보를 모달로 표시
-                                    alert(`상품 상세 정보\n\n상품명: ${product.name}\n가격: ${product.price.toLocaleString()}원\n설명: ${product.description || '설명 없음'}\n카테고리: ${product.category || '카테고리 없음'}`);
-                                  } else {
-                                    alert('상품 정보를 찾을 수 없습니다.');
-                                  }
-                                }}
-                                className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
-                                title="상품 상세 정보 보기"
+                              <Link
+                                to={`/products/${order.productId}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-gray-600 hover:text-gray-800 hover:underline font-medium"
+                                title="상품 상세 페이지로 이동 (새 창)"
                               >
                                 {order.product}
-                              </button>
+                              </Link>
+                              <br />
+                              <span className="text-xs text-gray-500">{order.detail}</span>
+                              <br />
+                              <span className="text-xs text-gray-500 font-semibold">( 수량: {order.quantity}일 )</span>
                             </td>
                                                         
-                            <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500 text-center">{order.quantity}일</td>
                             <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {(() => {
-                                // 새로운 주문 형식인 경우 finalPrice 사용, 기존 형식인 경우 price 사용
-                                const priceValue = order.finalPrice || order.price;
-                                if (typeof priceValue === 'number') {
-                                  return priceValue.toLocaleString() + '원';
-                                } else if (typeof priceValue === 'string') {
-                                  // 문자열에서 숫자만 추출 (예: "50,000원" -> 50000)
-                                  const priceNumber = parseInt(priceValue.replace(/[^\d]/g, '')) || 0;
-                                  return priceNumber.toLocaleString() + '원';
-                                }
-                                return '0원';
-                              })()}
+                              <div 
+                                className="cursor-pointer hover:bg-gray-50 p-1 rounded"
+                                onClick={() => {
+                                  const originalPrice = order.originalPrice || order.price;
+                                  const finalPrice = order.finalPrice || order.price;
+                                  
+                                  // 할인 내역 분석
+                                  let discountDetails = '';
+                                  
+                                  // 즉시할인 (기간별 할인) - originalPrice와 price의 차이
+                                  if (order.originalPrice && order.originalPrice !== order.price) {
+                                    const originalPriceNum = typeof order.originalPrice === 'string' ? 
+                                      parseInt(order.originalPrice.replace(/[^\d]/g, '')) : order.originalPrice;
+                                    const priceNum = typeof order.price === 'string' ? 
+                                      parseInt(order.price.replace(/[^\d]/g, '')) : order.price;
+                                    const immediateDiscount = originalPriceNum - priceNum;
+                                    if (immediateDiscount > 0) {
+                                      discountDetails += `즉시 할인: ${immediateDiscount.toLocaleString()}원\n`;
+                                    }
+                                  }
+                                  
+                                  // 쿠폰할인
+                                  if (order.discountPrice && order.discountPrice !== '0' && order.discountPrice !== '0원') {
+                                    discountDetails += `쿠폰 할인: ${order.discountPrice}\n`;
+                                  }
+                                  
+                                  // 포인트 사용
+                                  if (order.points && order.points > 0) {
+                                    discountDetails += `포인트 사용: ${order.points.toLocaleString()}원\n`;
+                                  }
+                                  
+                                  if (!discountDetails) {
+                                    discountDetails = '할인 없음';
+                                  }
+                                  
+                                  const discountInfo = `
+  할인 내역
+
+  원가: ${typeof originalPrice === 'string' ? 
+    parseInt(originalPrice).toLocaleString() + '원' : 
+    (originalPrice as number)?.toLocaleString() + '원'}
+  ${discountDetails}
+  최종가격: ${typeof finalPrice === 'number' ? finalPrice.toLocaleString() + '원' : finalPrice}
+
+  수량: ${order.quantity}일
+                                  `.trim();
+                                  
+                                  alert(discountInfo);
+                                }}
+                                title="할인 내역 보기"
+                              >
+                                <div className="flex flex-col items-end">
+                                  {order.originalPrice && order.originalPrice !== order.price && (
+                                    <span className="line-through text-gray-400 text-xs">
+                                      {typeof order.originalPrice === 'string' ? 
+                                        parseInt(order.originalPrice).toLocaleString() + '원' : 
+                                        (order.originalPrice as number)?.toLocaleString() + '원'}
+                                    </span>
+                                  )}
+                                  {(() => {
+                                    // 즉시할인 계산 (originalPrice와 price의 차이)
+                                    if (order.originalPrice && order.originalPrice !== order.price) {
+                                      const originalPriceNum = typeof order.originalPrice === 'string' ? 
+                                        parseInt(order.originalPrice.replace(/[^\d]/g, '')) : order.originalPrice;
+                                      const priceNum = typeof order.price === 'string' ? 
+                                        parseInt(order.price.replace(/[^\d]/g, '')) : order.price;
+                                      const immediateDiscount = originalPriceNum - priceNum;
+                                      if (immediateDiscount > 0) {
+                                        return (
+                                          <span className="text-green-600 text-xs">
+                                            할인: {immediateDiscount.toLocaleString()}원
+                                          </span>
+                                        );
+                                      }
+                                    }
+                                    return null;
+                                  })()}
+                                  {order.discountPrice && order.discountPrice !== '0' && order.discountPrice !== '0원' && (
+                                    <span className="text-green-600 text-xs">
+                                      쿠폰할인: {order.discountPrice}
+                                    </span>
+                                  )}
+                                  {order.points && order.points > 0 && (
+                                    <span className="text-blue-600 text-xs">
+                                      포인트: {order.points.toLocaleString()}원
+                                    </span>
+                                  )}
+                                  <span className="font-semibold text-red-600">
+                                    {(() => {
+                                      const priceValue = order.finalPrice || order.price;
+                                      if (typeof priceValue === 'number') {
+                                        return priceValue.toLocaleString() + '원';
+                                      } else if (typeof priceValue === 'string') {
+                                        const priceNumber = parseInt(priceValue.replace(/[^\d]/g, '')) || 0;
+                                        return priceNumber.toLocaleString() + '원';
+                                      }
+                                      return '0원';
+                                    })()}
+                                  </span>
+                                </div>
+                              </div>
                             </td>
                             <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
                               {(() => {

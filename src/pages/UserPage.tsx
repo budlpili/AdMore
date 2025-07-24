@@ -375,8 +375,9 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
       // 백엔드 API에서 주문 데이터 가져오기
       const response = await ordersAPI.getUserOrders();
       if (response && response.orders) {
-        // 결제내역은 orderList를 기반으로 처리되므로 별도 상태 업데이트 불필요
-        console.log('결제내역 데이터 로드 완료');
+        // 결제내역은 orderList를 기반으로 처리되므로 orderList 업데이트
+        setOrderList(response.orders);
+        console.log('결제내역 데이터 로드 완료:', response.orders);
       } else {
         console.log('결제내역 데이터는 orderList를 기반으로 처리됩니다.');
       }
@@ -1045,6 +1046,24 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
     }
   };
 
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // 새로고침 함수
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      setStartDate('');
+      setEndDate('');
+      // 데이터 새로고침 (loadOrders만 호출하면 됨)
+      await loadOrders();
+    } catch (error) {
+      console.error('새로고침 중 오류:', error);
+      alert('새로고침 중 오류가 발생했습니다.');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   return (
     <div className="bg-gray-50 py-8 pb-20">
       <div className="max-w-7xl mx-auto flex gap-8 px-4">
@@ -1543,13 +1562,15 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                           </div>
                         </div>
                         <button
-                          onClick={() => {
-                            setStartDate('');
-                            setEndDate('');
-                          }}
-                          className="bg-gray-500 text-white px-4 py-2 rounded text-sm hover:bg-gray-600 transition-colors flex items-center gap-2"
+                          onClick={handleRefresh}
+                          disabled={isRefreshing}
+                          className="bg-gray-500 text-white px-4 py-2 rounded text-sm hover:bg-gray-600 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                          style={{ minWidth: 40 }}
                         >
-                          <FontAwesomeIcon icon={faRotateLeft} className="w-3 h-3" />
+                          <FontAwesomeIcon 
+                            icon={faRotateLeft} 
+                            className={`w-3 h-3 ${isRefreshing ? 'animate-spin' : ''}`} 
+                          />
                         </button>
                       </div>
                     </div>
@@ -1914,14 +1935,15 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                           </div>
                         </div>
                         <button
-                          onClick={() => {
-                            setStartDate('');
-                            setEndDate('');
-                          }}
-                          className="bg-gray-500 text-white px-4 py-2 rounded text-sm hover:bg-gray-600 transition-colors flex items-center gap-2"
+                          onClick={handleRefresh}
+                          disabled={isRefreshing}
+                          className="bg-gray-500 text-white px-4 py-2 rounded text-sm hover:bg-gray-600 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                           style={{ minWidth: 40 }}
                         >
-                          <FontAwesomeIcon icon={faRotateLeft} className="w-3 h-3" />
+                          <FontAwesomeIcon 
+                            icon={faRotateLeft} 
+                            className={`w-3 h-3 ${isRefreshing ? 'animate-spin' : ''}`} 
+                          />
                         </button>
                       </div>
                     </div>
@@ -1966,8 +1988,29 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                                   <td className="p-2 border min-w-[100px] text-right">
                                     <div className="flex flex-col items-end">
                                       <span className="line-through text-gray-400 text-[10px]">{formatPrice(order.originalPrice)}</span>
-                                      {order.discountPrice !== '0원' && (
-                                        <span className="text-green-600 text-[10px]">할인: {formatPrice(order.discountPrice)}</span>
+                                      {(() => {
+                                        // 즉시할인 계산 (originalPrice와 price의 차이)
+                                        if (order.originalPrice && order.originalPrice !== order.price) {
+                                          const originalPriceNum = typeof order.originalPrice === 'string' ? 
+                                            parseInt(order.originalPrice.replace(/[^\d]/g, '')) : order.originalPrice;
+                                          const priceNum = typeof order.price === 'string' ? 
+                                            parseInt(order.price.replace(/[^\d]/g, '')) : order.price;
+                                          const immediateDiscount = originalPriceNum - priceNum;
+                                          if (immediateDiscount > 0) {
+                                            return (
+                                              <span className="text-green-600 text-[10px]">
+                                                할인: {immediateDiscount.toLocaleString()}원
+                                              </span>
+                                            );
+                                          }
+                                        }
+                                        return null;
+                                      })()}
+                                      {order.discountPrice && order.discountPrice !== '0' && order.discountPrice !== '0원' && (
+                                        <span className="text-green-600 text-[10px]">쿠폰할인: {formatPrice(order.discountPrice)}</span>
+                                      )}
+                                      {order.points && order.points > 0 && (
+                                        <span className="text-blue-600 text-[10px]">포인트: {order.points.toLocaleString()}원</span>
                                       )}
                                       <span className="font-semibold text-red-600">{formatPrice(order.price)}</span>
                                     </div>

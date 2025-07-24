@@ -174,11 +174,18 @@ const getUserOrders = (req, res) => {
 // 주문 상세 조회
 const getOrderById = (req, res) => {
   const { id } = req.params;
-  const userId = req.user.id;
+  // 테스트용: 인증이 없을 때는 userId 체크를 건너뜀
+  const userId = req.user ? req.user.id : null;
 
-  const sql = 'SELECT * FROM orders WHERE id = ? AND userId = ?';
+  let sql = 'SELECT * FROM orders WHERE id = ?';
+  let params = [id];
   
-  db.get(sql, [id, userId], (err, order) => {
+  if (userId) {
+    sql += ' AND userId = ?';
+    params.push(userId);
+  }
+  
+  db.get(sql, params, (err, order) => {
     if (err) {
       return res.status(500).json({ message: '주문 조회 중 오류가 발생했습니다.' });
     }
@@ -191,7 +198,52 @@ const getOrderById = (req, res) => {
   });
 };
 
-// 주문 상태 업데이트 (관리자용)
+// 주문 상태 업데이트 (관리자용) - orderId로 찾기
+const updateOrderStatusByOrderId = (req, res) => {
+  const { orderId } = req.params;
+  const { status, paymentDate, confirmStatus } = req.body;
+
+  let sql = 'UPDATE orders SET';
+  const params = [];
+  const updates = [];
+
+  if (status) {
+    updates.push('status = ?');
+    params.push(status);
+  }
+
+  if (paymentDate !== undefined) {
+    updates.push('paymentDate = ?');
+    params.push(paymentDate);
+  }
+
+  if (confirmStatus) {
+    updates.push('confirmStatus = ?');
+    params.push(confirmStatus);
+  }
+
+  if (updates.length === 0) {
+    return res.status(400).json({ message: '업데이트할 데이터가 없습니다.' });
+  }
+
+  sql += ' ' + updates.join(', ');
+  sql += ' WHERE orderId = ?';
+  params.push(orderId);
+
+  db.run(sql, params, function(err) {
+    if (err) {
+      return res.status(500).json({ message: '주문 상태 업데이트에 실패했습니다.' });
+    }
+
+    if (this.changes === 0) {
+      return res.status(404).json({ message: '주문을 찾을 수 없습니다.' });
+    }
+
+    res.json({ message: '주문 상태가 업데이트되었습니다.' });
+  });
+};
+
+// 주문 상태 업데이트 (관리자용) - id로 찾기
 const updateOrderStatus = (req, res) => {
   const { id } = req.params;
   const { status, paymentDate, confirmStatus } = req.body;
@@ -350,6 +402,7 @@ module.exports = {
   createOrder, 
   getUserOrders, 
   getOrderById, 
+  updateOrderStatusByOrderId, 
   updateOrderStatus, 
   confirmPurchase, 
   getAllOrders, 

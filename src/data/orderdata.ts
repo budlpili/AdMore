@@ -20,6 +20,7 @@ export interface Order {
   paymentNumber?: string;
   userName?: string;
   userEmail?: string;
+  points?: number;
 }
 
 // 기본 주문 데이터
