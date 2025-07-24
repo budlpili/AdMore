@@ -85,6 +85,7 @@ const initializeTables = () => {
     paymentNumber TEXT,
     userName TEXT,
     userEmail TEXT,
+    productNumber TEXT,
     FOREIGN KEY (userId) REFERENCES users (id),
     FOREIGN KEY (productId) REFERENCES products (id)
   )`);

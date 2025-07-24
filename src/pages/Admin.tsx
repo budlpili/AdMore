@@ -34,6 +34,7 @@ interface Order {
   userName?: string;
   userEmail?: string;
   points?: number;
+  productNumber?: string;
 }
 
 interface Review {
@@ -1553,6 +1554,9 @@ const Admin: React.FC = () => {
                               </div>
                             </td>
                             <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {order.productNumber && (
+                                <div className="text-xs text-gray-500 mb-1">상품번호: {order.productNumber}</div>
+                              )}
                               <Link
                                 to={`/products/${order.productId}`}
                                 target="_blank"
@@ -1790,7 +1794,7 @@ const Admin: React.FC = () => {
                                 </div>
                               </div>
                             </td>
-                            
+                            {/* 테이블 관리 */}
                             <td className="px-3 py-4 whitespace-nowrap text-sm font-medium min-w-[200px]">
                               <div className="flex flex-wrap gap-1">
                                 <button

@@ -21,6 +21,7 @@ export interface Order {
   userName?: string;
   userEmail?: string;
   points?: number;
+  productNumber?: string;
 }
 
 // 기본 주문 데이터

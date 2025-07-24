@@ -132,7 +132,33 @@ const PaymentCancelButton = ({ order, setIsChatOpen }: { order: any; setIsChatOp
       return;
     }
 
-    const cancelMessage = `결제취소 요청\n\n결제번호: PAY-${order.orderId.replace('-', '')}\n주문번호: ${order.orderId}\n상품명: ${order.product}\n결제금액: ${order.price}\n결제방법: ${order.paymentMethod}\n결제일: ${order.paymentDate === '-' || !order.paymentDate ? '입금전' : order.paymentDate}\n취소사유: ${cancelReason}\n\n위 결제건에 대한 취소를 요청드립니다.`;
+    // 결제일 포맷팅 함수
+    const formatPaymentDateForCancel = (dateString: string): string => {
+      if (!dateString || dateString === '-') return '입금전';
+      
+      try {
+        const date = new Date(dateString);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        
+        return `${year}년 ${month}월 ${day}일 ${hours}시 ${minutes}분`;
+      } catch (error) {
+        return dateString;
+      }
+    };
+
+    // 결제금액 천단위 포맷팅
+    const formatPriceForCancel = (price: string | number): string => {
+      if (!price) return '0원';
+      
+      const numPrice = typeof price === 'string' ? parseInt(price.replace(/[^\d]/g, '')) : price;
+      return numPrice.toLocaleString() + '원';
+    };
+
+    const cancelMessage = `결제취소 요청\n\n결제번호: PAY-${order.orderId.replace('-', '')}\n주문번호: ${order.orderId}\n상품명: ${order.product}\n결제금액: ${formatPriceForCancel(order.price)}\n결제방법: ${order.paymentMethod}\n결제일: ${formatPaymentDateForCancel(order.paymentDate)}\n취소사유: ${cancelReason}\n\n위 결제건에 대한 취소를 요청드립니다.`;
     
     // 채팅창을 열고 결제 정보를 localStorage에 저장하여 자동 입력되도록 함
     localStorage.setItem('chatAutoMessage', cancelMessage);
@@ -182,8 +208,25 @@ const PaymentCancelButton = ({ order, setIsChatOpen }: { order: any; setIsChatOp
                     list-disc list-inside">
                 <li className=' text-left ml-2'>결제번호: PAY-{order.orderId.replace('-', '')}</li>
                 <li className=' text-left ml-2'>상품명: {order.product}</li>
-                <li className=' text-left ml-2'>결제금액: {order.price}</li>
-                <li className=' text-left ml-2'>결제일: {order.paymentDate === '-' || !order.paymentDate ? '입금전' : order.paymentDate}</li>
+                <li className=' text-left ml-2'>결제금액: {(() => {
+                  if (!order.price) return '0원';
+                  const numPrice = typeof order.price === 'string' ? parseInt(order.price.replace(/[^\d]/g, '')) : order.price;
+                  return numPrice.toLocaleString() + '원';
+                })()}</li>
+                <li className=' text-left ml-2'>결제일: {(() => {
+                  if (!order.paymentDate || order.paymentDate === '-') return '입금전';
+                  try {
+                    const date = new Date(order.paymentDate);
+                    const year = date.getFullYear();
+                    const month = String(date.getMonth() + 1).padStart(2, '0');
+                    const day = String(date.getDate()).padStart(2, '0');
+                    const hours = String(date.getHours()).padStart(2, '0');
+                    const minutes = String(date.getMinutes()).padStart(2, '0');
+                    return `${year}년 ${month}월 ${day}일 ${hours}시 ${minutes}분`;
+                  } catch (error) {
+                    return order.paymentDate;
+                  }
+                })()}</li>
               </ol>
               
               <label className="block text-sm font-semibold text-gray-700 mb-2 text-left">
@@ -1601,6 +1644,9 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                                 {renderOrderStatusBadge(order)}
                               </td>
                               <td className="text-xs text-gray-600 p-2 min-w-[160px] border">
+                                {order.productNumber && (
+                                  <div className="text-gray-500 text-[10px] mb-1">상품번호: {order.productNumber}</div>
+                                )}
                                 <Link
                                   to={`/products/${order.productId}`}
                                   className="text-gray-600 hover:underline font-semibold"
@@ -1741,12 +1787,17 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                         currentItems.map((order: Order) => (
                         <div key={order.orderId + order.review} className="bg-white rounded-lg shadow p-4 border">
                           <div className="flex justify-between items-center mb-2">
-                            <span
-                              className="font-semibold text-sm text-gray-600 hover:underline cursor-pointer"
-                              onClick={() => navigate(`/products/${order.productId}`)}
-                            >
-                              {order.product}
-                            </span>
+                            <div>
+                              {order.productNumber && (
+                                <div className="text-gray-500 text-[10px] mb-1">상품번호: {order.productNumber}</div>
+                              )}
+                              <span
+                                className="font-semibold text-sm text-gray-600 hover:underline cursor-pointer"
+                                onClick={() => navigate(`/products/${order.productId}`)}
+                              >
+                                {order.product}
+                              </span>
+                            </div>
                             <span className={`text-xs font-semibold px-2 py-1 rounded-full min-w-[60px] text-center ${
                               order.status === '작업완료' ? 'bg-green-100 text-green-600' :
                               order.status === '진행 중' ? 'bg-yellow-100 text-yellow-600' :
@@ -1975,7 +2026,10 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                                     </div>
                                   </td>
                                   <td className="p-2 border min-w-[120px]">
-                                    <div>
+                                    <div>   
+                                      {order.productNumber && (
+                                        <div className="text-gray-500 text-[10px] mb-1">상품번호: {order.productNumber}</div>
+                                      )}
                                       <Link
                                         to={`/products/${order.productId}`}
                                         className="text-gray-600 hover:underline font-semibold"
@@ -2143,12 +2197,17 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                           return (
                             <div key={order.orderId} className="bg-white rounded-lg shadow p-4 border">
                               <div className="flex justify-between items-center mb-2">
-                                <span
-                                  className="font-semibold text-sm text-gray-600 hover:underline cursor-pointer"
-                                  onClick={() => navigate(`/products/${order.productId}`)}
-                                >
-                                  {order.product}
-                                </span>
+                                <div>
+                                  {order.productNumber && (
+                                    <div className="text-gray-500 text-[10px] mb-1">상품번호: {order.productNumber}</div>
+                                  )}
+                                  <span
+                                    className="font-semibold text-sm text-gray-600 hover:underline cursor-pointer"
+                                    onClick={() => navigate(`/products/${order.productId}`)}
+                                  >
+                                    {order.product}
+                                  </span>
+                                </div>
                                 <span className={`text-xs font-semibold px-2 py-1 rounded-full min-w-[60px] text-center ${
                                   order.refundStatus === '카드결제취소' || order.refundStatus === '계좌입금완료' ? 'bg-red-100 text-red-600' :
                                   order.paymentDate === '-' || !order.paymentDate ? 'bg-yellow-100 text-yellow-600' :

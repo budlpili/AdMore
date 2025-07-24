@@ -51,6 +51,7 @@ const createOrder = (req, res) => {
     // 실제 상품 정보 사용
     const actualProductName = productData.name;
     const actualProductDescription = productData.description || productData.name;
+    const actualProductNumber = productData.productNumber || `P${productId.toString().padStart(3, '0')}`;
 
     const orderId = generateOrderId();
     const currentDate = new Date().toISOString().slice(0, 19).replace('T', ' ');
@@ -62,14 +63,14 @@ const createOrder = (req, res) => {
       INSERT INTO orders (
         orderId, userId, productId, product, detail, quantity, price, 
         originalPrice, discountPrice, request, date, paymentMethod, 
-        paymentNumber, userName, userEmail, status, confirmStatus, paymentDate
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        paymentNumber, userName, userEmail, status, confirmStatus, paymentDate, productNumber
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
     
     const params = [
       orderId, userId, productId, actualProductName, actualProductDescription, 
       quantity, price, originalPrice, discountPrice, request, currentDate, 
-      paymentMethod, paymentNumber, userName, userEmail, '대기중', '구매확정전', paymentDate
+      paymentMethod, paymentNumber, userName, userEmail, '대기중', '구매확정전', paymentDate, actualProductNumber
     ];
 
     db.run(sql, params, function(err) {
