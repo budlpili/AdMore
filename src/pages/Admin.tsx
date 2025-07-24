@@ -318,28 +318,31 @@ const Admin: React.FC = () => {
 
   // 주문 상태 변경
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
-    try {
-      // 백엔드 API 호출
-      const response = await fetch(`/api/orders/order/${orderId}/status`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          status: newStatus
-        })
-      });
+    if (window.confirm(`주문 상태를 "${newStatus}"로 변경하시겠습니까?`)) {
+      try {
+        // 백엔드 API 호출
+        const response = await fetch(`/api/orders/order/${orderId}/status`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            status: newStatus
+          })
+        });
 
-      if (response.ok) {
-        // 성공 시 주문 목록 다시 로드
-        await loadOrders();
-      } else {
-        console.error('주문 상태 업데이트 실패:', response.status);
-        alert('주문 상태 업데이트에 실패했습니다.');
+        if (response.ok) {
+          // 성공 시 주문 목록 다시 로드
+          await loadOrders();
+          alert(`주문 상태가 "${newStatus}"로 변경되었습니다.`);
+        } else {
+          console.error('주문 상태 업데이트 실패:', response.status);
+          alert('주문 상태 업데이트에 실패했습니다.');
+        }
+      } catch (error) {
+        console.error('주문 상태 업데이트 중 오류:', error);
+        alert('주문 상태 업데이트 중 오류가 발생했습니다.');
       }
-    } catch (error) {
-      console.error('주문 상태 업데이트 중 오류:', error);
-      alert('주문 상태 업데이트 중 오류가 발생했습니다.');
     }
   };
 
@@ -1796,7 +1799,7 @@ const Admin: React.FC = () => {
                             </td>
                             {/* 테이블 관리 */}
                             <td className="px-3 py-4 whitespace-nowrap text-sm font-medium min-w-[200px]">
-                              <div className="flex flex-wrap gap-1">
+                              <div className="flex flex-col gap-1">
                                 <button
                                   onClick={() => setSelectedPaymentOrder(order)}
                                   className="text-blue-600 hover:text-blue-900 text-xs px-2 py-1 rounded border border-blue-300 hover:bg-blue-50"
@@ -1840,106 +1843,151 @@ const Admin: React.FC = () => {
                                     </button>
                                   </>
                                 )}
-                                {/* 계좌입금완료 또는 결제완료 상태일 때 작업시작 버튼 표시 */}
-                                {((order.paymentMethod === 'virtual' || order.paymentMethod === '가상계좌') && 
-                                  order.paymentDate && order.paymentDate !== '-' && order.status === '주문접수') || 
-                                  (order.paymentMethod === 'card' && order.paymentDate && order.paymentDate !== '-' && order.status === '주문접수') && (
-                                  <button
-                                    onClick={() => startWork(order.orderId)}
-                                    className="text-green-600 hover:text-green-900 text-xs px-2 py-1 rounded border border-green-300 hover:bg-green-50"
-                                  >
-                                    작업시작
-                                  </button>
-                                )}
-                                {order.status === '진행 중' && (
-                                  <button
-                                    onClick={() => updateOrderStatus(order.orderId, '작업완료')}
-                                    className="text-green-600 hover:text-green-900 text-xs px-2 py-1 rounded border border-green-300 hover:bg-green-50"
-                                  >
-                                    작업완료
-                                  </button>
-                                )}
+                                {/* 결제완료 또는 입금완료 상태일 때 작업시작 버튼과 작업취소 버튼을 하나의 div로 묶기 */}
+                                <div className="flex gap-1">
+                                  {/* 결제완료 또는 입금완료 상태일 때 작업시작 버튼 표시 */}
+                                  {((order.paymentMethod === 'virtual' || order.paymentMethod === '가상계좌') && 
+                                    order.paymentDate && order.paymentDate !== '-' && order.status !== '진행 중' && order.status !== '작업완료') || 
+                                    (order.paymentMethod === 'card' && order.paymentDate && order.paymentDate !== '-' && order.status !== '진행 중' && order.status !== '작업완료') && (
+                                    <button
+                                      onClick={() => startWork(order.orderId)}
+                                      className="flex-1 text-white bg-orange-600 hover:text-orange-900 text-xs px-2 py-1 rounded border border-orange-600 hover:bg-orange-50"
+                                    >
+                                      작업시작
+                                    </button>
+                                  )}
+                                  {/* 작업취소 버튼 */}
+                                  {order.status !== '작업완료' && (
+                                    <button
+                                      onClick={() => {
+                                        // 작업취소 상태인지 확인
+                                        const isCurrentlyCancelled = order.status === '작업취소';
+                                        
+                                        if (isCurrentlyCancelled) {
+                                          // 작업취소 취소 - 원래 상태로 되돌리기
+                                          if (window.confirm('작업취소를 취소하시겠습니까?\n\n원래 상태로 되돌립니다.')) {
+                                            // orderList 업데이트
+                                            const updatedOrders = orders.map(o => 
+                                              o.orderId === order.orderId ? { ...o, status: '진행 중' } : o
+                                            );
+                                            setOrders(updatedOrders);
+                                            localStorage.setItem('orderList', JSON.stringify(updatedOrders));
+                                            
+                                            // paymentList도 함께 업데이트
+                                            try {
+                                              const existingPayments = JSON.parse(localStorage.getItem('paymentList') || '[]');
+                                              const updatedPayments = existingPayments.map((payment: any) => {
+                                                if (payment.orderId === order.orderId) {
+                                                  return { ...payment, status: '진행 중' };
+                                                }
+                                                return payment;
+                                              });
+                                              localStorage.setItem('paymentList', JSON.stringify(updatedPayments));
+                                            } catch (error) {
+                                              console.error('결제내역 업데이트 중 오류:', error);
+                                            }
+                                            
+                                            alert('작업취소가 취소되었습니다.');
+                                          }
+                                        } else {
+                                          // 작업취소 실행
+                                          if (window.confirm('작업을 취소하시겠습니까?\n\n작업취소 후에는 되돌릴 수 있습니다.')) {
+                                            // orderList 업데이트
+                                            const updatedOrders = orders.map(o => 
+                                              o.orderId === order.orderId ? { ...o, status: '작업취소' } : o
+                                            );
+                                            setOrders(updatedOrders);
+                                            localStorage.setItem('orderList', JSON.stringify(updatedOrders));
+                                            
+                                            // paymentList도 함께 업데이트
+                                            try {
+                                              const existingPayments = JSON.parse(localStorage.getItem('paymentList') || '[]');
+                                              const updatedPayments = existingPayments.map((payment: any) => {
+                                                if (payment.orderId === order.orderId) {
+                                                  return { ...payment, status: '작업취소' };
+                                                }
+                                                return payment;
+                                              });
+                                              localStorage.setItem('paymentList', JSON.stringify(updatedPayments));
+                                            } catch (error) {
+                                              console.error('결제내역 업데이트 중 오류:', error);
+                                            }
+                                            
+                                            alert('작업이 취소되었습니다.');
+                                          }
+                                        }
+                                      }}
+                                      className={`flex-1 text-xs px-2 py-1 rounded border ${
+                                        order.status === '작업취소' 
+                                          ? 'text-green-600 hover:text-green-900 border-green-300 hover:bg-green-50' 
+                                          : 'text-red-600 hover:text-red-900 border-red-300 hover:bg-red-50'
+                                      }`}
+                                    >
+                                      {order.status === '작업취소' ? '작업취소철회' : '작업취소'}
+                                    </button>
+                                  )}
+                                  {/* 작업완료 버튼 */}
+                                  {order.status === '진행 중' && (
+                                    <button
+                                      onClick={() => updateOrderStatus(order.orderId, '작업완료')}
+                                      className="flex-1 text-white bg-green-600 hover:text-green-900 text-xs px-2 py-1 rounded border border-green-600 hover:bg-green-50"
+                                    >
+                                      작업완료
+                                    </button>
+                                  )}
+                                  {/* 작업완료취소 버튼 */}
+                                  {order.status === '작업완료' && (
+                                    <button
+                                      onClick={() => {
+                                        if (window.confirm('작업완료를 취소하시겠습니까?\n\n진행 중 상태로 되돌립니다.')) {
+                                          // orderList 업데이트
+                                          const updatedOrders = orders.map(o => 
+                                            o.orderId === order.orderId ? { ...o, status: '진행 중' } : o
+                                          );
+                                          setOrders(updatedOrders);
+                                          localStorage.setItem('orderList', JSON.stringify(updatedOrders));
+                                          
+                                          // paymentList도 함께 업데이트
+                                          try {
+                                            const existingPayments = JSON.parse(localStorage.getItem('paymentList') || '[]');
+                                            const updatedPayments = existingPayments.map((payment: any) => {
+                                              if (payment.orderId === order.orderId) {
+                                                return { ...payment, status: '진행 중' };
+                                              }
+                                              return payment;
+                                            });
+                                            localStorage.setItem('paymentList', JSON.stringify(updatedPayments));
+                                          } catch (error) {
+                                            console.error('결제내역 업데이트 중 오류:', error);
+                                          }
+                                          
+                                          alert('작업완료가 취소되었습니다.');
+                                        }
+                                      }}
+                                      className="flex-1 text-orange-600 hover:text-orange-900 bg-orange-0 hover:bg-orange-100 text-xs px-2 py-1 rounded border border-orange-600"
+                                    >
+                                      작업완료취소
+                                    </button>
+                                  )}
+                                </div>
+
                                 {order.status === '작업완료' && order.confirmStatus !== '구매완료' && (
                                   <button
                                     onClick={() => {
-                                      const updatedOrders = orders.map(o => 
-                                        o.orderId === order.orderId ? { ...o, confirmStatus: '구매완료' } : o
-                                      );
-                                      setOrders(updatedOrders);
-                                      localStorage.setItem('orderList', JSON.stringify(updatedOrders));
+                                      if (window.confirm('구매를 확정하시겠습니까?\n\n구매확정 후에는 되돌릴 수 없습니다.')) {
+                                        const updatedOrders = orders.map(o => 
+                                          o.orderId === order.orderId ? { ...o, confirmStatus: '구매완료' } : o
+                                        );
+                                        setOrders(updatedOrders);
+                                        localStorage.setItem('orderList', JSON.stringify(updatedOrders));
+                                        alert('구매가 확정되었습니다.');
+                                      }
                                     }}
-                                    className="text-blue-600 hover:text-blue-900 text-xs px-2 py-1 rounded border border-blue-300 hover:bg-blue-50"
+                                    className="flex-1 text-white bg-blue-600 hover:text-blue-900 text-xs px-2 py-1 rounded border border-blue-600 hover:bg-blue-50"
                                   >
                                     구매확정
                                   </button>
                                 )}
-                                <button
-                                  onClick={() => {
-                                    // 작업취소 상태인지 확인
-                                    const isCurrentlyCancelled = order.status === '작업취소';
-                                    
-                                    if (isCurrentlyCancelled) {
-                                      // 작업취소 취소 - 원래 상태로 되돌리기
-                                      if (window.confirm('작업취소를 취소하시겠습니까?\n\n원래 상태로 되돌립니다.')) {
-                                        // orderList 업데이트
-                                        const updatedOrders = orders.map(o => 
-                                          o.orderId === order.orderId ? { ...o, status: '진행 중' } : o
-                                        );
-                                        setOrders(updatedOrders);
-                                        localStorage.setItem('orderList', JSON.stringify(updatedOrders));
-                                        
-                                        // paymentList도 함께 업데이트
-                                        try {
-                                          const existingPayments = JSON.parse(localStorage.getItem('paymentList') || '[]');
-                                          const updatedPayments = existingPayments.map((payment: any) => {
-                                            if (payment.orderId === order.orderId) {
-                                              return { ...payment, status: '진행 중' };
-                                            }
-                                            return payment;
-                                          });
-                                          localStorage.setItem('paymentList', JSON.stringify(updatedPayments));
-                                        } catch (error) {
-                                          console.error('결제내역 업데이트 중 오류:', error);
-                                        }
-                                        
-                                        alert('작업취소가 취소되었습니다.');
-                                      }
-                                    } else {
-                                      // 작업취소 실행
-                                      if (window.confirm('작업을 취소하시겠습니까?\n\n작업취소 후에는 되돌릴 수 있습니다.')) {
-                                        // orderList 업데이트
-                                        const updatedOrders = orders.map(o => 
-                                          o.orderId === order.orderId ? { ...o, status: '작업취소' } : o
-                                        );
-                                        setOrders(updatedOrders);
-                                        localStorage.setItem('orderList', JSON.stringify(updatedOrders));
-                                        
-                                        // paymentList도 함께 업데이트
-                                        try {
-                                          const existingPayments = JSON.parse(localStorage.getItem('paymentList') || '[]');
-                                          const updatedPayments = existingPayments.map((payment: any) => {
-                                            if (payment.orderId === order.orderId) {
-                                              return { ...payment, status: '작업취소' };
-                                            }
-                                            return payment;
-                                          });
-                                          localStorage.setItem('paymentList', JSON.stringify(updatedPayments));
-                                        } catch (error) {
-                                          console.error('결제내역 업데이트 중 오류:', error);
-                                        }
-                                        
-                                        alert('작업이 취소되었습니다.');
-                                      }
-                                    }
-                                  }}
-                                  className={`text-xs px-2 py-1 rounded border ${
-                                    order.status === '작업취소' 
-                                      ? 'text-green-600 hover:text-green-900 border-green-300 hover:bg-green-50' 
-                                      : 'text-red-600 hover:text-red-900 border-red-300 hover:bg-red-50'
-                                  }`}
-                                >
-                                  {order.status === '작업취소' ? '작업취소철회' : '작업취소'}
-                                </button>
                               </div>
                             </td>
                           </tr>
