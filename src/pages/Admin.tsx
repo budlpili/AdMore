@@ -53,6 +53,9 @@ interface Review {
   tags?: string;
   image?: string;
   background?: string;
+  orderId?: string;
+  orderDate?: string;
+  quantity?: number;
 }
 
 interface ChatMessage {
@@ -311,7 +314,10 @@ const Admin: React.FC = () => {
           category: review.category,
           tags: review.tags,
           image: review.image,
-          background: review.background
+          background: review.background,
+          orderId: review.orderId,
+          orderDate: review.orderDate,
+          quantity: review.quantity
         }));
         setReviews(formattedReviews);
       }

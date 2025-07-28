@@ -7,9 +7,11 @@ router.get('/', (req, res) => {
   const { productId } = req.query;
   
   let query = `
-    SELECT r.*, p.name as productName, p.category, p.tags, p.image, p.background
+    SELECT r.*, p.name as productName, p.category, p.tags, p.image, p.background,
+           o.date as orderDate, o.quantity
     FROM reviews r
     LEFT JOIN products p ON r.productId = p.id
+    LEFT JOIN orders o ON r.orderId = o.orderId
   `;
   
   if (productId) {
