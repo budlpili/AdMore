@@ -1,15 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBars, faBell, faUser, faCog, faSignOutAlt, faHome, faShoppingCart, faUsers, faComments, faStar, faChartBar, faBox, faTachometerAlt, faChevronDown, faSearch, faEye, faEdit, faTrash, faPlus, faTimes, faCheck, faXmark, faCaretDown, faChevronLeft, faChevronRight, faSync } from '@fortawesome/free-solid-svg-icons';
+import { faBars, faBell, faUser, faCog, faSignOutAlt, faHome, faShoppingCart, faUsers, faComments, faStar, faChartBar, faBox, faTachometerAlt, faChevronDown, faSearch, faEye, faEdit, faTrash, faPlus, faTimes, faCheck, faXmark, faCaretDown, faCaretUp, faChevronLeft, faChevronRight, faSync, faRefresh, faClock, faImage } from '@fortawesome/free-solid-svg-icons';
 import { faStar as faStarRegular } from '@fortawesome/free-regular-svg-icons';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { authAPI, ordersAPI, reviewsAPI } from '../services/api';
+import ProductManagement from '../components/ProductManagement';
+import ReviewManagement from '../components/ReviewManagement';
 import { products as initialProducts, getProducts, saveProducts, resetProducts } from '../data/products';
 import { mockReviews } from '../data/reviews-list';
 import { defaultUsers, User } from '../data/users';
 import { defaultOrderList } from '../data/orderdata';
-import ProductManagement from '../components/ProductManagement';
 import { Product } from '../types';
-import { productAPI, authAPI } from '../services/api';
+import { productAPI } from '../services/api';
 
 interface Order {
   orderId: string;
@@ -47,6 +49,10 @@ interface Review {
   productId?: number;
   reply?: string;
   replyTime?: string;
+  category?: string;
+  tags?: string;
+  image?: string;
+  background?: string;
 }
 
 interface ChatMessage {
@@ -114,6 +120,17 @@ const Admin: React.FC = () => {
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
   const [isOrderStatusDropdownOpen, setIsOrderStatusDropdownOpen] = useState(false);
+
+  // 주문 삭제 관련 상태
+  const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
+  const [selectAll, setSelectAll] = useState(false);
+
+  // 리뷰 관리 관련 상태
+  const [currentPage, setCurrentPage] = useState(1);
+  const [reviewsPerPage] = useState(10);
+  const [sortType, setSortType] = useState<'date' | 'rating'>('date');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [showReviews, setShowReviews] = useState(true);
 
   // 반응형 사이드바 상태 관리
   useEffect(() => {
@@ -262,43 +279,44 @@ const Admin: React.FC = () => {
 
   const loadOrders = async () => {
     try {
-      // 백엔드 API에서 주문 데이터 가져오기
-      const response = await fetch('/api/orders');
+      const response = await fetch('http://localhost:5001/api/orders');
       if (response.ok) {
         const data = await response.json();
         setOrders(data.orders);
         console.log('백엔드에서 주문 데이터 로드 완료:', data.orders);
       } else {
         console.error('주문 데이터 로드 실패:', response.status);
-        // 백엔드 실패 시 로컬스토리지 사용
-        const orderList = JSON.parse(localStorage.getItem('orderList') || '[]');
-        if (orderList.length === 0) {
-          localStorage.setItem('orderList', JSON.stringify(defaultOrderList));
-          setOrders(defaultOrderList);
-        } else {
-          setOrders(orderList);
-        }
+        setOrders([]);
       }
     } catch (error) {
       console.error('주문 데이터 로드 중 오류:', error);
-      // 에러 발생 시 로컬스토리지 사용
-      const orderList = JSON.parse(localStorage.getItem('orderList') || '[]');
-      if (orderList.length === 0) {
-        localStorage.setItem('orderList', JSON.stringify(defaultOrderList));
-        setOrders(defaultOrderList);
-      } else {
-        setOrders(orderList);
-      }
+      setOrders([]);
     }
   };
 
-  const loadReviews = () => {
+  const loadReviews = async () => {
     try {
-      const savedReviews = JSON.parse(localStorage.getItem('mockReviews') || '[]');
-      const allReviews = [...savedReviews, ...mockReviews];
-      setReviews(allReviews);
+      const response = await reviewsAPI.getAll();
+      if (response && Array.isArray(response)) {
+        const formattedReviews = response.map((review: any) => ({
+          id: review.id,
+          user: review.userEmail || review.user || '익명',
+          time: review.createdAt || review.time || new Date().toLocaleString(),
+          content: review.content,
+          product: review.productName || review.product || '상품명 없음',
+          rating: review.rating,
+          reply: review.adminReply || review.reply,
+          replyTime: review.adminReplyTime || review.replyTime,
+          productId: review.productId,
+          category: review.category,
+          tags: review.tags,
+          image: review.image,
+          background: review.background
+        }));
+        setReviews(formattedReviews);
+      }
     } catch (error) {
-      console.error('리뷰 로드 에러:', error);
+      console.error('리뷰 로드 중 오류:', error);
       setReviews([]);
     }
   };
@@ -313,16 +331,93 @@ const Admin: React.FC = () => {
     }
   };
 
-  const loadUsers = () => {
+  // 리뷰 새로고침 함수
+  const handleRefreshReviews = () => {
+    loadReviews();
+  };
+
+  // 리뷰 검색 및 필터링
+  const filteredReviews = reviews.filter(review =>
+    review.user.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    review.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    review.product.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // 리뷰 정렬
+  const sortedReviews = [...filteredReviews].sort((a, b) => {
+    if (sortType === 'date') {
+      const dateA = new Date(a.time).getTime();
+      const dateB = new Date(b.time).getTime();
+      return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
+    } else {
+      return sortOrder === 'asc' ? a.rating - b.rating : b.rating - a.rating;
+    }
+  });
+
+  // 페이지네이션
+  const indexOfLastReview = currentPage * reviewsPerPage;
+  const indexOfFirstReview = indexOfLastReview - reviewsPerPage;
+  const currentReviews = sortedReviews.slice(indexOfFirstReview, indexOfLastReview);
+  const totalPages = Math.ceil(sortedReviews.length / reviewsPerPage);
+
+  // 페이지 번호 계산
+  const getPageNumbers = (current: number, total: number) => {
+    const delta = 2;
+    const range = [];
+    const rangeWithDots = [];
+
+    for (let i = Math.max(2, current - delta); i <= Math.min(total - 1, current + delta); i++) {
+      range.push(i);
+    }
+
+    if (current - delta > 2) {
+      rangeWithDots.push(1, '...');
+    } else {
+      rangeWithDots.push(1);
+    }
+
+    rangeWithDots.push(...range);
+
+    if (current + delta < total - 1) {
+      rangeWithDots.push('...', total);
+    } else {
+      rangeWithDots.push(total);
+    }
+
+    return rangeWithDots;
+  };
+
+  const pageNumbers = getPageNumbers(currentPage, totalPages);
+
+  // 정렬 함수들
+  const handleRatingSort = () => {
+    setSortType('rating');
+    setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+  };
+
+  const handleDateSort = () => {
+    setSortType('date');
+    setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+  };
+
+  // 페이지 변경
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const loadUsers = async () => {
     try {
-      // localStorage의 기존 데이터를 삭제하고 defaultUsers 사용
-      localStorage.removeItem('users');
-      
-      // 기본 회원 데이터 생성 (새로운 users.ts 파일 사용)
-      localStorage.setItem('users', JSON.stringify(defaultUsers));
-      setUsers(defaultUsers);
+      const response = await fetch('http://localhost:5001/api/users');
+      if (response.ok) {
+        const data = await response.json();
+        setUsers(data.users);
+        console.log('백엔드에서 회원 데이터 로드 완료:', data.users);
+      } else {
+        console.error('회원 데이터 로드 실패:', response.status);
+        setUsers([]);
+      }
     } catch (error) {
-      console.error('회원 로드 에러:', error);
+      console.error('회원 데이터 로드 중 오류:', error);
       setUsers([]);
     }
   };
@@ -332,7 +427,7 @@ const Admin: React.FC = () => {
     if (window.confirm(`주문 상태를 "${newStatus}"로 변경하시겠습니까?`)) {
       try {
         // 백엔드 API 호출
-        const response = await fetch(`/api/orders/order/${orderId}/status`, {
+        const response = await fetch(`http://localhost:5001/api/orders/order/${orderId}/status`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -358,18 +453,25 @@ const Admin: React.FC = () => {
     }
   };
 
+  // 한국 시간대의 현재 날짜를 ISO 문자열로 변환하는 함수
+  const getKoreanTimeISOString = () => {
+    const now = new Date();
+    const koreanTime = new Date(now.getTime() + (9 * 60 * 60 * 1000)); // UTC+9
+    return koreanTime.toISOString();
+  };
+
   // 입금 확인 함수
   const confirmPayment = async (orderId: string) => {
     if (window.confirm('입금을 확인하시겠습니까?\n\n입금 확인 후에는 취소할 수 있습니다.')) {
       try {
         // 백엔드 API 호출
-        const response = await fetch(`/api/orders/order/${orderId}/status`, {
+        const response = await fetch(`http://localhost:5001/api/orders/order/${orderId}/status`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            paymentDate: new Date().toISOString()
+            paymentDate: getKoreanTimeISOString()
           })
         });
 
@@ -393,7 +495,7 @@ const Admin: React.FC = () => {
     if (window.confirm('입금완료를 취소하시겠습니까?\n\n입금확인전 상태로 되돌립니다.')) {
       try {
         // 백엔드 API 호출
-        const response = await fetch(`/api/orders/order/${orderId}/status`, {
+        const response = await fetch(`http://localhost:5001/api/orders/order/${orderId}/status`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -419,15 +521,28 @@ const Admin: React.FC = () => {
   };
 
   // 리뷰 삭제
-  const deleteReview = (reviewId: number) => {
+  const deleteReview = async (reviewId: number) => {
     if (window.confirm('정말로 이 리뷰를 삭제하시겠습니까?')) {
       try {
-        const savedReviews = JSON.parse(localStorage.getItem('mockReviews') || '[]');
-        const updatedReviews = savedReviews.filter((review: Review) => review.id !== reviewId);
-        localStorage.setItem('mockReviews', JSON.stringify(updatedReviews));
-        loadReviews();
+        // 백엔드 API 호출
+        const response = await fetch(`http://localhost:5001/api/reviews/${reviewId}`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+
+        if (response.ok) {
+          // 성공 시 리뷰 목록 다시 로드
+          await loadReviews();
+          alert('리뷰가 성공적으로 삭제되었습니다.');
+        } else {
+          console.error('리뷰 삭제 실패:', response.status);
+          alert('리뷰 삭제에 실패했습니다.');
+        }
       } catch (error) {
-        console.error('리뷰 삭제 에러:', error);
+        console.error('리뷰 삭제 중 오류:', error);
+        alert('리뷰 삭제 중 오류가 발생했습니다.');
       }
     }
   };
@@ -703,7 +818,7 @@ const Admin: React.FC = () => {
   const saveRequest = async (orderId: string) => {
     try {
       // 백엔드 API 호출
-      const response = await fetch(`/api/orders/order/${orderId}/request`, {
+      const response = await fetch(`http://localhost:5001/api/orders/order/${orderId}/request`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -753,6 +868,106 @@ const Admin: React.FC = () => {
   const [editingRequestOrderId, setEditingRequestOrderId] = useState<string | null>(null);
   const [editingRequestText, setEditingRequestText] = useState('');
   const [expandedRequestOrderId, setExpandedRequestOrderId] = useState<string | null>(null);
+
+  // 주문 삭제 함수
+  const deleteSelectedOrders = async () => {
+    if (selectedOrders.length === 0) {
+      alert('삭제할 주문을 선택해주세요.');
+      return;
+    }
+
+    if (window.confirm(`선택된 ${selectedOrders.length}개의 주문을 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다.`)) {
+      try {
+        // 백엔드에서 선택된 주문들 삭제
+        const deletePromises = selectedOrders.map(async (orderId) => {
+          try {
+            const response = await fetch(`http://localhost:5001/api/orders/order/${orderId}`, {
+              method: 'DELETE',
+              headers: {
+                'Content-Type': 'application/json',
+              }
+            });
+            
+            if (!response.ok) {
+              throw new Error(`주문 ${orderId} 삭제 실패: ${response.status}`);
+            }
+            
+            return { orderId, success: true };
+          } catch (error) {
+            console.error(`주문 ${orderId} 삭제 중 오류:`, error);
+            return { orderId, success: false, error };
+          }
+        });
+
+        const results = await Promise.all(deletePromises);
+        const successfulDeletes = results.filter(result => result.success);
+        const failedDeletes = results.filter(result => !result.success);
+
+        if (successfulDeletes.length > 0) {
+          // 성공적으로 삭제된 주문들만 로컬 상태에서 제거
+          const successfulOrderIds = successfulDeletes.map(result => result.orderId);
+          const updatedOrders = orders.filter(order => !successfulOrderIds.includes(order.orderId));
+          setOrders(updatedOrders);
+          localStorage.setItem('orderList', JSON.stringify(updatedOrders));
+          
+          // paymentList에서도 성공적으로 삭제된 주문들 제거
+          try {
+            const existingPayments = JSON.parse(localStorage.getItem('paymentList') || '[]');
+            const updatedPayments = existingPayments.filter((payment: any) => !successfulOrderIds.includes(payment.orderId));
+            localStorage.setItem('paymentList', JSON.stringify(updatedPayments));
+          } catch (error) {
+            console.error('결제내역 삭제 중 오류:', error);
+          }
+          
+          // 선택 상태 초기화
+          setSelectedOrders([]);
+          setSelectAll(false);
+          
+          if (failedDeletes.length > 0) {
+            alert(`${successfulDeletes.length}개의 주문이 삭제되었습니다.\n${failedDeletes.length}개의 주문 삭제에 실패했습니다.`);
+          } else {
+            alert(`${successfulDeletes.length}개의 주문이 삭제되었습니다.`);
+          }
+        } else {
+          alert('모든 주문 삭제에 실패했습니다. 다시 시도해주세요.');
+        }
+      } catch (error) {
+        console.error('주문 삭제 중 오류:', error);
+        alert('주문 삭제 중 오류가 발생했습니다. 다시 시도해주세요.');
+      }
+    }
+  };
+
+  // 개별 주문 선택/해제
+  const toggleOrderSelection = (orderId: string) => {
+    setSelectedOrders(prev => {
+      if (prev.includes(orderId)) {
+        return prev.filter(id => id !== orderId);
+      } else {
+        return [...prev, orderId];
+      }
+    });
+  };
+
+  // 전체 선택/해제
+  const toggleSelectAll = () => {
+    if (selectAll) {
+      setSelectedOrders([]);
+      setSelectAll(false);
+    } else {
+      setSelectedOrders(filteredOrders.map(order => order.orderId));
+      setSelectAll(true);
+    }
+  };
+
+  // 필터링된 주문이 변경될 때 전체 선택 상태 업데이트
+  useEffect(() => {
+    if (selectedOrders.length === filteredOrders.length && filteredOrders.length > 0) {
+      setSelectAll(true);
+    } else {
+      setSelectAll(false);
+    }
+  }, [selectedOrders, filteredOrders]);
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -1587,6 +1802,17 @@ const Admin: React.FC = () => {
                       >
                         <FontAwesomeIcon icon={faSync} className="text-gray-400" />
                       </button>
+                    {/* 선택된 주문 삭제 버튼 */}
+                    {selectedOrders.length > 0 && (
+                      <button
+                        onClick={deleteSelectedOrders}
+                        className="text-sm px-3 py-2 border border-red-300 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 hover:border-red-400 transition-colors duration-200 flex items-center gap-2"
+                        title={`선택된 ${selectedOrders.length}개 주문 삭제`}
+                      >
+                        <FontAwesomeIcon icon={faTrash} className="text-red-400" />
+                        삭제 ({selectedOrders.length})
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -1596,6 +1822,14 @@ const Admin: React.FC = () => {
                     <table className="w-full border-collapse border border-gray-300 rounded-lg">
                       <thead className="bg-gray-50 rounded-t-lg border-b border-gray-200">
                         <tr>
+                          <th className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                            <input
+                              type="checkbox"
+                              checked={selectAll}
+                              onChange={toggleSelectAll}
+                              className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                            />
+                          </th>
                           <th className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">주문번호(결제번호)</th>
                           <th className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">주문자</th>
                           <th className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">상품정보</th>
@@ -1609,6 +1843,14 @@ const Admin: React.FC = () => {
                       <tbody className="bg-white divide-y divide-gray-200">
                         {filteredOrders.map((order) => (
                           <tr key={order.orderId} className="hover:bg-gray-50">
+                            <td className="px-3 py-4 whitespace-nowrap">
+                              <input
+                                type="checkbox"
+                                checked={selectedOrders.includes(order.orderId)}
+                                onChange={() => toggleOrderSelection(order.orderId)}
+                                className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                              />
+                            </td>
                             <td className="px-3 py-4 whitespace-nowrap text-xs font-medium text-gray-900">
                               {order.orderId}
                               <br />
@@ -1619,7 +1861,7 @@ const Admin: React.FC = () => {
                                 <div className="text-xs text-gray-500">{order.userEmail || '이메일 없음'}</div>
                               </div>
                             </td>
-                            <td className="px-3 py-4 text-sm text-gray-900 max-w-[300px]">
+                            <td className="px-3 py-4 text-sm text-gray-900 min-w-[250px] max-w-[300px]">
                               {order.productNumber && (
                                 <div className="text-[10px] text-gray-500 mb-1">상품번호: {order.productNumber}</div>
                               )}
@@ -1802,7 +2044,8 @@ const Admin: React.FC = () => {
                                   // null, undefined, 빈 문자열 처리
                                   if (!order.date || order.date === '') {
                                     const now = new Date();
-                                    return now.toLocaleString('ko-KR', {
+                                    const koreanTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+                                    return koreanTime.toLocaleString('ko-KR', {
                                       year: '2-digit',
                                       month: '2-digit',
                                       day: '2-digit',
@@ -1825,7 +2068,10 @@ const Admin: React.FC = () => {
                                     date = new Date();
                                   }
                                   
-                                  return date.toLocaleString('ko-KR', {
+                                  // 한국 시간대로 변환 (UTC+9)
+                                  const koreanTime = new Date(date.getTime() + (9 * 60 * 60 * 1000));
+                                  
+                                  return koreanTime.toLocaleString('ko-KR', {
                                     year: '2-digit',
                                     month: '2-digit',
                                     day: '2-digit',
@@ -1836,7 +2082,8 @@ const Admin: React.FC = () => {
                                 } catch (error) {
                                   // 에러 발생 시 현재 시간으로 표시
                                   const now = new Date();
-                                  return now.toLocaleString('ko-KR', {
+                                  const koreanTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+                                  return koreanTime.toLocaleString('ko-KR', {
                                     year: '2-digit',
                                     month: '2-digit',
                                     day: '2-digit',
@@ -1847,7 +2094,7 @@ const Admin: React.FC = () => {
                                 }
                               })()}
                             </td>
-                            <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500">
+                            <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500 min-w-[80px]">
                               {order.paymentMethod === 'card' ? '신용카드' : 
                                order.paymentMethod === 'virtual' ? '가상계좌' : 
                                order.paymentMethod || '신용카드'}
@@ -1859,32 +2106,12 @@ const Admin: React.FC = () => {
                                   {(() => {
                                     let label = '';
                                     let color = '';
-                                    if (order.refundStatus === '카드결제취소') {
-                                      label = '카드결제취소';
-                                      color = 'bg-red-100 text-red-600';
-                                    } else if (order.refundStatus === '계좌환불완료') {
-                                      label = '계좌환불완료';
-                                      color = 'bg-red-100 text-red-600';
-                                    } else if (order.refundStatus === '환불요청') {
-                                      // 환불요청 상태일 때는 기존 결제 상태를 유지
-                                      if (order.paymentMethod === 'virtual' || order.paymentMethod === '가상계좌') {
-                                        if (order.paymentDate && order.paymentDate !== '-' && order.paymentDate !== order.date) {
-                                          label = '입금완료';
-                                          color = 'bg-green-100 text-green-600';
-                                        } else {
-                                          label = '입금확인전';
-                                          color = 'bg-yellow-100 text-yellow-600';
-                                        }
-                                      } else {
-                                        label = '결제완료';
-                                        color = 'bg-blue-50 text-blue-500';
-                                      }
-                                    } else if (order.paymentMethod === 'virtual' || order.paymentMethod === '가상계좌') {
+                                    if (order.paymentMethod === 'virtual' || order.paymentMethod === '가상계좌') {
                                       if (order.paymentDate && order.paymentDate !== '-' && order.paymentDate !== order.date) {
                                         label = '입금완료';
                                         color = 'bg-green-100 text-green-600';
                                       } else {
-                                        label = '입금확인전';
+                                        label = '입금전';
                                         color = 'bg-yellow-100 text-yellow-600';
                                       }
                                     } else if (order.paymentMethod === 'card' || order.paymentMethod === '신용카드') {
@@ -1904,27 +2131,32 @@ const Admin: React.FC = () => {
                                 {/* 주문상태 */}
                                 <div>
                                   <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                    order.status === '작업완료' ? 'bg-green-100 text-green-800' :
+                                    order.status === '작업완료' || order.status === '리뷰확인' ? 'bg-green-100 text-green-800' :
                                     order.status === '진행 중' ? 'bg-yellow-100 text-yellow-800' :
                                     order.status === '작업취소' ? 'bg-red-100 text-red-800' :
                                     order.status === '취소' ? 'bg-red-100 text-red-800' :
+                                    order.status === '대기중' ? 'bg-gray-100 text-gray-800' :
                                     'bg-gray-100 text-gray-800'
                                   }`}>
-                                    {order.status}
+                                    {order.status === '리뷰확인' ? '작업완료' : order.status}
                                   </span>
                                 </div>
+                                
+                                
                               </div>
                             </td>
                             {/* 테이블 관리 */}
                             <td className="px-3 py-4 whitespace-nowrap text-sm font-medium min-w-[200px]">
                               <div className="flex flex-col gap-1">
+                                {/* 결제내역 버튼 - 항상 표시 */}
                                 <button
                                   onClick={() => setSelectedPaymentOrder(order)}
                                   className="text-blue-600 hover:text-blue-900 text-xs px-2 py-1 rounded border border-blue-300 hover:bg-blue-50"
                                 >
                                   결제내역
                                 </button>
-                                {/* 입금확인전 상태일 때 입금 확인 버튼 표시 */}
+                                
+                                {/* 입금확인전 상태일 때 입금확인 버튼 */}
                                 {((order.paymentMethod === 'virtual' || order.paymentMethod === '가상계좌') && 
                                   (!order.paymentDate || order.paymentDate === '-')) && (
                                   <button
@@ -1934,7 +2166,8 @@ const Admin: React.FC = () => {
                                     입금확인
                                   </button>
                                 )}
-                                {/* 입금완료 상태일 때 입금완료취소 버튼 표시 */}
+                                
+                                {/* 입금완료 상태일 때 입금취소 버튼 */}
                                 {((order.paymentMethod === 'virtual' || order.paymentMethod === '가상계좌') && 
                                   order.paymentDate && order.paymentDate !== '-') && (
                                   <button
@@ -1944,128 +2177,56 @@ const Admin: React.FC = () => {
                                     입금취소
                                   </button>
                                 )}
-                                {/* 환불요청 상태일 때 환불처리 버튼들 표시 */}
-                                {order.refundStatus === '환불요청' && (
-                                  <>
-                                    <button
-                                      onClick={() => handleRefund(order.orderId)}
-                                      className="text-red-600 hover:text-red-900 text-xs px-2 py-1 rounded border border-red-300 hover:bg-red-50"
-                                    >
-                                      환불승인
-                                    </button>
-                                    <button
-                                      onClick={() => rejectRefund(order.orderId)}
-                                      className="text-gray-600 hover:text-gray-900 text-xs px-2 py-1 rounded border border-gray-300 hover:bg-gray-50"
-                                    >
-                                      환불거절
-                                    </button>
-                                  </>
-                                )}
-                                {/* 결제완료 또는 입금완료 상태일 때 작업시작 버튼과 작업취소 버튼을 하나의 div로 묶기 */}
-                                <div className="flex gap-1">
-                                  {/* 결제완료 또는 입금완료 상태일 때 작업시작 버튼 표시 */}
-                                  {((order.paymentMethod === 'virtual' || order.paymentMethod === '가상계좌') && 
-                                    order.paymentDate && order.paymentDate !== '-' && order.status !== '진행 중' && order.status !== '작업완료') || 
-                                    (order.paymentMethod === 'card' && order.paymentDate && order.paymentDate !== '-' && order.status !== '진행 중' && order.status !== '작업완료') && (
+                                
+                                {/* 작업 관련 버튼들 */}
+                                <div className="flex flex-row gap-1">
+                                  {/* 입금완료/결제완료 상태이고 대기중이거나 작업취소일 때 작업시작 버튼 */}
+                                  {(() => {
+                                    const isPaymentCompleted = 
+                                      ((order.paymentMethod === 'virtual' || order.paymentMethod === '가상계좌') && 
+                                       order.paymentDate && order.paymentDate !== '-') ||
+                                      ((order.paymentMethod === 'card' || order.paymentMethod === '신용카드') && 
+                                       order.paymentDate && order.paymentDate !== '-');
+                                    
+                                    return isPaymentCompleted && (order.status === '대기중' || order.status === '작업취소');
+                                  })() && (
                                     <button
                                       onClick={() => startWork(order.orderId)}
-                                      className="flex-1 text-white bg-orange-600 hover:text-orange-900 text-xs px-2 py-1 rounded border border-orange-600 hover:bg-orange-50"
+                                      className="flex-1 text-white bg-orange-600 hover:bg-orange-700 text-xs px-2 py-1 rounded border border-orange-600"
                                     >
                                       작업시작
                                     </button>
                                   )}
-                                  {/* 작업취소 버튼 */}
-                                  {order.status !== '작업완료' && (
-                                    <button
-                                      onClick={() => {
-                                        // 작업취소 상태인지 확인
-                                        const isCurrentlyCancelled = order.status === '작업취소';
-                                        
-                                        if (isCurrentlyCancelled) {
-                                          // 작업취소 취소 - 원래 상태로 되돌리기
-                                          if (window.confirm('작업취소를 취소하시겠습니까?\n\n원래 상태로 되돌립니다.')) {
-                                            // orderList 업데이트
-                                            const updatedOrders = orders.map(o => 
-                                              o.orderId === order.orderId ? { ...o, status: '진행 중' } : o
-                                            );
-                                            setOrders(updatedOrders);
-                                            localStorage.setItem('orderList', JSON.stringify(updatedOrders));
-                                            
-                                            // paymentList도 함께 업데이트
-                                            try {
-                                              const existingPayments = JSON.parse(localStorage.getItem('paymentList') || '[]');
-                                              const updatedPayments = existingPayments.map((payment: any) => {
-                                                if (payment.orderId === order.orderId) {
-                                                  return { ...payment, status: '진행 중' };
-                                                }
-                                                return payment;
-                                              });
-                                              localStorage.setItem('paymentList', JSON.stringify(updatedPayments));
-                                            } catch (error) {
-                                              console.error('결제내역 업데이트 중 오류:', error);
-                                            }
-                                            
-                                            alert('작업취소가 취소되었습니다.');
-                                          }
-                                        } else {
-                                          // 작업취소 실행
-                                          if (window.confirm('작업을 취소하시겠습니까?\n\n작업취소 후에는 되돌릴 수 있습니다.')) {
-                                            // orderList 업데이트
-                                            const updatedOrders = orders.map(o => 
-                                              o.orderId === order.orderId ? { ...o, status: '작업취소' } : o
-                                            );
-                                            setOrders(updatedOrders);
-                                            localStorage.setItem('orderList', JSON.stringify(updatedOrders));
-                                            
-                                            // paymentList도 함께 업데이트
-                                            try {
-                                              const existingPayments = JSON.parse(localStorage.getItem('paymentList') || '[]');
-                                              const updatedPayments = existingPayments.map((payment: any) => {
-                                                if (payment.orderId === order.orderId) {
-                                                  return { ...payment, status: '작업취소' };
-                                                }
-                                                return payment;
-                                              });
-                                              localStorage.setItem('paymentList', JSON.stringify(updatedPayments));
-                                            } catch (error) {
-                                              console.error('결제내역 업데이트 중 오류:', error);
-                                            }
-                                            
-                                            alert('작업이 취소되었습니다.');
-                                          }
-                                        }
-                                      }}
-                                      className={`flex-1 text-xs px-2 py-1 rounded border ${
-                                        order.status === '작업취소' 
-                                          ? 'text-green-600 hover:text-green-900 border-green-300 hover:bg-green-50' 
-                                          : 'text-red-600 hover:text-red-900 border-red-300 hover:bg-red-50'
-                                      }`}
-                                    >
-                                      {order.status === '작업취소' ? '작업취소철회' : '작업취소'}
-                                    </button>
-                                  )}
-                                  {/* 작업완료 버튼 */}
+                                  
+                                  {/* 진행 중 상태일 때 작업완료, 작업취소 버튼 */}
                                   {order.status === '진행 중' && (
-                                    <button
-                                      onClick={() => updateOrderStatus(order.orderId, '작업완료', '구매확정 대기 중')}
-                                      className="flex-1 text-white bg-green-600 hover:text-green-900 text-xs px-2 py-1 rounded border border-green-600 hover:bg-green-50"
-                                    >
-                                      작업완료
-                                    </button>
+                                    <>
+                                      <button
+                                        onClick={() => updateOrderStatus(order.orderId, '작업완료', '구매확정 대기 중')}
+                                        className="flex-1 text-white bg-green-600 hover:bg-green-700 text-xs px-2 py-1 rounded border border-green-600"
+                                      >
+                                        작업완료
+                                      </button>
+                                      <button
+                                        onClick={() => updateOrderStatus(order.orderId, '작업취소')}
+                                        className="flex-1 text-red-600 hover:text-red-900 text-xs px-2 py-1 rounded border border-red-300 hover:bg-red-50"
+                                      >
+                                        작업취소
+                                      </button>
+                                    </>
                                   )}
-                                  {/* 작업완료취소 버튼 */}
-                                  {order.status === '작업완료' && (
+                                  
+                                  {/* 작업완료/리뷰확인 상태일 때 작업완료취소 버튼 */}
+                                  {(order.status === '작업완료' || order.status === '리뷰확인') && (
                                     <button
                                       onClick={() => {
                                         if (window.confirm('작업완료를 취소하시겠습니까?\n\n진행 중 상태로 되돌립니다.')) {
-                                          // orderList 업데이트
                                           const updatedOrders = orders.map(o => 
                                             o.orderId === order.orderId ? { ...o, status: '진행 중' } : o
                                           );
                                           setOrders(updatedOrders);
                                           localStorage.setItem('orderList', JSON.stringify(updatedOrders));
                                           
-                                          // paymentList도 함께 업데이트
                                           try {
                                             const existingPayments = JSON.parse(localStorage.getItem('paymentList') || '[]');
                                             const updatedPayments = existingPayments.map((payment: any) => {
@@ -2088,13 +2249,13 @@ const Admin: React.FC = () => {
                                     </button>
                                   )}
                                 </div>
-
-                                {order.status === '작업완료' && order.confirmStatus !== '구매완료' && order.confirmStatus !== '구매확정완료' && (
+                                {/* 구매확정 상태 텍스트 */}
+                                {(order.status === '작업완료' || order.status === '리뷰확인') && order.confirmStatus !== '구매완료' && order.confirmStatus !== '구매확정완료' && (
                                   <div className="text-xs text-gray-400 px-2 py-1 text-center">
                                     구매확정 대기 중
                                   </div>
                                 )}
-                                {order.status === '작업완료' && order.confirmStatus === '구매확정완료' && (
+                                {(order.status === '작업완료' || order.status === '리뷰확인') && (order.confirmStatus === '구매확정완료' || order.confirmStatus === '구매완료') && (
                                   <div className="text-xs text-green-600 px-2 py-1 text-center font-semibold">
                                     구매확정 완료
                                   </div>
@@ -2112,39 +2273,10 @@ const Admin: React.FC = () => {
 
             {/* 리뷰 관리 탭 */}
             {activeTab === 'reviews' && (
-              <div className="bg-white rounded-lg shadow">
-                <div className="p-6">
-                  <h3 className="text-lg font-semibold mb-4">고객 리뷰</h3>
-                  <div className="space-y-4">
-                    {reviews.map((review) => (
-                      <div key={review.id} className="border border-gray-200 rounded-lg p-4">
-                        <div className="flex justify-between items-start mb-2">
-                          <div>
-                            <p className="font-medium">{maskEmail(review.user)}</p>
-                            <div className="flex items-center mt-1">
-                              {[...Array(5)].map((_, i) => (
-                                <FontAwesomeIcon
-                                  key={i}
-                                  icon={i < review.rating ? faStar : faStarRegular}
-                                  className={`text-sm ${i < review.rating ? 'text-yellow-400' : 'text-gray-300'}`}
-                                />
-                              ))}
-                            </div>
-                          </div>
-                          <button
-                            onClick={() => deleteReview(review.id)}
-                            className="text-red-600 hover:text-red-800"
-                          >
-                            <FontAwesomeIcon icon={faTrash} />
-                          </button>
-                        </div>
-                        <p className="text-gray-700">{review.content}</p>
-                        <p className="text-sm text-gray-500 mt-2">{review.time}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
+              <ReviewManagement 
+                reviews={reviews} 
+                onReviewsChange={setReviews}
+              />
             )}
 
             {/* 상품 관리 탭 */}
@@ -2627,7 +2759,7 @@ const Admin: React.FC = () => {
             <div className="mt-3">
               <h3 className="text-lg font-medium text-gray-900 mb-4">리뷰 상세</h3>
               <div className="space-y-2">
-                <p><strong>작성자:</strong> {maskEmail(selectedReview.user)}</p>
+                <p><strong>작성자:</strong> {selectedReview.user}</p>
                 <p><strong>별점:</strong> {selectedReview.rating}/5</p>
                 <p><strong>작성일:</strong> {selectedReview.time}</p>
                 <p><strong>상품:</strong> {selectedReview.product}</p>
@@ -2682,7 +2814,41 @@ const Admin: React.FC = () => {
                 </div>
                 <div className="border-b border-gray-200 pb-2">
                   <p className="text-sm font-medium text-gray-600">주문일</p>
-                  <p className="text-sm text-gray-900">{selectedPaymentOrder.date}</p>
+                  <p className="text-sm text-gray-900">
+                    {(() => {
+                      try {
+                        if (!selectedPaymentOrder.date || selectedPaymentOrder.date === '') {
+                          const now = new Date();
+                          const koreanTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+                          return koreanTime.toLocaleString('ko-KR', {
+                            year: '2-digit',
+                            month: '2-digit',
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: false
+                          });
+                        }
+                        
+                        const date = new Date(selectedPaymentOrder.date);
+                        if (isNaN(date.getTime())) {
+                          return selectedPaymentOrder.date;
+                        }
+                        
+                        const koreanTime = new Date(date.getTime() + (9 * 60 * 60 * 1000));
+                        return koreanTime.toLocaleString('ko-KR', {
+                          year: '2-digit',
+                          month: '2-digit',
+                          day: '2-digit',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          hour12: false
+                        });
+                      } catch (error) {
+                        return selectedPaymentOrder.date;
+                      }
+                    })()}
+                  </p>
                 </div>
                 <div className="border-b border-gray-200 pb-2">
                   <p className="text-sm font-medium text-gray-600">수량</p>
@@ -2699,7 +2865,30 @@ const Admin: React.FC = () => {
                 <div className="border-b border-gray-200 pb-2">
                   <p className="text-sm font-medium text-gray-600">결제일</p>
                   <p className="text-sm text-gray-900">
-                    {selectedPaymentOrder.paymentDate === '-' || !selectedPaymentOrder.paymentDate ? '입금전' : selectedPaymentOrder.paymentDate}
+                    {(() => {
+                      if (selectedPaymentOrder.paymentDate === '-' || !selectedPaymentOrder.paymentDate) {
+                        return '입금전';
+                      }
+                      
+                      try {
+                        const date = new Date(selectedPaymentOrder.paymentDate);
+                        if (isNaN(date.getTime())) {
+                          return selectedPaymentOrder.paymentDate;
+                        }
+                        
+                        const koreanTime = new Date(date.getTime() + (9 * 60 * 60 * 1000));
+                        return koreanTime.toLocaleString('ko-KR', {
+                          year: '2-digit',
+                          month: '2-digit',
+                          day: '2-digit',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          hour12: false
+                        });
+                      } catch (error) {
+                        return selectedPaymentOrder.paymentDate;
+                      }
+                    })()}
                   </p>
                 </div>
                 <div className="border-b border-gray-200 pb-2">

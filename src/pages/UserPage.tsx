@@ -2,15 +2,18 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faUser as faUserSolid, faCalendar } from '@fortawesome/free-regular-svg-icons';
-import { faRotateLeft, faArrowRight, faCircleExclamation } from '@fortawesome/free-solid-svg-icons';
+import { faRotateLeft, faArrowRight, faCircleExclamation, faStar as faSolidStar, faStarHalfAlt, faStar as faRegularStar, faHeart as faSolidHeart, faPen, faTrash } from '@fortawesome/free-solid-svg-icons';
+import { faHeart as faRegularHeart } from '@fortawesome/free-regular-svg-icons';
+import { faFacebook, faInstagram, faYoutube, faBlogger, faTwitter, faTelegram, IconDefinition } from '@fortawesome/free-brands-svg-icons';
 import CouponCard from '../components/CouponCard';
 import ProductCard from '../components/ProductCard';
+import { useDragScroll } from '../hooks/useDragScroll';
+import { ordersAPI } from '../services/api';
+import { mockReviews } from '../data/reviews-list';
 import { products } from '../data/products';
 import { DUMMY_COUPONS, Coupon } from '../data/coupons';
 import { Order } from '../data/orderdata';
-import { faFacebook, faInstagram, faYoutube, faBlogger, faTwitter, faTelegram, IconDefinition } from '@fortawesome/free-brands-svg-icons';
-import { useDragScroll } from '../hooks/useDragScroll';
-import { ordersAPI } from '../services/api';
+import MobileNavBar from '../components/MobileNavBar';
 
 interface UserPageProps {
   setIsChatOpen: (open: boolean) => void;
@@ -80,7 +83,7 @@ const ReviewButton = ({ order }: { order: any }) => {
 // ReviewButton 컴포넌트 정의 _ 텍스트형식
 const ReviewButtonText = ({ order }: { order: any }) => {
   const navigate = useNavigate();
-  const canWriteReview = order.status === '작업완료' || order.status === '구매완료';
+  const canWriteReview = order.status === '작업완료' || order.status === '구매완료' || order.confirmStatus === '구매확정완료' || order.confirmStatus === '구매완료';
   const isReviewCompleted = order.review === '리뷰확인' || order.review === '리뷰보러가기';
   
   // 리뷰 작성 가능한 상태이고 아직 작성하지 않은 경우
@@ -101,8 +104,8 @@ const ReviewButtonText = ({ order }: { order: any }) => {
     return (
       <div
         className="flex items-center justify-center gap-1 text-[10px] text-blue-500 font-semibold text-center cursor-pointer 
-          border border-blue-200 rounded-md bg-blue-50 hover:bg-blue-100 px-2 py-1"
-        onClick={() => navigate(`/products/${order.productId}`, { state: { showReview: true } })}
+          border border-blue-200 rounded-md bg-blue-50 hover:bg-blue-100 px-2 py-1 font-semibold flex items-center gap-1 mt-1"
+        onClick={() => navigate(`/products/${order.productId}`, { state: { showReview: true, fromOrder: true, orderId: order.orderId } })}
       >
         리뷰확인 <FontAwesomeIcon icon={faArrowRight} className="w-2 h-2" />
       </div>
@@ -383,31 +386,37 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
     try {
       // 백엔드 API에서 주문 데이터 가져오기
       const response = await ordersAPI.getUserOrders();
+      console.log('=== 백엔드 주문 데이터 응답 ===');
+      console.log('전체 응답:', response);
+      
       if (response && response.orders) {
+        console.log('백엔드 주문 목록:', response.orders);
+        console.log('첫 번째 주문 데이터:', response.orders[0]);
+        console.log('첫 번째 주문의 이미지 필드:', response.orders[0]?.image);
         setOrderList(response.orders);
         console.log('백엔드에서 주문 데이터 로드 완료:', response.orders);
+        
+        // 백엔드 데이터를 localStorage에 동기화 (백업용)
+        localStorage.setItem('orderList', JSON.stringify(response.orders));
       } else {
-        // API 응답이 없으면 로컬스토리지에서 가져오기
-        const orderList = JSON.parse(localStorage.getItem('orderList') || '[]');
-        if (orderList.length === 0) {
-          // 테스트 데이터 제거 - 빈 배열로 설정
-          localStorage.setItem('orderList', JSON.stringify([]));
-          setOrderList([]);
-        } else {
-          setOrderList(orderList);
-        }
-        console.log('로컬스토리지에서 주문 데이터 로드 완료');
+        console.log('백엔드에서 주문 데이터를 가져올 수 없습니다.');
+        setOrderList([]);
       }
     } catch (error) {
       console.error('주문 데이터 로드 중 오류:', error);
-      // 에러 발생 시 로컬스토리지에서 가져오기
-      const orderList = JSON.parse(localStorage.getItem('orderList') || '[]');
-      if (orderList.length === 0) {
-        // 테스트 데이터 제거 - 빈 배열로 설정
-        localStorage.setItem('orderList', JSON.stringify([]));
+      // 백엔드 실패 시 localStorage에서 폴백 데이터 로드
+      try {
+        const savedOrderList = localStorage.getItem('orderList');
+        if (savedOrderList) {
+          const parsedOrders = JSON.parse(savedOrderList);
+          setOrderList(parsedOrders);
+          console.log('localStorage에서 폴백 데이터 로드:', parsedOrders);
+        } else {
+          setOrderList([]);
+        }
+      } catch (localStorageError) {
+        console.error('localStorage 폴백 로드 중 오류:', localStorageError);
         setOrderList([]);
-      } else {
-        setOrderList(orderList);
       }
     }
   };
@@ -436,62 +445,30 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
   }, []);
 
   // 주문내역 데이터 배열을 변수로 분리
-  const [orderList, setOrderList] = useState<Order[]>(() => {
-    // localStorage에서 기존 주문 데이터가 있으면 불러오기
-    try {
-      const savedOrderList = localStorage.getItem('orderList');
-      if (savedOrderList) {
-        return JSON.parse(savedOrderList);
-      }
-    } catch (error) {
-      console.error('저장된 주문 데이터 로드 실패:', error);
-    }
-    
-    // 테스트 데이터 제거 - 빈 배열로 설정
-    return [];
-  });
-
-  // orderList가 변경될 때마다 localStorage에 저장
-  useEffect(() => {
-    localStorage.setItem('orderList', JSON.stringify(orderList));
-  }, [orderList]);
+  const [orderList, setOrderList] = useState<Order[]>([]);
 
   // 구매확정 처리 함수
   const handleConfirmPurchase = async (orderId: string) => {
     if (window.confirm('구매를 확정하시겠습니까?\n\n구매확정 후에는 되돌릴 수 없습니다.')) {
       try {
-        const response = await fetch(`/api/orders/order/${orderId}/status`, {
+        // 백엔드 API 호출하여 구매확정 처리
+        const response = await fetch(`http://localhost:5001/api/orders/order/${orderId}/confirm`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            confirmStatus: '구매확정완료'
-          })
+          body: JSON.stringify({ confirmStatus: '구매완료' }),
         });
 
         if (response.ok) {
-          setOrderList((prev: Order[]) => prev.map((order: Order) =>
-            order.orderId === orderId ? { ...order, confirmStatus: '구매확정완료' } : order
-          ));
+          // 백엔드에서 최신 데이터를 다시 로드하여 상태 동기화
+          await loadOrders();
           
-          try {
-            const existingPayments = JSON.parse(localStorage.getItem('paymentList') || '[]');
-            const updatedPayments = existingPayments.map((payment: any) => {
-              if (payment.orderId === orderId) {
-                return { ...payment, confirmStatus: '구매확정완료' };
-              }
-              return payment;
-            });
-            localStorage.setItem('paymentList', JSON.stringify(updatedPayments));
-          } catch (error) {
-            console.error('결제내역 업데이트 중 오류:', error);
-          }
-          
-          alert('구매가 확정되었습니다.');
+          alert('구매가 확정되었습니다!');
+          console.log(`주문 ${orderId} 구매확정 완료`);
         } else {
-          console.error('구매확정 실패:', response.status);
-          alert('구매확정에 실패했습니다.');
+          console.error('구매확정 API 호출 실패:', response.status);
+          alert('구매확정 처리 중 오류가 발생했습니다.');
         }
       } catch (error) {
         console.error('구매확정 처리 중 오류:', error);
@@ -506,34 +483,10 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
       // 백엔드 API 호출
       await ordersAPI.updateStatus(orderId, newStatus);
       
-      // 로컬 상태 업데이트
-      setOrderList((prev: Order[]) => prev.map((order: Order) => {
-        if (order.orderId === orderId) {
-          // 작업완료 상태일 때 confirmStatus를 '구매확정'으로 설정 (유저가 버튼을 눌러야 함)
-          if (newStatus === '작업완료') {
-            return { ...order, status: newStatus, confirmStatus: '구매확정' };
-          }
-          return { ...order, status: newStatus };
-        }
-        return order;
-      }));
+      // 백엔드에서 최신 데이터를 다시 로드하여 상태 동기화
+      await loadOrders();
       
-      // paymentList도 함께 업데이트
-      try {
-        const existingPayments = JSON.parse(localStorage.getItem('paymentList') || '[]');
-        const updatedPayments = existingPayments.map((payment: any) => {
-          if (payment.orderId === orderId) {
-            if (newStatus === '작업완료') {
-              return { ...payment, status: newStatus, confirmStatus: '구매확정' };
-            }
-            return { ...payment, status: newStatus };
-          }
-          return payment;
-        });
-        localStorage.setItem('paymentList', JSON.stringify(updatedPayments));
-      } catch (error) {
-        console.error('결제내역 업데이트 중 오류:', error);
-      }
+      console.log(`주문 ${orderId} 상태가 ${newStatus}로 업데이트되었습니다.`);
     } catch (error) {
       console.error('주문 상태 업데이트 중 오류:', error);
       alert('주문 상태 업데이트 중 오류가 발생했습니다.');
@@ -566,6 +519,7 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
     if (statusFilter === '작업완료') return order.status === '작업완료' && order.confirmStatus !== '구매완료';
     if (statusFilter === '구매완료') return order.status === '작업완료' && order.confirmStatus === '구매완료';
     if (statusFilter === '구매확정') return order.status === '작업완료' && order.confirmStatus !== '구매완료';
+    if (statusFilter === '리뷰확인') return order.status === '작업완료' && order.confirmStatus === '구매완료' && (order.review === '리뷰확인' || order.review === '리뷰보러가기');
     return order.status === statusFilter;
   };
 
@@ -590,17 +544,20 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
     return date.toISOString().split('T')[0];
   };
 
-  // 날짜 포맷팅 함수 (yy.mm.dd 00:00 형식)
+  // 날짜 포맷팅 함수 (yy.mm.dd 00:00 형식) - 한국 시간대 고려
   const formatOrderDate = (dateString: string): string => {
     if (!dateString || dateString === '-') return '입금전';
     
     try {
       const date = new Date(dateString);
-      const year = date.getFullYear().toString().slice(-2);
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      const hours = String(date.getHours()).padStart(2, '0');
-      const minutes = String(date.getMinutes()).padStart(2, '0');
+      // 한국 시간대로 변환 (UTC+9)
+      const koreanTime = new Date(date.getTime() + (9 * 60 * 60 * 1000));
+      
+      const year = koreanTime.getFullYear().toString().slice(-2);
+      const month = String(koreanTime.getMonth() + 1).padStart(2, '0');
+      const day = String(koreanTime.getDate()).padStart(2, '0');
+      const hours = String(koreanTime.getHours()).padStart(2, '0');
+      const minutes = String(koreanTime.getMinutes()).padStart(2, '0');
       
       return `${year}. ${month}. ${day} ${hours}:${minutes}`;
     } catch (error) {
@@ -628,42 +585,63 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
       '취소': 'bg-red-100 text-red-800'
     };
     
-    const color = statusColors[order.status as keyof typeof statusColors] || 'bg-gray-100 text-gray-800';
+    // status가 "리뷰확인"인 경우 "작업완료"로 표시
+    const displayStatus = order.status === '리뷰확인' ? '작업완료' : order.status;
+    const color = statusColors[displayStatus as keyof typeof statusColors] || 'bg-gray-100 text-gray-800';
+    
+    // 리뷰가 실제로 작성되었는지 확인
+    const isReviewCompleted = order.review === '리뷰확인' || order.review === '리뷰보러가기';
     
     return (
-      <div className="flex flex-col gap-1">
-        {order.confirmStatus !== '구매확정완료' && (
-          <span className={`px-2 py-1 rounded text-xs font-semibold ${color}`}>
-            {order.status}
-          </span>
-        )}
-        {order.confirmStatus && order.confirmStatus !== '구매확정전' && order.confirmStatus !== '구매확정 대기 중' && (
-          <span className="px-2 py-1 rounded text-xs font-semibold bg-purple-100 text-purple-800">
-            {order.confirmStatus}
-          </span>
-        )}
-        {order.status === '작업완료' && order.confirmStatus === '구매확정 대기 중' && (
+      <div className="flex flex-col gap-1 items-center">
+        {/* 상태 뱃지 - 항상 "작업완료"로 표시 */}
+        <span className={`px-2 py-1 rounded text-xs font-semibold ${color}`}>{displayStatus}</span>
+        
+        {/* 1단계: 작업완료 상태에서 구매확정 버튼 */}
+        {order.status === '작업완료' && (!order.confirmStatus || order.confirmStatus === '구매확정 대기 중' || order.confirmStatus === '구매확정전') && (
           <button
-            className="text-xs text-white bg-blue-600 rounded-md px-2 py-1 font-semibold hover:bg-blue-700 transition"
+            className="text-xs text-white bg-blue-600 rounded-md px-2 py-1 font-semibold hover:bg-blue-700 transition mt-1"
             onClick={() => handleConfirmPurchase(order.orderId)}
           >
             구매확정
           </button>
         )}
-        {order.confirmStatus === '구매확정완료' && (
+        
+        {/* 2단계: 구매확정 완료 후 리뷰작성하기 버튼 */}
+        {order.status === '작업완료' && (order.confirmStatus === '구매확정완료' || order.confirmStatus === '구매완료') && !isReviewCompleted && (
           <button
-            className="text-xs hover:text-orange-600 rounded-md px-2 py-1 font-semibold hover:underline transition"
-            onClick={() => navigate(`/products/${order.productId}`, { 
-              state: { 
-                fromOrder: true, 
-                orderId: order.orderId,
-                showReviewForm: true 
-              } 
-            })}
+            className="text-xs text-orange-500 border border-orange-200 rounded-md bg-orange-50 hover:bg-orange-100 px-2 py-1 font-semibold flex items-center gap-1 mt-1"
+            onClick={() => handleReviewWriteClick(order)}
           >
             리뷰작성하기 
             <FontAwesomeIcon icon={faArrowRight} className="w-2 h-2 ml-1" />
           </button>
+        )}
+        
+        {/* 3단계: 리뷰 작성 완료 후 리뷰확인 버튼 */}
+        {(order.status === '작업완료' || order.status === '리뷰확인') && (order.confirmStatus === '구매확정완료' || order.confirmStatus === '구매완료') && isReviewCompleted && (
+          <button
+            className="text-xs text-blue-500 border border-blue-200 rounded-md bg-blue-50 hover:bg-blue-100 px-2 py-1 font-semibold flex items-center gap-1 mt-1"
+            onClick={() => navigate(`/products/${order.productId}`, { state: { showReview: true, fromOrder: true, orderId: order.orderId, scrollToReviews: true } })}
+          >
+            리뷰확인 <FontAwesomeIcon icon={faArrowRight} className="w-2 h-2" />
+          </button>
+        )}
+        
+        {/* 구매확정 상태 뱃지 - 리뷰작성하기 버튼이 표시되지 않을 때만 보임 */}
+        {order.confirmStatus && 
+         order.confirmStatus !== '구매확정 대기 중' && 
+         order.confirmStatus !== '구매확정완료' && 
+         order.confirmStatus !== '구매확정전' &&
+         !(order.status === '작업완료' && 
+           (order.confirmStatus === '구매확정완료' || order.confirmStatus === '구매완료') && 
+           !isReviewCompleted) &&
+         !(order.status === '리뷰확인' && 
+           (order.confirmStatus === '구매확정완료' || order.confirmStatus === '구매완료') && 
+           isReviewCompleted) && (
+          <span className="px-2 py-1 rounded text-xs font-semibold bg-purple-100 text-purple-800 mt-1">
+            {order.confirmStatus}
+          </span>
         )}
       </div>
     );
@@ -1088,22 +1066,6 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
     };
   }, [dragScroll.ref]);
 
-  useEffect(() => {
-    // 리뷰 작성 후 돌아왔을 때 최신 주문내역 반영
-    const handleFocus = () => {
-      try {
-        const savedOrderList = localStorage.getItem('orderList');
-        if (savedOrderList) {
-          setOrderList(JSON.parse(savedOrderList));
-        }
-      } catch (error) {
-        // 무시
-      }
-    };
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
-  }, []);
-
   // 결제 방법 변환 함수
   const formatPaymentMethod = (method: string): string => {
     switch (method) {
@@ -1148,6 +1110,28 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
     } finally {
       setIsRefreshing(false);
     }
+  };
+
+  // 리뷰작성하기 버튼 클릭 핸들러 - 상품 상세페이지로 이동
+  const handleReviewWriteClick = (order: any) => {
+    console.log('=== 리뷰 작성 클릭 시작 ===');
+    console.log('전체 주문 정보:', order);
+    console.log('주문 productId:', order.productId);
+    console.log('주문 image:', order.image);
+    console.log('주문 product:', order.product);
+    console.log('주문 detail:', order.detail);
+    console.log('주문 orderId:', order.orderId);
+    console.log('주문 date:', order.date);
+    
+    // 상품 상세페이지로 이동
+    navigate(`/products/${order.productId}`, { 
+      state: { 
+        fromOrder: true, 
+        orderId: order.orderId 
+      } 
+    });
+    
+    console.log('=== 리뷰 작성 클릭 완료 ===');
   };
 
   return (
@@ -1571,7 +1555,7 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                         </button>
                         {isStatusDropdownOpen && (
                           <div className="absolute z-10 w-32 mt-1 bg-white border border-gray-300 rounded-md shadow-lg">
-                            {['전체 상태', '진행 중', '취소', '작업완료', '구매확정', '구매완료'].map((status) => (
+                            {['전체 상태', '진행 중', '취소', '작업완료', '구매확정', '구매완료', '리뷰확인'].map((status) => (
                               <button
                                 key={status}
                                 onClick={() => {
@@ -1672,12 +1656,13 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                             <th className="p-2 border">가격</th>
                             <th className="p-2 border">주문일</th>
                             <th className="p-2 border">요청사항</th>
+                            
                           </tr>
                         </thead>
                         <tbody>
                           {currentItems.length === 0 ? (
                             <tr>
-                              <td colSpan={7} className="text-center text-gray-400 py-16">주문내역이 없습니다.</td>
+                              <td colSpan={8} className="text-center text-gray-400 py-16">주문내역이 없습니다.</td>
                             </tr>
                           ) : (
                             currentItems.map((order: Order) => (
@@ -1705,6 +1690,7 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                               </td>
                               <td className="text-xs text-gray-600 p-2 min-w-[120px] text-center border">{order.date === '-' || !order.date ? '입금전' : formatOrderDate(order.date)}</td>
                               <td className="text-xs text-gray-600 p-2 min-w-[160px] max-w-[240px] border">{order.request}</td>
+                              
                             </tr>
                           ))
                           )}
@@ -1739,7 +1725,7 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                         </button>
                         {isStatusDropdownOpen && (
                           <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg">
-                            {['전체 상태', '진행 중', '취소', '작업완료', '구매확정', '구매완료'].map((status) => (
+                            {['전체 상태', '진행 중', '취소', '작업완료', '구매확정', '구매완료', '리뷰확인'].map((status) => (
                               <button
                                 key={status}
                                 onClick={() => {
@@ -1867,8 +1853,8 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                               </div>
                             </div>
                           </div>
-                          {order.status === '작업완료' && (
-                            <ReviewButton order={order} />
+                          {(order.status === '작업완료' || order.confirmStatus === '구매확정완료') && (
+                            <ReviewButtonText order={order} />
                           )}
                         </div>
                       ))
@@ -1947,12 +1933,17 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                         >
                           <span>{paymentsStatusFilter}</span>
                           <svg
-                            className={`w-4 h-4 transition-transform ${isStatusDropdownOpen ? 'rotate-180' : ''}`}
+                            className="w-4 h-4 ml-2"
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
                           >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M19 9l-7 7-7-7"
+                            />
                           </svg>
                         </button>
                         {isStatusDropdownOpen && (

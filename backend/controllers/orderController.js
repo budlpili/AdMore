@@ -248,32 +248,53 @@ const updateOrderStatusByOrderId = (req, res) => {
   });
 };
 
-// 요청사항 업데이트 (orderId로)
+// 주문 요청사항 업데이트
 const updateOrderRequestByOrderId = (req, res) => {
   const { orderId } = req.params;
   const { request } = req.body;
 
-  if (request === undefined) {
-    return res.status(400).json({ message: '요청사항이 누락되었습니다.' });
+  if (!request) {
+    return res.status(400).json({ message: '요청사항이 필요합니다.' });
   }
 
   const sql = 'UPDATE orders SET request = ? WHERE orderId = ?';
-  const params = [request, orderId];
-
-  db.run(sql, params, function(err) {
+  
+  db.run(sql, [request, orderId], function(err) {
     if (err) {
       console.error('요청사항 업데이트 오류:', err);
-      return res.status(500).json({ message: '요청사항 업데이트 중 오류가 발생했습니다.' });
+      return res.status(500).json({ message: '요청사항 업데이트에 실패했습니다.' });
     }
 
     if (this.changes === 0) {
-      return res.status(404).json({ message: '해당 주문을 찾을 수 없습니다.' });
+      return res.status(404).json({ message: '주문을 찾을 수 없습니다.' });
     }
 
-    res.json({ 
-      message: '요청사항이 성공적으로 업데이트되었습니다.',
-      changes: this.changes
-    });
+    res.json({ message: '요청사항이 업데이트되었습니다.' });
+  });
+};
+
+// 주문 리뷰 상태 업데이트
+const updateOrderReviewByOrderId = (req, res) => {
+  const { orderId } = req.params;
+  const { review } = req.body;
+
+  if (!review) {
+    return res.status(400).json({ message: '리뷰 상태가 필요합니다.' });
+  }
+
+  const sql = 'UPDATE orders SET review = ? WHERE orderId = ?';
+  
+  db.run(sql, [review, orderId], function(err) {
+    if (err) {
+      console.error('리뷰 상태 업데이트 오류:', err);
+      return res.status(500).json({ message: '리뷰 상태 업데이트에 실패했습니다.' });
+    }
+
+    if (this.changes === 0) {
+      return res.status(404).json({ message: '주문을 찾을 수 없습니다.' });
+    }
+
+    res.json({ message: '리뷰 상태가 업데이트되었습니다.' });
   });
 };
 
@@ -318,12 +339,19 @@ const updateOrderStatus = (req, res) => {
 
 // 구매확정 처리
 const confirmPurchase = (req, res) => {
-  const { id } = req.params;
-  const userId = req.user.id;
+  const { orderId } = req.params;
+  // 테스트용: 인증이 없을 때는 userId 체크를 건너뜀
+  const userId = req.user ? req.user.id : null;
 
-  const sql = 'UPDATE orders SET confirmStatus = "구매완료" WHERE id = ? AND userId = ?';
+  let sql = 'UPDATE orders SET confirmStatus = "구매완료" WHERE orderId = ?';
+  let params = [orderId];
   
-  db.run(sql, [id, userId], function(err) {
+  if (userId) {
+    sql += ' AND userId = ?';
+    params.push(userId);
+  }
+  
+  db.run(sql, params, function(err) {
     if (err) {
       return res.status(500).json({ message: '구매확정 처리에 실패했습니다.' });
     }
@@ -411,6 +439,26 @@ const deleteOrder = (req, res) => {
   });
 };
 
+// orderId로 주문 삭제
+const deleteOrderByOrderId = (req, res) => {
+  const { orderId } = req.params;
+  
+  const sql = 'DELETE FROM orders WHERE orderId = ?';
+  
+  db.run(sql, [orderId], function(err) {
+    if (err) {
+      console.error('주문 삭제 오류:', err);
+      return res.status(500).json({ message: '주문 삭제에 실패했습니다.' });
+    }
+
+    if (this.changes === 0) {
+      return res.status(404).json({ message: '주문을 찾을 수 없습니다.' });
+    }
+
+    res.json({ message: '주문이 삭제되었습니다.' });
+  });
+};
+
 // 기존 신용카드 주문들의 결제일 업데이트 (테스트용)
 const updateExistingCardPayments = (req, res) => {
   const sql = `
@@ -441,6 +489,8 @@ module.exports = {
   confirmPurchase, 
   getAllOrders, 
   deleteOrder,
+  deleteOrderByOrderId,
   updateExistingCardPayments,
-  updateOrderRequestByOrderId
+  updateOrderRequestByOrderId,
+  updateOrderReviewByOrderId
 }; 

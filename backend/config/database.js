@@ -2,7 +2,7 @@ const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 require('dotenv').config();
 
-const dbPath = path.resolve(__dirname, '..', '..', 'database', 'admore.db');
+const dbPath = path.resolve(__dirname, '..', 'admore.db');
 
 // 데이터베이스 연결
 const db = new sqlite3.Database(dbPath, (err) => {
@@ -93,17 +93,12 @@ const initializeTables = () => {
   // 리뷰 테이블
   db.run(`CREATE TABLE IF NOT EXISTS reviews (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    userId INTEGER,
-    productId INTEGER,
-    orderId TEXT,
-    user TEXT NOT NULL,
+    productId INTEGER NOT NULL,
+    userEmail TEXT NOT NULL,
     rating INTEGER NOT NULL,
     content TEXT NOT NULL,
-    time TEXT DEFAULT (datetime('now', 'localtime')),
-    product TEXT,
-    reply TEXT,
-    replyTime TEXT,
-    FOREIGN KEY (userId) REFERENCES users (id),
+    createdAt TEXT DEFAULT (datetime('now', 'localtime')),
+    orderId TEXT,
     FOREIGN KEY (productId) REFERENCES products (id)
   )`);
 

@@ -559,7 +559,12 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
         specifications: product.specifications || '',
         productNumber: product.productNumber || ''
       });
-      setImagePreview(product.image || '');
+      if (product.image) {
+        const isDataUrl = product.image.startsWith('data:image');
+        setImagePreview(isDataUrl ? product.image : `data:image/png;base64,${product.image}`);
+      } else {
+        setImagePreview('');
+      }
       setBackgroundPreview(product.background || '');
       setSelectedTags(tagsArray);
       clearFormDraft(); // 편집 모드에서는 임시 저장 데이터 삭제
@@ -570,6 +575,7 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
       if (!hasDraft) {
         resetForm();
       }
+      setImagePreview('');
     }
     setIsFormOpen(true);
     onFormStateChange?.(true, product || null);

@@ -4,6 +4,7 @@ import { faRotateRight, faStar, faClock, faPen, faComments } from '@fortawesome/
 import { useNavigate } from 'react-router-dom';
 import { Review, mockReviews } from '../data/reviews-list';
 import { products } from '../data/products';
+import { reviewsAPI } from '../services/api';
 
 // 이메일 마스킹 함수
 const maskEmail = (email: string): string => {
@@ -46,56 +47,42 @@ const Reviews: React.FC = () => {
   const [dateOrder, setDateOrder] = useState<'desc' | 'asc'>('desc');
   const [showReviews, setShowReviews] = useState(true);
   const [showReviewableDropdown, setShowReviewableDropdown] = useState(false);
-  const [reviews, setReviews] = useState<Review[]>(mockReviews);
+  const [reviews, setReviews] = useState<Review[]>([]);
   const navigate = useNavigate();
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // localStorage에서 리뷰 로드
   useEffect(() => {
-    const loadReviews = () => {
+    const loadReviews = async () => {
       try {
-        const savedReviews = JSON.parse(localStorage.getItem('mockReviews') || '[]');
-        
-        // 모든 리뷰를 합치고 날짜 순으로 정렬 (최신이 맨 위)
-        const allReviews = [...savedReviews, ...mockReviews];
-        
-        const sortedReviews = allReviews.sort((a: any, b: any) => {
-          // 날짜 파싱 함수
-          const parseDate = (dateStr: string) => {
-            // 형식 1: "25-07-15 16:42" (mockReviews)
-            if (dateStr.match(/^\d{2}-\d{2}-\d{2}/)) {
-              return new Date(dateStr.replace(/(\d{2})-(\d{2})-(\d{2})/, '20$1-$2-$3'));
-            }
-            // 형식 2: "2025. 7. 15. 오후 3:52:21" (저장된 리뷰)
-            if (dateStr.includes('오후') || dateStr.includes('오전')) {
-              const match = dateStr.match(/(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})\.\s*(오전|오후)\s*(\d{1,2}):(\d{2}):(\d{2})/);
-              if (match) {
-                const [, year, month, day, ampm, hour, minute, second] = match;
-                let hour24 = parseInt(hour);
-                if (ampm === '오후' && hour24 !== 12) hour24 += 12;
-                if (ampm === '오전' && hour24 === 12) hour24 = 0;
-                return new Date(parseInt(year), parseInt(month) - 1, parseInt(day), hour24, parseInt(minute), parseInt(second));
-              }
-            }
-            // 기본 파싱 시도
-            return new Date(dateStr);
-          };
-          
-          const dateA = parseDate(a.time);
-          const dateB = parseDate(b.time);
-          return dateB.getTime() - dateA.getTime(); // 최신이 맨 위
-        });
-        
-        setReviews(sortedReviews);
+        const response = await reviewsAPI.getAll();
+        // 백엔드 데이터를 Review 인터페이스에 맞게 변환
+        const formattedReviews = response.map((review: any) => ({
+          id: review.id,
+          user: review.userEmail || review.user || '익명',
+          time: review.createdAt || review.time || new Date().toLocaleString(),
+          content: review.content,
+          product: review.productName || review.product || '상품명 없음',
+          rating: review.rating,
+          reply: review.adminReply || review.reply,
+          replyTime: review.adminReplyTime || review.replyTime,
+          productId: review.productId,
+          category: review.category,
+          tags: review.tags,
+          image: review.image,
+          background: review.background
+        }));
+        setReviews(formattedReviews);
       } catch (error) {
         console.error('리뷰 로드 중 오류:', error);
+        // 백엔드 실패 시 mock 데이터 사용
         setReviews(mockReviews);
       }
     };
-    
     loadReviews();
-    window.addEventListener('focus', loadReviews);
-    return () => window.removeEventListener('focus', loadReviews);
+    // 페이지 포커스 시 데이터 재로드 제거 - 데이터 일관성 유지를 위해
+    // window.addEventListener('focus', loadReviews);
+    // return () => window.removeEventListener('focus', loadReviews);
   }, []);
 
   // 드롭다운 바깥 클릭 시 닫기
@@ -110,27 +97,49 @@ const Reviews: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showReviewableDropdown]);
 
-  // 리뷰 작성 가능한 주문내역 가져오기 (localStorage에서)
+  // 리뷰 작성 가능한 주문내역 가져오기 (백엔드에서)
   const [reviewableOrders, setReviewableOrders] = useState<any[]>([]);
   useEffect(() => {
-    const loadOrders = () => {
+    const loadOrders = async () => {
       try {
-        const orderList = JSON.parse(localStorage.getItem('orderList') || '[]');
-        
-        const reviewables = orderList.filter((o: any) => {
-          const isEligible = (o.status === '작업완료' || o.status === '구매완료') && o.review === '리뷰 작성하기';
-          return isEligible;
-        });
-        
-        setReviewableOrders(reviewables);
+        // 백엔드에서 주문 데이터 가져오기
+        const response = await fetch('http://localhost:5001/api/orders/user');
+        if (response.ok) {
+          const data = await response.json();
+          const reviewables = data.orders.filter((o: any) => {
+            const isEligible = (o.status === '작업완료' || o.status === '구매완료') && o.review === '리뷰 작성하기';
+            return isEligible;
+          });
+          setReviewableOrders(reviewables);
+        } else {
+          // 백엔드 실패 시 localStorage에서 폴백
+          const orderList = JSON.parse(localStorage.getItem('orderList') || '[]');
+          const reviewables = orderList.filter((o: any) => {
+            const isEligible = (o.status === '작업완료' || o.status === '구매완료') && o.review === '리뷰 작성하기';
+            return isEligible;
+          });
+          setReviewableOrders(reviewables);
+        }
       } catch (error) {
         console.error('주문 로드 에러:', error);
-        setReviewableOrders([]);
+        // 에러 시 localStorage에서 폴백
+        try {
+          const orderList = JSON.parse(localStorage.getItem('orderList') || '[]');
+          const reviewables = orderList.filter((o: any) => {
+            const isEligible = (o.status === '작업완료' || o.status === '구매완료') && o.review === '리뷰 작성하기';
+            return isEligible;
+          });
+          setReviewableOrders(reviewables);
+        } catch (localStorageError) {
+          console.error('localStorage 폴백 로드 중 오류:', localStorageError);
+          setReviewableOrders([]);
+        }
       }
     };
     loadOrders();
-    window.addEventListener('focus', loadOrders);
-    return () => window.removeEventListener('focus', loadOrders);
+    // 페이지 포커스 시 데이터 재로드 제거 - 데이터 일관성 유지를 위해
+    // window.addEventListener('focus', loadOrders);
+    // return () => window.removeEventListener('focus', loadOrders);
   }, []);
 
   // 새로고침: 모든 상태 초기화 및 데이터 재로드
@@ -143,61 +152,68 @@ const Reviews: React.FC = () => {
     setCurrentPage(1);
     
     // 리뷰 데이터 재로드
-    const loadReviews = () => {
+    const loadReviews = async () => {
       try {
-        const savedReviews = JSON.parse(localStorage.getItem('mockReviews') || '[]');
-        
-        // 모든 리뷰를 합치고 날짜 순으로 정렬 (최신이 맨 위)
-        const allReviews = [...savedReviews, ...mockReviews];
-        
-        const sortedReviews = allReviews.sort((a: any, b: any) => {
-          // 날짜 파싱 함수
-          const parseDate = (dateStr: string) => {
-            // 형식 1: "25-07-15 16:42" (mockReviews)
-            if (dateStr.match(/^\d{2}-\d{2}-\d{2}/)) {
-              return new Date(dateStr.replace(/(\d{2})-(\d{2})-(\d{2})/, '20$1-$2-$3'));
-            }
-            // 형식 2: "2025. 7. 15. 오후 3:52:21" (저장된 리뷰)
-            if (dateStr.includes('오후') || dateStr.includes('오전')) {
-              const match = dateStr.match(/(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})\.\s*(오전|오후)\s*(\d{1,2}):(\d{2}):(\d{2})/);
-              if (match) {
-                const [, year, month, day, ampm, hour, minute, second] = match;
-                let hour24 = parseInt(hour);
-                if (ampm === '오후' && hour24 !== 12) hour24 += 12;
-                if (ampm === '오전' && hour24 === 12) hour24 = 0;
-                return new Date(parseInt(year), parseInt(month) - 1, parseInt(day), hour24, parseInt(minute), parseInt(second));
-              }
-            }
-            // 기본 파싱 시도
-            return new Date(dateStr);
-          };
-          
-          const dateA = parseDate(a.time);
-          const dateB = parseDate(b.time);
-          return dateB.getTime() - dateA.getTime(); // 최신이 맨 위
-        });
-        
-        setReviews(sortedReviews);
+        const response = await reviewsAPI.getAll();
+        // 백엔드 데이터를 Review 인터페이스에 맞게 변환
+        const formattedReviews = response.map((review: any) => ({
+          id: review.id,
+          user: review.userEmail || review.user || '익명',
+          time: review.createdAt || review.time || new Date().toLocaleString(),
+          content: review.content,
+          product: review.productName || review.product || '상품명 없음',
+          rating: review.rating,
+          reply: review.adminReply || review.reply,
+          replyTime: review.adminReplyTime || review.replyTime,
+          productId: review.productId,
+          category: review.category,
+          tags: review.tags,
+          image: review.image,
+          background: review.background
+        }));
+        setReviews(formattedReviews);
       } catch (error) {
         console.error('리뷰 로드 중 오류:', error);
+        // 백엔드 실패 시 mock 데이터 사용
         setReviews(mockReviews);
       }
     };
     
     // 주문 데이터 재로드
-    const loadOrders = () => {
+    const loadOrders = async () => {
       try {
-        const orderList = JSON.parse(localStorage.getItem('orderList') || '[]');
-        
-        const reviewables = orderList.filter((o: any) => {
-          const isEligible = (o.status === '작업완료' || o.status === '구매완료') && o.review === '리뷰 작성하기';
-          return isEligible;
-        });
-        
-        setReviewableOrders(reviewables);
+        // 백엔드에서 주문 데이터 가져오기
+        const response = await fetch('http://localhost:5001/api/orders/user');
+        if (response.ok) {
+          const data = await response.json();
+          const reviewables = data.orders.filter((o: any) => {
+            const isEligible = (o.status === '작업완료' || o.status === '구매완료') && o.review === '리뷰 작성하기';
+            return isEligible;
+          });
+          setReviewableOrders(reviewables);
+        } else {
+          // 백엔드 실패 시 localStorage에서 폴백
+          const orderList = JSON.parse(localStorage.getItem('orderList') || '[]');
+          const reviewables = orderList.filter((o: any) => {
+            const isEligible = (o.status === '작업완료' || o.status === '구매완료') && o.review === '리뷰 작성하기';
+            return isEligible;
+          });
+          setReviewableOrders(reviewables);
+        }
       } catch (error) {
         console.error('주문 로드 에러:', error);
-        setReviewableOrders([]);
+        // 에러 시 localStorage에서 폴백
+        try {
+          const orderList = JSON.parse(localStorage.getItem('orderList') || '[]');
+          const reviewables = orderList.filter((o: any) => {
+            const isEligible = (o.status === '작업완료' || o.status === '구매완료') && o.review === '리뷰 작성하기';
+            return isEligible;
+          });
+          setReviewableOrders(reviewables);
+        } catch (localStorageError) {
+          console.error('localStorage 폴백 로드 중 오류:', localStorageError);
+          setReviewableOrders([]);
+        }
       }
     };
     
@@ -245,14 +261,14 @@ const Reviews: React.FC = () => {
 
   // 상품 정보 가져오기
   const getProductInfo = (review: Review) => {
-    return products.find(p => p.id === review.productId);
+    return (products || []).find(p => p.id === review.productId);
   };
 
   // 검색 및 정렬 적용
-  const filtered = reviews.filter(r =>
-    r.user.includes(search) ||
-    r.content.includes(search) ||
-    r.product.includes(search)
+  const filtered = (reviews || []).filter(r =>
+    (r.user || '').includes(search) ||
+    (r.content || '').includes(search) ||
+    (r.product || '').includes(search)
   );
   let sorted = [...filtered];
   if (sortType === 'rating') {
@@ -262,6 +278,9 @@ const Reviews: React.FC = () => {
     sorted.sort((a, b) => {
       // 날짜 파싱 함수
       const parseDate = (dateStr: string) => {
+        // dateStr이 undefined나 null인 경우 기본값 반환
+        if (!dateStr) return new Date(0);
+        
         // 형식 1: "25-07-15 16:42" (mockReviews)
         if (dateStr.match(/^\d{2}-\d{2}-\d{2}/)) {
           return new Date(dateStr.replace(/(\d{2})-(\d{2})-(\d{2})/, '20$1-$2-$3'));
@@ -319,7 +338,8 @@ const Reviews: React.FC = () => {
         {showReviews && (
           <div id="review-list-section" className="space-y-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-              {/* 작성가능한리뷰 */}
+              {/* 작성가능한리뷰 - 비활성화됨 */}
+              {/* 
               <div
                 ref={dropdownRef}
                 className="flex flex-col border border-gray-300 ring-2 ring-orange-200 rounded-xl bg-white 
@@ -385,6 +405,7 @@ const Reviews: React.FC = () => {
                   </div>
                 )}
               </div>
+              */}
               <div className="flex justify-end items-center space-x-2 w-full">
                 {/* 검색창 */}
                 <div className="relative w-full flex justify-end items-center">
@@ -459,7 +480,7 @@ const Reviews: React.FC = () => {
                 </div>
                 <div className="text-sm mb-4 text-gray-900 font-normal">{review.content}</div>
                 {review.reply && (
-                  <div className="bg-gray-50 border-l-4 border-blue-400 p-3 text-sm text-gray-700 mt-2">
+                  <div className="bg-gray-50 border-l-4 border-blue-400 p-3 text-sm text-gray-700 mt-2 ml-6">
                     <div className="flex xxs:items-center xxs:flex-row flex-col mb-1">
                       <span className="font-bold text-blue-600 mr-2">애드모어</span>
                       <span className="text-xs text-gray-400">{review.replyTime}</span>
@@ -469,21 +490,102 @@ const Reviews: React.FC = () => {
                 )}
                 <div className="text-sm text-gray-600 mt-4 border border-orange-200 p-2 rounded-lg">
                   <div className="flex items-center justify-between gap-2">
-                    <div className="flex flex-col gap-1">
-                      <div 
-                        className="flex items-center gap-2 cursor-pointer hover:text-orange-600 transition-colors"
-                        onClick={() => handleProductClick(review)}
-                      >
-                        <span className="text-gray-700 font-semibold text-sm hover:text-orange-600">{review.product}</span>
+                    <div className="flex items-center gap-3">
+                      {/* 상품 이미지 */}
+                      <div className="w-16 h-12 bg-gray-200 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
+                        {(() => {
+                          if (review.image) {
+                            // 이미지 경로 처리
+                            let imageSrc = review.image;
+                            if (review.image.startsWith('data:')) {
+                              // base64 이미지
+                              imageSrc = review.image;
+                            } else if (review.image.startsWith('http')) {
+                              // 외부 URL
+                              imageSrc = review.image;
+                            } else if (review.image.startsWith('/')) {
+                              // 절대 경로
+                              imageSrc = review.image;
+                            } else {
+                              // 상대 경로
+                              imageSrc = `/images/${review.image}`;
+                            }
+                            
+                            return (
+                              <img 
+                                src={imageSrc}
+                                alt={review.product}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  const target = e.currentTarget as HTMLImageElement;
+                                  target.style.display = 'none';
+                                  const fallback = target.nextElementSibling as HTMLElement;
+                                  if (fallback) {
+                                    fallback.style.display = 'flex';
+                                  }
+                                }}
+                              />
+                            );
+                          } else if (review.background) {
+                            // 배경 이미지 경로 처리
+                            let backgroundSrc = review.background;
+                            if (review.background.startsWith('data:')) {
+                              backgroundSrc = review.background;
+                            } else if (review.background.startsWith('http')) {
+                              backgroundSrc = review.background;
+                            } else if (review.background.startsWith('/')) {
+                              backgroundSrc = review.background;
+                            } else {
+                              backgroundSrc = `/images/${review.background}`;
+                            }
+                            
+                            return (
+                              <img 
+                                src={backgroundSrc}
+                                alt={review.product}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  const target = e.currentTarget as HTMLImageElement;
+                                  target.style.display = 'none';
+                                  const fallback = target.nextElementSibling as HTMLElement;
+                                  if (fallback) {
+                                    fallback.style.display = 'flex';
+                                  }
+                                }}
+                              />
+                            );
+                          }
+                          
+                          // 이미지가 없는 경우 기본 아이콘 표시
+                          return (
+                            <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                              <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                            </div>
+                          );
+                        })()}
                       </div>
-                      {getProductInfo(review) && (
+                      
+                      {/* 상품 정보 */}
+                      <div className="flex flex-col gap-1">
                         <div 
                           className="flex items-center gap-2 cursor-pointer hover:text-orange-600 transition-colors"
                           onClick={() => handleProductClick(review)}
                         >
-                          <span className="text-xs text-gray-500 hover:text-orange-600">{getProductInfo(review)?.tags}</span>
+                          <span className="text-gray-700 font-semibold text-sm hover:text-orange-600">{review.product}</span>
                         </div>
-                      )}
+                        {(review.category || review.tags) && (
+                          <div 
+                            className="flex items-center gap-2 cursor-pointer hover:text-orange-600 transition-colors"
+                            onClick={() => handleProductClick(review)}
+                          >
+                            <span className="text-xs text-gray-500 hover:text-orange-600">
+                              {review.category && review.tags ? `${review.category} | ${review.tags}` : review.category || review.tags}
+                            </span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <button 
                       className="text-sm font-semibold px-3 py-3 text-orange-600 min-w-[40px] max-w-[50px] sm:max-w-none sm:flex-row flex-col

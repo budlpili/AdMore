@@ -36,7 +36,7 @@ const register = (req, res) => {
         // JWT 토큰 생성
         const token = jwt.sign(
           { id: this.lastID, email, role: 'user' },
-          process.env.JWT_SECRET,
+          process.env.JWT_SECRET || 'admore_jwt_secret_key_2024',
           { expiresIn: '24h' }
         );
 
@@ -83,7 +83,7 @@ const login = (req, res) => {
       // JWT 토큰 생성
       const token = jwt.sign(
         { id: user.id, email: user.email, role: user.role },
-        process.env.JWT_SECRET,
+        process.env.JWT_SECRET || 'admore_jwt_secret_key_2024',
         { expiresIn: '24h' }
       );
 
@@ -118,7 +118,7 @@ const adminLogin = (req, res) => {
     // JWT 토큰 생성
     const token = jwt.sign(
       { id: 1, email: adminEmail, role: 'admin' },
-      process.env.JWT_SECRET,
+      process.env.JWT_SECRET || 'admore_jwt_secret_key_2024',
       { expiresIn: '24h' }
     );
 

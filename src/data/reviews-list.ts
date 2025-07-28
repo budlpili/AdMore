@@ -8,6 +8,10 @@ export interface Review {
   reply?: string;
   replyTime?: string;
   productId?: number; // 상품 ID 추가
+  category?: string; // 카테고리 추가
+  tags?: string; // 태그 추가
+  image?: string; // 상품 이미지 추가
+  background?: string; // 상품 배경 이미지 추가
 }
 
 export const mockReviews: Review[] = [

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { SignUpForm, FormErrors } from '../types/index';
+import { authAPI } from '../services/api';
 
 const SignUp: React.FC = () => {
   const [formData, setFormData] = useState<SignUpForm>({
@@ -24,6 +25,7 @@ const SignUp: React.FC = () => {
   const [confirmPasswordMatch, setConfirmPasswordMatch] = useState<boolean | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const navigate = useNavigate();
 
@@ -139,43 +141,33 @@ const SignUp: React.FC = () => {
     
     if (validateForm()) {
       console.log('폼 검증 통과! 회원가입 로직 실행');
-      // 회원가입 로직 (localStorage)
-      const users = JSON.parse(localStorage.getItem('users') || '[]');
-      console.log('기존 사용자 목록:', users);
+      setIsSubmitting(true);
       
-      const exists = users.some((user: any) => user.email === formData.email);
-      console.log('이메일 중복 확인:', exists);
-      
-      if (exists) {
-        console.log('이메일 중복! 에러 설정');
-        setErrors({ email: '이미 가입된 이메일입니다.' });
-        return;
-      }
-      
-      const newUser = {
+      // 백엔드 API에 맞는 데이터 구조로 변환
+      const userData = {
         email: formData.email,
         password: formData.password,
-        agreeTerms: formData.agreeTerms,
-        agreePrivacy: formData.agreePrivacy,
-        agreeMarketing: formData.agreeMarketing
+        name: formData.email.split('@')[0], // 임시로 이메일 앞부분을 이름으로 사용
+        phone: '' // 전화번호는 선택사항
       };
-      console.log('새 사용자 정보:', newUser);
       
-      users.push(newUser);
-      localStorage.setItem('users', JSON.stringify(users));
-      console.log('localStorage에 사용자 저장 완료');
-      console.log('저장된 사용자 목록:', JSON.parse(localStorage.getItem('users') || '[]'));
-      
-      // 자동 로그인 처리
-      localStorage.setItem('isLoggedIn', 'true');
-      localStorage.setItem('userEmail', newUser.email);
-      
-      // 커스텀 이벤트 발생 (Header 컴포넌트에 로그인 상태 변경 알림)
-      window.dispatchEvent(new Event('loginStateChanged'));
-      
-      alert('회원가입이 완료되었습니다! 자동으로 로그인되었습니다.');
-      console.log('회원가입 완료! 자동 로그인 처리됨');
-      navigate('/');
+      authAPI.register(userData)
+        .then((response: any) => {
+          console.log('회원가입 성공:', response);
+          alert('회원가입이 완료되었습니다!');
+          navigate('/login');
+        })
+        .catch((error: any) => {
+          console.error('회원가입 실패:', error);
+          if (error.response && error.response.data) {
+            setErrors({ email: error.response.data.message || '회원가입에 실패했습니다.' });
+          } else {
+            setErrors({ email: '회원가입에 실패했습니다.' });
+          }
+        })
+        .finally(() => {
+          setIsSubmitting(false);
+        });
     } else {
       console.log('폼 검증 실패! 회원가입 중단');
     }
@@ -210,6 +202,7 @@ const SignUp: React.FC = () => {
                   errors.email ? 'border-red-500' : 'border-gray-300'
                 }`}
                 placeholder="example@email.com"
+                disabled={isSubmitting}
               />
               {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email}</p>}
             </div>
@@ -230,6 +223,7 @@ const SignUp: React.FC = () => {
                     errors.password ? 'border-red-500 text-xs' : 'border-gray-300 text-xs'
                   }`}
                   placeholder="비밀번호를 입력해주세요"
+                  disabled={isSubmitting}
                 />
                 <button
                   type="button"
@@ -324,6 +318,7 @@ const SignUp: React.FC = () => {
                     errors.confirmPassword ? 'border-red-500' : confirmPasswordMatch === false ? 'border-red-500' : 'border-gray-300'
                   }`}
                   placeholder="비밀번호를 다시 입력해주세요"
+                  disabled={isSubmitting}
                 />
                 <button
                   type="button"
@@ -364,6 +359,7 @@ const SignUp: React.FC = () => {
                     className="appearance-none h-4 w-4 border border-gray-300 rounded bg-white 
                         checked:bg-orange-600 checked:border-orange-600 
                         focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 relative"
+                    disabled={isSubmitting}
                   />
                   {formData.agreeTerms && (
                     <svg className="absolute top-[0px] left-0 h-4 w-4 text-white pointer-events-none" fill="currentColor" viewBox="0 0 20 20">
@@ -385,6 +381,7 @@ const SignUp: React.FC = () => {
                     checked={formData.agreePrivacy}
                     onChange={handleChange}
                     className="appearance-none h-4 w-4 border border-gray-300 rounded bg-white checked:bg-orange-600 checked:border-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 relative"
+                    disabled={isSubmitting}
                   />
                   {formData.agreePrivacy && (
                     <svg className="absolute top-[0px] left-0 h-4 w-4 text-white pointer-events-none" fill="currentColor" viewBox="0 0 20 20">
@@ -406,6 +403,7 @@ const SignUp: React.FC = () => {
                     checked={formData.agreeMarketing}
                     onChange={handleChange}
                     className="appearance-none h-4 w-4 border border-gray-300 rounded bg-white checked:bg-orange-600 checked:border-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 relative"
+                    disabled={isSubmitting}
                   />
                   {formData.agreeMarketing && (
                     <svg className="absolute top-[0px] left-0 h-4 w-4 text-white pointer-events-none" fill="currentColor" viewBox="0 0 20 20">
@@ -424,8 +422,9 @@ const SignUp: React.FC = () => {
               type="submit"
               className="w-full bg-orange-500 text-white py-3 px-4 rounded-md hover:bg-orange-700 text-sm font-semibold
                   focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition duration-300"
+              disabled={isSubmitting}
             >
-              회원가입
+              {isSubmitting ? '회원가입 중...' : '회원가입'}
             </button>
           </form>
 

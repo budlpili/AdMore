@@ -23,14 +23,40 @@ const apiRequest = async <T = any>(endpoint: string, options: RequestInit = {}):
     };
   }
 
+  console.log('=== API 요청 시작 ===');
+  console.log('URL:', url);
+  console.log('Method:', config.method || 'GET');
+  console.log('Headers:', config.headers);
+  console.log('Body:', config.body);
+
   try {
     const response = await fetch(url, config);
     
+    console.log('=== API 응답 ===');
+    console.log('Status:', response.status);
+    console.log('Status Text:', response.statusText);
+    console.log('Headers:', response.headers);
+    
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      // HTTP 에러 응답을 파싱하여 에러 객체 생성
+      let errorData;
+      try {
+        errorData = await response.json();
+        console.log('Error Response Body:', errorData);
+      } catch {
+        errorData = { message: `HTTP ${response.status}: ${response.statusText}` };
+        console.log('Error Response Parse Failed, using default error');
+      }
+      
+      const error = new Error(errorData.message || `HTTP ${response.status}`);
+      (error as any).response = { status: response.status, data: errorData };
+      console.error('API 요청 실패:', error);
+      throw error;
     }
     
-    return await response.json();
+    const responseData = await response.json();
+    console.log('Success Response:', responseData);
+    return responseData;
   } catch (error) {
     console.error('API 요청 오류:', error);
     throw error;
@@ -55,14 +81,14 @@ export const authAPI = {
     });
   },
 
-  // 회원가입
+  // 회원가입 (새로운 users API 사용)
   register: async (userData: {
     email: string;
     password: string;
     name: string;
     phone?: string;
   }) => {
-    return apiRequest('/auth/register', {
+    return apiRequest('/users/register', {
       method: 'POST',
       body: JSON.stringify(userData),
     });
@@ -233,7 +259,10 @@ export const ordersAPI = {
 
   // 사용자 주문 목록 조회
   getUserOrders: async () => {
-    return apiRequest('/orders/user');
+    const response = await apiRequest('/orders/user');
+    console.log('getUserOrders 응답:', response);
+    // 전체 응답을 반환 (response.orders와 response.pagination 포함)
+    return response;
   },
 
   // 관리자용 모든 주문 조회
@@ -255,7 +284,7 @@ export const ordersAPI = {
 
   // 주문 상태 업데이트 (관리자용)
   updateStatus: async (orderId: string, status: string) => {
-    return apiRequest(`/orders/${orderId}/status`, {
+    return apiRequest(`/orders/order/${orderId}/status`, {
       method: 'PUT',
       body: JSON.stringify({ status }),
     });
@@ -401,10 +430,46 @@ export const tagsAPI = {
 // 태그 관련 API (별칭 추가)
 export const tagAPI = tagsAPI;
 
+// 리뷰 API
+export const reviewsAPI = {
+  getAll: () => apiRequest('/reviews'),
+  getByProduct: (productId: number) => apiRequest(`/reviews?productId=${productId}`),
+  create: (data: any) => apiRequest('/reviews', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+  update: (id: number, data: any) => apiRequest(`/reviews/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  }),
+  delete: (id: number) => apiRequest(`/reviews/${id}`, {
+    method: 'DELETE',
+  }),
+  // 관리자 댓글 API
+  addAdminReply: (reviewId: number, adminReply: string) => 
+    apiRequest(`/reviews/${reviewId}/admin-reply`, {
+      method: 'POST',
+      body: JSON.stringify({ adminReply }),
+    }),
+  updateAdminReply: (reviewId: number, adminReply: string) => 
+    apiRequest(`/reviews/${reviewId}/admin-reply`, {
+      method: 'PUT',
+      body: JSON.stringify({ adminReply }),
+    }),
+  deleteAdminReply: (reviewId: number) => 
+    apiRequest(`/reviews/${reviewId}/admin-reply`, {
+      method: 'DELETE',
+    }),
+};
+
+// 리뷰 관련 API (별칭 추가)
+export const reviewAPI = reviewsAPI;
+
 export default {
   auth: authAPI,
   products: productsAPI,
   orders: ordersAPI,
   categories: categoriesAPI,
   tags: tagsAPI,
+  reviews: reviewsAPI,
 }; 

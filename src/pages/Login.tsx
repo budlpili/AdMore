@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { authAPI } from '../services/api';
 
 const Login: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -12,6 +13,7 @@ const Login: React.FC = () => {
   const [recoveryEmail, setRecoveryEmail] = useState('');
   const [recoveryErrors, setRecoveryErrors] = useState<{ email?: string; general?: string }>({});
   const [recoverySuccess, setRecoverySuccess] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -36,21 +38,36 @@ const Login: React.FC = () => {
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (validateForm()) {
-      // 실제 로그인 로직 (localStorage)
-      const users = JSON.parse(localStorage.getItem('users') || '[]');
-      const user = users.find((user: any) => user.email === formData.email && user.password === formData.password);
-      if (!user) {
-        setErrors({ general: '이메일 또는 비밀번호가 올바르지 않습니다.' });
-        return;
-      }
-      localStorage.setItem('isLoggedIn', 'true');
-      localStorage.setItem('userEmail', user.email);
-      
-      // 커스텀 이벤트 발생 (Header 컴포넌트에 로그인 상태 변경 알림)
-      window.dispatchEvent(new Event('loginStateChanged'));
-      
-      alert('로그인 성공!');
-      navigate('/');
+      setIsSubmitting(true);
+      authAPI.login(formData.email, formData.password)
+        .then((response: any) => {
+          console.log('로그인 응답:', response);
+          if (response.token) {
+            localStorage.setItem('isLoggedIn', 'true');
+            localStorage.setItem('userEmail', response.user.email);
+            localStorage.setItem('token', response.token);
+            // 커스텀 이벤트 발생 (Header 컴포넌트에 로그인 상태 변경 알림)
+            window.dispatchEvent(new Event('loginStateChanged'));
+            alert('로그인 성공!');
+            navigate('/');
+          } else {
+            setErrors({ general: response.message || '로그인에 실패했습니다.' });
+          }
+        })
+        .catch((error: any) => {
+          console.error('로그인 오류:', error);
+          // 더 자세한 에러 메시지 처리
+          if (error.response && error.response.data) {
+            setErrors({ general: error.response.data.message || '로그인에 실패했습니다.' });
+          } else if (error.message) {
+            setErrors({ general: error.message });
+          } else {
+            setErrors({ general: '이메일 또는 비밀번호가 올바르지 않습니다.' });
+          }
+        })
+        .finally(() => {
+          setIsSubmitting(false);
+        });
     }
   };
 
@@ -70,34 +87,9 @@ const Login: React.FC = () => {
   const handleRecoverySubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (validateRecoveryForm()) {
-      // 실제 비밀번호 찾기 로직 (localStorage)
-      const users = JSON.parse(localStorage.getItem('users') || '[]');
-      const user = users.find((user: any) => user.email === recoveryEmail);
-      
-      if (!user) {
-        setRecoveryErrors({ general: '해당 이메일로 가입된 계정을 찾을 수 없습니다.' });
-        return;
-      }
-
-      // 비밀번호 재설정 (실제로는 이메일 발송 로직이 들어가야 함)
-      const newPassword = Math.random().toString(36).slice(-8); // 임시 비밀번호 생성
-      const updatedUsers = users.map((u: any) => {
-        if (u.email === recoveryEmail) {
-          return { ...u, password: newPassword };
-        }
-        return u;
-      });
-      
-      localStorage.setItem('users', JSON.stringify(updatedUsers));
-      setRecoverySuccess(true);
-      
-      // 3초 후 모달 닫기
-      setTimeout(() => {
-        setShowPasswordRecovery(false);
-        setRecoveryEmail('');
-        setRecoveryErrors({});
-        setRecoverySuccess(false);
-      }, 3000);
+      // 비밀번호 찾기 기능은 아직 구현되지 않음
+      alert('비밀번호 찾기 기능은 준비 중입니다. 관리자에게 문의해주세요.');
+      setShowPasswordRecovery(false);
     }
   };
 
@@ -138,6 +130,7 @@ const Login: React.FC = () => {
                   errors.email ? 'border-red-500 text-xs' : 'border-gray-300 text-xs'
                 }`}
                 placeholder="example@email.com"
+                disabled={isSubmitting}
               />
               {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email}</p>}
             </div>
@@ -158,6 +151,7 @@ const Login: React.FC = () => {
                     errors.password ? 'border-red-500 text-xs' : 'border-gray-300 text-xs'
                   }`}
                   placeholder="비밀번호를 입력해주세요"
+                  disabled={isSubmitting}
                 />
                 <button
                   type="button"
@@ -200,8 +194,9 @@ const Login: React.FC = () => {
             <button
               type="submit"
               className="w-full bg-orange-500 text-white py-3 px-4 rounded-md hover:bg-orange-700 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition duration-300"
+              disabled={isSubmitting}
             >
-              로그인
+              {isSubmitting ? '로그인 중...' : '로그인'}
             </button>
           </form>
 
@@ -253,6 +248,7 @@ const Login: React.FC = () => {
                         recoveryErrors.email ? 'border-red-500' : 'border-gray-300'
                       }`}
                       placeholder="example@email.com"
+                      disabled={isSubmitting}
                     />
                     {recoveryErrors.email && <p className="mt-1 text-xs text-red-600">{recoveryErrors.email}</p>}
                   </div>
@@ -266,12 +262,14 @@ const Login: React.FC = () => {
                       type="button"
                       onClick={closeRecoveryModal}
                       className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm font-medium transition-colors"
+                      disabled={isSubmitting}
                     >
                       취소
                     </button>
                     <button
                       type="submit"
                       className="flex-1 bg-orange-500 text-white py-2 px-4 rounded-md hover:bg-orange-700 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition duration-300"
+                      disabled={isSubmitting}
                     >
                       비밀번호 찾기
                     </button>

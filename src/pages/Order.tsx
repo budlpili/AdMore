@@ -177,6 +177,13 @@ const Order: React.FC = () => {
     const currentUser = users.find((user: any) => user.email === userEmail);
     const userName = currentUser ? currentUser.name || '고객' : '고객';
 
+    // 한국 시간대의 현재 날짜를 ISO 문자열로 변환하는 함수
+    const getKoreanTimeISOString = () => {
+      const now = new Date();
+      const koreanTime = new Date(now.getTime() + (9 * 60 * 60 * 1000)); // UTC+9
+      return koreanTime.toISOString();
+    };
+
     // 주문 데이터
     const orderData = {
       orderId: `ORDER-${Date.now()}`,
@@ -196,13 +203,13 @@ const Order: React.FC = () => {
       coupon: selectedCoupon,
       couponDiscount: couponDiscount,
       status: '주문접수',
-      date: new Date().toISOString(),
+      date: getKoreanTimeISOString(),
       review: '리뷰 작성하기',
       detail: product.description || product.name,
       // 관리자 페이지에서 필요한 추가 필드들
       refundStatus: '환불대기',
       confirmStatus: '확인대기',
-      paymentDate: payment === 'card' ? new Date().toISOString() : '-',
+      paymentDate: payment === 'card' ? getKoreanTimeISOString() : '-',
       paymentNumber: `PAY-${Date.now()}`,
       userName: userName,
       userEmail: userEmail
@@ -220,7 +227,7 @@ const Order: React.FC = () => {
       price: totalPrice,
       finalPrice: finalPrice,
       paymentMethod: payment === 'card' ? 'card' : 'virtual',
-      paymentDate: new Date().toISOString(),
+      paymentDate: getKoreanTimeISOString(),
       status: '결제완료',
       couponDiscount: couponDiscount,
       requirements: requirements,
