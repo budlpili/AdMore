@@ -146,6 +146,31 @@ const initializeTables = () => {
     FOREIGN KEY (userId) REFERENCES users (id)
   )`);
 
+  // 공지사항 테이블
+  db.run(`CREATE TABLE IF NOT EXISTS notices (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    important BOOLEAN DEFAULT 0,
+    author TEXT DEFAULT '관리자',
+    createdAt TEXT DEFAULT (datetime('now', 'localtime')),
+    updatedAt TEXT DEFAULT (datetime('now', 'localtime'))
+  )`);
+
+  // 이용약관 테이블
+  db.run(`CREATE TABLE IF NOT EXISTS terms (
+    id INTEGER PRIMARY KEY,
+    content TEXT NOT NULL,
+    updatedAt TEXT DEFAULT (datetime('now', 'localtime'))
+  )`);
+
+  // 개인정보취급방침 테이블
+  db.run(`CREATE TABLE IF NOT EXISTS privacy (
+    id INTEGER PRIMARY KEY,
+    content TEXT NOT NULL,
+    updatedAt TEXT DEFAULT (datetime('now', 'localtime'))
+  )`);
+
   console.log('데이터베이스 테이블이 초기화되었습니다.');
   
   // productNumber 컬럼이 없는 경우 추가

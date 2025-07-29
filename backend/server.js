@@ -43,6 +43,7 @@ app.use('/api/categories', require('./routes/categories'));
 app.use('/api/tags', require('./routes/tags'));
 app.use('/api/reviews', require('./routes/reviews'));
 app.use('/api/users', require('./routes/users'));
+app.use('/api/customer-service', require('./routes/customerService'));
 
 // 기본 라우트
 app.get('/', (req, res) => {

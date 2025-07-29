@@ -113,6 +113,7 @@
   line-height: 1.5;
   outline: none;
   margin: none;
+  font-family: 'Pretendard', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
 }
 
 .tiptap-editor:focus {
@@ -124,6 +125,7 @@
   min-height: 200px;
   outline: none;
   margin: 0;
+  font-family: 'Pretendard', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
 }
 
 .tiptap-editor .ProseMirror p.is-editor-empty:first-child::before {

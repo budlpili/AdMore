@@ -30,8 +30,11 @@ export interface Product {
 export interface Notice {
   id: number;
   title: string;
-  date: string;
+  content: string;
   important: boolean;
+  createdAt: string;
+  updatedAt: string;
+  author: string;
 }
 
 export interface InquiryForm {

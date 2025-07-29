@@ -4,11 +4,12 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faHome, faCog, faBox, faStar, faComments, faUser, faSignOutAlt, faBell, faSearch, 
   faCaretDown, faCaretUp, faEdit, faTrash, faCheck, faTimes, faEye, faPlus, faMinus,
-  faChevronLeft, faChevronRight, faBars, faTimes as faTimesIcon, faSync
+  faChevronLeft, faChevronRight, faBars, faTimes as faTimesIcon, faSync, faHeadset, faFileAlt, faShieldAlt
 } from '@fortawesome/free-solid-svg-icons';
 import { authAPI, productAPI, categoryAPI, tagAPI, reviewsAPI } from '../services/api';
 import ProductManagement from '../components/ProductManagement';
 import ReviewManagement from '../components/ReviewManagement';
+import CustomerServiceManagement from '../components/CustomerServiceManagement';
 import Pagination from '../components/Pagination';
 import { products as initialProducts, getProducts, saveProducts, resetProducts } from '../data/products';
 import { mockReviews } from '../data/reviews-list';
@@ -94,7 +95,8 @@ const Admin: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'orders' | 'reviews' | 'customerService' | 'users'>('dashboard');
-  const [activeSubTab, setActiveSubTab] = useState<'notices' | 'faq' | 'inquiries'>('notices');
+  const [customerServiceTab, setCustomerServiceTab] = useState<'notices' | 'inquiries' | 'terms' | 'privacy'>('notices');
+  const [isCustomerServiceExpanded, setIsCustomerServiceExpanded] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -561,17 +563,6 @@ const Admin: React.FC = () => {
   };
 
   // 채팅 메시지 삭제
-  const deleteChatMessage = (messageId: string) => {
-    if (window.confirm('정말로 이 메시지를 삭제하시겠습니까?')) {
-      try {
-        const updatedMessages = chatMessages.filter(msg => msg.id !== messageId);
-        localStorage.setItem('chatMessages', JSON.stringify(updatedMessages));
-        setChatMessages(updatedMessages);
-      } catch (error) {
-        console.error('채팅 메시지 삭제 에러:', error);
-      }
-    }
-  };
 
   // 회원 상태 변경
   const updateUserStatus = (userId: string, newStatus: 'active' | 'inactive' | 'suspended') => {
@@ -696,8 +687,9 @@ const Admin: React.FC = () => {
     { id: 'reviews', label: '리뷰관리', icon: faStar, count: reviews.length, action: undefined },
     { id: 'customerService', label: '고객센터', icon: faComments, count: undefined, action: undefined, subItems: [
       { id: 'notices', label: '공지사항', icon: faBell, count: undefined, action: undefined },
-      { id: 'faq', label: '자주묻는 질문', icon: faComments, count: undefined, action: undefined },
-      { id: 'inquiries', label: '1:1문의', icon: faComments, count: chatMessages.length, action: undefined }
+      { id: 'inquiries', label: '1:1문의', icon: faHeadset, count: chatMessages.length, action: undefined },
+      { id: 'terms', label: '이용약관', icon: faFileAlt, count: undefined, action: undefined },
+      { id: 'privacy', label: '개인정보취급방침', icon: faShieldAlt, count: undefined, action: undefined }
     ] },
     { id: 'users', label: '회원관리', icon: faUser, count: totalUsers, action: undefined },
   ];
@@ -728,7 +720,11 @@ const Admin: React.FC = () => {
       setIsProductFormOpen(false);
       setEditingProduct(null);
       setIsMobileSidebarOpen(false); // 모바일에서도 닫기
-    } else if (['dashboard', 'orders', 'reviews', 'customerService', 'users'].includes(tabId)) {
+    } else if (tabId === 'customerService') {
+      setActiveTab('customerService');
+      setIsCustomerServiceExpanded(!isCustomerServiceExpanded);
+      setIsMobileSidebarOpen(false); // 모바일에서도 닫기
+    } else if (['dashboard', 'orders', 'reviews', 'users'].includes(tabId)) {
       setActiveTab(tabId as any);
       setIsMobileSidebarOpen(false); // 모바일에서도 닫기
     }
@@ -1057,7 +1053,7 @@ const Admin: React.FC = () => {
                     <FontAwesomeIcon 
                       icon={faCaretDown} 
                       className={`text-xs transition-transform duration-200 ${
-                        activeTab === item.id ? 'rotate-180 text-orange-600' : 'text-gray-400'
+                        isCustomerServiceExpanded ? 'rotate-180 text-orange-600' : 'text-gray-400'
                       }`} 
                     />
                   )}
@@ -1072,26 +1068,19 @@ const Admin: React.FC = () => {
                 )}
 
                 {/* 서브메뉴 */}
-                {!isSidebarCollapsed && item.subItems && activeTab === item.id && (
+                {!isSidebarCollapsed && item.subItems && isCustomerServiceExpanded && (
                   <div className="bg-gray-100">
                     {item.subItems.map((subItem) => (
                       <button
                         key={subItem.id}
                         onClick={() => {
-                          setActiveSubTab(subItem.id as 'notices' | 'faq' | 'inquiries');
+                          setActiveTab('customerService');
+                          setCustomerServiceTab(subItem.id as 'notices' | 'inquiries' | 'terms' | 'privacy');
                           setIsMobileSidebarOpen(false);
                         }}
-                        className={`w-full h-9 flex items-center px-12 py-2 rounded text-sm transition-all duration-200 ${
-                          activeSubTab === subItem.id 
-                            ? 'text-orange-600' 
-                            : 'hover:bg-gray-200'
-                        }`}
+                        className="w-full h-9 flex items-center px-12 py-2 rounded text-sm transition-all duration-200 hover:bg-gray-200"
                       >
-                        <span className={`whitespace-nowrap text-xs font-medium ${
-                          activeSubTab === subItem.id 
-                            ? 'font-semibold text-orange-600' 
-                            : 'text-gray-700'
-                        }`}>{subItem.label}</span>
+                        <span className="whitespace-nowrap text-xs font-medium text-gray-700">{subItem.label}</span>
                         {subItem.count !== undefined && (
                           <span className="bg-orange-500 text-white font-bold text-[8px] leading-4 text-center w-[14px] h-[14px] rounded-full ml-2 
                           whitespace-nowrap">
@@ -1228,7 +1217,7 @@ const Admin: React.FC = () => {
                     <FontAwesomeIcon 
                       icon={faCaretDown} 
                       className={`text-xs transition-transform duration-200 ${
-                        activeTab === item.id ? 'rotate-180 text-orange-600' : 'text-gray-400'
+                        isCustomerServiceExpanded ? 'rotate-180 text-orange-600' : 'text-gray-400'
                       }`} 
                     />
                   )}
@@ -1241,20 +1230,13 @@ const Admin: React.FC = () => {
                       <button
                         key={subItem.id}
                         onClick={() => {
-                          setActiveSubTab(subItem.id as 'notices' | 'faq' | 'inquiries');
+                          setActiveTab('customerService');
+                          setCustomerServiceTab(subItem.id as 'notices' | 'inquiries' | 'terms' | 'privacy');
                           setIsMobileSidebarOpen(false);
                         }}
-                        className={`w-full h-9 flex items-center px-12 py-2 rounded text-sm transition-all duration-200 ${
-                          activeSubTab === subItem.id 
-                            ? 'text-orange-600' 
-                            : 'hover:bg-gray-200'
-                        }`}
+                        className="w-full h-9 flex items-center px-12 py-2 rounded text-sm transition-all duration-200 hover:bg-gray-200"
                       >
-                        <span className={`whitespace-nowrap text-xs font-medium ${
-                          activeSubTab === subItem.id 
-                            ? 'font-semibold text-orange-600' 
-                            : 'text-gray-700'
-                        }`}>{subItem.label}</span>
+                        <span className="whitespace-nowrap text-xs font-medium text-gray-700">{subItem.label}</span>
                         {subItem.count !== undefined && (
                           <span className="bg-orange-500 text-white font-bold text-[8px] leading-4 text-center w-[14px] h-[14px] rounded-full ml-2 
                           whitespace-nowrap">
@@ -1474,7 +1456,7 @@ const Admin: React.FC = () => {
                           {activeTab === 'products' && '상품 관리'}
                           {activeTab === 'orders' && '주문 관리'}
                           {activeTab === 'reviews' && '리뷰 관리'}
-                          {activeTab === 'customerService' && '고객 서비스'}
+                          {activeTab === 'customerService' && '고객센터'}
                           {activeTab === 'users' && '회원 관리'}
                         </span>
                       </div>
@@ -1484,9 +1466,10 @@ const Admin: React.FC = () => {
                         <div className="flex items-center">
                           <FontAwesomeIcon icon={faChevronRight} className="text-[10px] text-gray-400" />
                           <span className="ml-2 text-xs font-medium text-gray-500">
-                            {activeSubTab === 'notices' && '공지사항'}
-                            {activeSubTab === 'faq' && '자주묻는 질문'}
-                            {activeSubTab === 'inquiries' && '1:1문의'}
+                            {customerServiceTab === 'notices' && '공지사항'}
+                            {customerServiceTab === 'inquiries' && '1:1문의'}
+                            {customerServiceTab === 'terms' && '이용약관'}
+                            {customerServiceTab === 'privacy' && '개인정보취급방침'}
                           </span>
                         </div>
                       </li>
@@ -1842,10 +1825,10 @@ const Admin: React.FC = () => {
                 </div>
 
                 {/* 주문 테이블 */}
-                <div className="bg-white rounded-lg overflow-hidden border">
-                  <div className="overflow-x-auto">
+                <div className="overflow-hidden">
+                  <div className="bg-white rounded-lg border overflow-x-auto">
                     <table className="w-full border-collapse">
-                      <thead className="rounded-t-lg border-b border-gray-200">
+                      <thead className="rounded-t-lg border-b border-gray-300">
                         <tr>
                           <th className="px-3 py-3 text-left text-xs text-gray-500 uppercase tracking-wider">
                             <input
@@ -2294,7 +2277,7 @@ const Admin: React.FC = () => {
                   </div>
                   
                   {/* 주문 관리 페이지네이션 */}
-                  <div className="px-3 sm:px-6 py-6">
+                  <div className="mt-6">
                     <Pagination
                       currentPage={currentOrderPage}
                       totalPages={totalOrderPages}
@@ -2328,102 +2311,11 @@ const Admin: React.FC = () => {
 
             {/* 고객센터 탭 */}
             {activeTab === 'customerService' && (
-              <div>
-                {/* 서브메뉴 탭 네비게이션 */}
-                <div className="bg-white rounded-lg shadow mb-6">
-                  <div className="border-b border-gray-200">
-                    <nav className="flex space-x-8 px-6">
-                      <button
-                        onClick={() => setActiveSubTab('notices')}
-                        className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
-                          activeSubTab === 'notices'
-                            ? 'border-orange-500 text-orange-600'
-                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                        }`}
-                      >
-                        공지사항
-                      </button>
-                      <button
-                        onClick={() => setActiveSubTab('faq')}
-                        className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
-                          activeSubTab === 'faq'
-                            ? 'border-orange-500 text-orange-600'
-                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                        }`}
-                      >
-                        자주묻는 질문
-                      </button>
-                      <button
-                        onClick={() => setActiveSubTab('inquiries')}
-                        className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
-                          activeSubTab === 'inquiries'
-                            ? 'border-orange-500 text-orange-600'
-                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                        }`}
-                      >
-                        1:1문의
-                      </button>
-                    </nav>
-                  </div>
-                </div>
-
-                {/* 공지사항 서브탭 */}
-                {activeSubTab === 'notices' && (
-                  <div className="bg-white rounded-lg shadow">
-                    <div className="p-6">
-                      <h3 className="text-lg font-semibold mb-4">공지사항</h3>
-                      <div className="space-y-4">
-                        {/* 공지사항 데이터는 여기에 추가되어야 합니다. */}
-                        <p>공지사항 관리 기능은 아직 구현되지 않았습니다.</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* 자주묻는 질문 서브탭 */}
-                {activeSubTab === 'faq' && (
-                  <div className="bg-white rounded-lg shadow">
-                    <div className="p-6">
-                      <h3 className="text-lg font-semibold mb-4">자주묻는 질문</h3>
-                      <div className="space-y-4">
-                        {/* 자주묻는 질문 데이터는 여기에 추가되어야 합니다. */}
-                        <p>자주묻는 질문 관리 기능은 아직 구현되지 않았습니다.</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* 1:1문의 서브탭 */}
-                {activeSubTab === 'inquiries' && (
-                  <div className="bg-white rounded-lg shadow">
-                    <div className="p-6">
-                      <h3 className="text-lg font-semibold mb-4">1:1문의</h3>
-                      <div className="space-y-4">
-                        {chatMessages.map((message) => (
-                          <div key={message.id} className="border border-gray-200 rounded-lg p-4">
-                            <div className="flex justify-between items-start mb-2">
-                              <div>
-                                <p className="font-medium">{message.user}</p>
-                                <p className="text-sm text-gray-500">{message.timestamp}</p>
-                              </div>
-                              <button
-                                onClick={() => deleteChatMessage(message.id)}
-                                className="text-red-600 hover:text-red-800"
-                              >
-                                <FontAwesomeIcon icon={faTrash} />
-                              </button>
-                            </div>
-                            <p className="text-gray-700">{message.message}</p>
-                            {message.productInfo && (
-                              <p className="text-sm text-gray-500 mt-2">상품: {message.productInfo}</p>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
+              <CustomerServiceManagement 
+                chatMessages={chatMessages}
+                onChatMessagesChange={setChatMessages}
+                initialTab={customerServiceTab}
+              />
             )}
 
             {/* 회원 관리 탭 */}

@@ -479,6 +479,61 @@ export const reviewsAPI = {
 // 리뷰 관련 API (별칭 추가)
 export const reviewAPI = reviewsAPI;
 
+// 고객센터 API
+export const customerServiceAPI = {
+  // 공지사항 관련
+  getNotices: () => apiRequest('/customer-service/notices'),
+  getNotice: (id: number) => apiRequest(`/customer-service/notices/${id}`),
+  createNotice: (data: { title: string; content: string; important?: boolean; author?: string }) => 
+    apiRequest('/customer-service/notices', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateNotice: (id: number, data: { title: string; content: string; important?: boolean }) => 
+    apiRequest(`/customer-service/notices/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  deleteNotice: (id: number) => 
+    apiRequest(`/customer-service/notices/${id}`, {
+      method: 'DELETE',
+    }),
+
+  // 이용약관 관련
+  getTerms: () => apiRequest('/customer-service/terms'),
+  saveTerms: (content: string) => 
+    apiRequest('/customer-service/terms', {
+      method: 'POST',
+      body: JSON.stringify({ content }),
+    }),
+  updateTerms: (content: string) => 
+    apiRequest('/customer-service/terms', {
+      method: 'POST',
+      body: JSON.stringify({ content }),
+    }),
+  deleteTerms: () => 
+    apiRequest('/customer-service/terms', {
+      method: 'DELETE',
+    }),
+
+  // 개인정보취급방침 관련
+  getPrivacy: () => apiRequest('/customer-service/privacy'),
+  savePrivacy: (content: string) => 
+    apiRequest('/customer-service/privacy', {
+      method: 'POST',
+      body: JSON.stringify({ content }),
+    }),
+  updatePrivacy: (content: string) => 
+    apiRequest('/customer-service/privacy', {
+      method: 'POST',
+      body: JSON.stringify({ content }),
+    }),
+  deletePrivacy: () => 
+    apiRequest('/customer-service/privacy', {
+      method: 'DELETE',
+    }),
+};
+
 export default {
   auth: authAPI,
   products: productsAPI,
@@ -486,4 +541,5 @@ export default {
   categories: categoriesAPI,
   tags: tagsAPI,
   reviews: reviewsAPI,
+  customerService: customerServiceAPI,
 }; 
