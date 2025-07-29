@@ -47,6 +47,7 @@ import Blockquote from '@tiptap/extension-blockquote';
 import CodeBlock from '@tiptap/extension-code-block';
 import HorizontalRule from '@tiptap/extension-horizontal-rule';
 import { productAPI, categoryAPI, tagAPI } from '../services/api';
+import Pagination from './Pagination';
 import '../css/ProductManagement.css';
 
 interface ProductManagementProps {
@@ -1160,7 +1161,7 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
   if (!isFormOpen) {
     return (
       <>
-        <div className="space-y-6">
+        <div className="space-y-6 pb-12">
           {/* Statistics */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="bg-white p-4 rounded-lg border">
@@ -1547,44 +1548,18 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
                 </tbody>
               </table>
             </div>
-            
-            {/* Pagination */}
-            <div className="bg-white px-3 sm:px-6 py-6 flex items-center justify-between border-t border-gray-200">
-              <div className="flex-1 flex flex-col sm:flex-row items-center justify-between w-full gap-2">
-                <div className="text-xs text-gray-500 order-1 sm:order-1">
-                  총 {filteredProducts.length}개 중 {filteredProducts.length === 0 ? 0 : indexOfFirstProduct + 1}-{Math.min(indexOfLastProduct, filteredProducts.length)}개 표시
-                </div>
-                <div className="flex items-center space-x-1 sm:space-x-2 order-2 sm:order-2">
-                  <button
-                    onClick={() => setCurrentPage(currentPage - 1)}
-                    disabled={currentPage === 1}
-                    className={`px-2 py-1 rounded border text-xs font-medium transition-colors ${currentPage === 1 ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}
-                  >
-                    이전
-                  </button>
-                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => i + 1).map((page) => (
-                    <button
-                      key={page}
-                      onClick={() => setCurrentPage(page)}
-                      className={`px-2 sm:px-3 py-1 rounded border text-xs font-medium transition-colors ${
-                        currentPage === page 
-                          ? 'bg-orange-500 text-white border-orange-500' 
-                          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  ))}
-                  <button
-                    onClick={() => setCurrentPage(currentPage + 1)}
-                    disabled={currentPage === totalPages || totalPages === 0}
-                    className={`px-2 py-1 rounded border text-xs font-medium transition-colors ${(currentPage === totalPages || totalPages === 0) ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}
-                  >
-                    다음
-                  </button>
-                </div>
-              </div>
-            </div>
+          </div>
+          {/* Pagination */}
+          <div className="">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              totalItems={filteredProducts.length}
+              itemsPerPage={productsPerPage}
+              className="justify-between"
+              showInfo={true}
+            />
           </div>
         </div>
         {/* Admin 비밀번호 확인 모달 */}
