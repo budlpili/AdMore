@@ -1164,7 +1164,7 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
         <div className="space-y-6 pb-12">
           {/* Statistics */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-white p-4 rounded-lg border">
+            <div className="bg-white p-4 rounded-lg shadow">
               <div className="flex items-center">
                 <div className="p-2 bg-blue-100 rounded-lg">
                   <FontAwesomeIcon icon={faEye} className="text-blue-600" />
@@ -1175,7 +1175,7 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
                 </div>
               </div>
             </div>
-            <div className="bg-white p-4 rounded-lg border">
+            <div className="bg-white p-4 rounded-lg shadow">
               <div className="flex items-center">
                 <div className="p-2 bg-green-100 rounded-lg">
                   <FontAwesomeIcon icon={faEye} className="text-green-600" />
@@ -1186,7 +1186,7 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
                 </div>
               </div>
             </div>
-            <div className="bg-white p-4 rounded-lg border">
+            <div className="bg-white p-4 rounded-lg shadow">
               <div className="flex items-center">
                 <div className="p-2 bg-yellow-100 rounded-lg">
                   <FontAwesomeIcon icon={faEye} className="text-yellow-600" />
@@ -1197,7 +1197,7 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
                 </div>
               </div>
             </div>
-            <div className="bg-white p-4 rounded-lg border">
+            <div className="bg-white p-4 rounded-lg shadow">
               <div className="flex items-center">
                 <div className="p-2 bg-purple-100 rounded-lg">
                   <FontAwesomeIcon icon={faEye} className="text-purple-600" />
@@ -1211,7 +1211,7 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
           </div>
 
           {/* Search and Filters */}
-          <div className="bg-white p-4 rounded-lg border">
+          <div className="bg-white p-4 rounded-lg shadow">
             <div className="flex flex-col xl:flex-row gap-4">
               {/* Filters and Search */}
               <div className="flex flex-col sm:flex-row gap-3 flex-1">
@@ -1361,10 +1361,10 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
               <table className="w-full">
                 <thead className="border-b border-gray-300">
                   <tr>
-                    <th className="px-3 sm:px-6 py-4 text-left text-xs font-medium text-gray-600 uppercase tracking-wider min-w-[100px]">카테고리</th>
-                    <th className="px-3 sm:px-6 py-4 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">상품</th>
-                    <th className="px-3 sm:px-6 py-4 text-left text-xs font-medium text-gray-600 uppercase tracking-wider hidden lg:table-cell">태그</th>
-                    <th className="px-3 sm:px-6 py-4 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">기간별 가격</th>
+                    <th className="px-3 sm:px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider min-w-[100px]">카테고리</th>
+                    <th className="px-3 sm:px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">상품</th>
+                    <th className="px-3 sm:px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden lg:table-cell">태그</th>
+                    <th className="px-3 sm:px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">기간별 가격</th>
                     <th className="px-3 sm:px-6 py-4 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">상태</th>
                     <th className="px-3 sm:px-6 py-4 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">등록일(수정일)</th>
                     <th className="px-3 sm:px-6 py-4 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">관리</th>

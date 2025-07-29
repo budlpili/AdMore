@@ -1,17 +1,20 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBars, faBell, faUser, faCog, faSignOutAlt, faHome, faShoppingCart, faUsers, faComments, faStar, faChartBar, faBox, faTachometerAlt, faChevronDown, faSearch, faEye, faEdit, faTrash, faPlus, faTimes, faCheck, faXmark, faCaretDown, faCaretUp, faChevronLeft, faChevronRight, faSync, faRefresh, faClock, faImage } from '@fortawesome/free-solid-svg-icons';
-import { faStar as faStarRegular } from '@fortawesome/free-regular-svg-icons';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { authAPI, ordersAPI, reviewsAPI } from '../services/api';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { 
+  faHome, faCog, faBox, faStar, faComments, faUser, faSignOutAlt, faBell, faSearch, 
+  faCaretDown, faCaretUp, faEdit, faTrash, faCheck, faTimes, faEye, faPlus, faMinus,
+  faChevronLeft, faChevronRight, faBars, faTimes as faTimesIcon, faSync
+} from '@fortawesome/free-solid-svg-icons';
+import { authAPI, productAPI, categoryAPI, tagAPI, reviewsAPI } from '../services/api';
 import ProductManagement from '../components/ProductManagement';
 import ReviewManagement from '../components/ReviewManagement';
+import Pagination from '../components/Pagination';
 import { products as initialProducts, getProducts, saveProducts, resetProducts } from '../data/products';
 import { mockReviews } from '../data/reviews-list';
 import { defaultUsers, User } from '../data/users';
 import { defaultOrderList } from '../data/orderdata';
 import { Product } from '../types';
-import { productAPI } from '../services/api';
 
 interface Order {
   orderId: string;
@@ -123,6 +126,10 @@ const Admin: React.FC = () => {
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
   const [isOrderStatusDropdownOpen, setIsOrderStatusDropdownOpen] = useState(false);
+
+  // 주문 관리 페이지네이션 관련 상태
+  const [currentOrderPage, setCurrentOrderPage] = useState(1);
+  const [ordersPerPage] = useState(10);
 
   // 주문 삭제 관련 상태
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
@@ -653,6 +660,12 @@ const Admin: React.FC = () => {
     return matchesSearch && matchesStatus;
   });
 
+  // 주문 관리 페이지네이션 계산
+  const indexOfLastOrder = currentOrderPage * ordersPerPage;
+  const indexOfFirstOrder = indexOfLastOrder - ordersPerPage;
+  const totalOrderPages = Math.ceil(filteredOrders.length / ordersPerPage);
+  const currentOrders = filteredOrders.slice(indexOfFirstOrder, indexOfLastOrder);
+
   // 필터링된 회원
   const filteredUsers = users.filter(user => {
     const matchesSearch = (user.name?.toLowerCase() || '').includes(userSearchTerm.toLowerCase()) ||
@@ -961,19 +974,25 @@ const Admin: React.FC = () => {
       setSelectedOrders([]);
       setSelectAll(false);
     } else {
-      setSelectedOrders(filteredOrders.map(order => order.orderId));
+      setSelectedOrders(currentOrders.map(order => order.orderId));
       setSelectAll(true);
     }
   };
 
   // 필터링된 주문이 변경될 때 전체 선택 상태 업데이트
   useEffect(() => {
-    if (selectedOrders.length === filteredOrders.length && filteredOrders.length > 0) {
+    if (selectedOrders.length === currentOrders.length && currentOrders.length > 0) {
       setSelectAll(true);
     } else {
       setSelectAll(false);
     }
-  }, [selectedOrders, filteredOrders]);
+  }, [selectedOrders, currentOrders]);
+
+  // 페이지가 변경될 때 선택된 주문들 초기화
+  useEffect(() => {
+    setSelectedOrders([]);
+    setSelectAll(false);
+  }, [currentOrderPage]);
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -1171,7 +1190,7 @@ const Admin: React.FC = () => {
                   onClick={() => setIsMobileSidebarOpen(false)}
                   className="p-2 rounded-lg hover:bg-gray-100 transition-all duration-200"
                 >
-                  <FontAwesomeIcon icon={faTimes} className="text-gray-600 text-lg" />
+                  <FontAwesomeIcon icon={faTimesIcon} className="text-gray-600 text-lg" />
                 </button>
               </div>
             </div>
@@ -1671,7 +1690,7 @@ const Admin: React.FC = () => {
 
             {/* 주문 관리 탭 */}
             {activeTab === 'orders' && (
-              <div>
+              <div className="pb-12">
                 {/* 통계 카드 */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                   <div className="bg-white p-4 rounded-lg shadow">
@@ -1823,12 +1842,12 @@ const Admin: React.FC = () => {
                 </div>
 
                 {/* 주문 테이블 */}
-                <div className="bg-white rounded-lg shadow overflow-hidden">
+                <div className="bg-white rounded-lg overflow-hidden border">
                   <div className="overflow-x-auto">
-                    <table className="w-full border-collapse border border-gray-300 rounded-lg">
-                      <thead className="bg-gray-50 rounded-t-lg border-b border-gray-200">
+                    <table className="w-full border-collapse">
+                      <thead className="rounded-t-lg border-b border-gray-200">
                         <tr>
-                          <th className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                          <th className="px-3 py-3 text-left text-xs text-gray-500 uppercase tracking-wider">
                             <input
                               type="checkbox"
                               checked={selectAll}
@@ -1836,18 +1855,18 @@ const Admin: React.FC = () => {
                               className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
                             />
                           </th>
-                          <th className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">주문번호(결제번호)</th>
-                          <th className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">주문자</th>
-                          <th className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">상품정보</th>
-                          <th className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">가격정보</th>
-                          <th className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">주문일</th>
-                          <th className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">결제방법</th>
-                          <th className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">상태</th>
-                          <th className="px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">관리</th>
+                          <th className="px-3 sm:px-6 py-4 text-left text-xs text-gray-600 font-semibold uppercase tracking-wider">주문번호(결제번호)</th>
+                          <th className="px-3 sm:px-6 py-4 text-left text-xs text-gray-600 font-semibold uppercase tracking-wider">주문자</th>
+                          <th className="px-3 sm:px-6 py-4 text-left text-xs text-gray-600 font-semibold uppercase tracking-wider">상품정보</th>
+                          <th className="px-3 sm:px-6 py-4 text-left text-xs text-gray-600 font-semibold uppercase tracking-wider">가격정보</th>
+                          <th className="px-3 sm:px-6 py-4 text-left text-xs text-gray-600 font-semibold uppercase tracking-wider">주문일</th>
+                          <th className="px-3 sm:px-6 py-4 text-left text-xs text-gray-600 font-semibold uppercase tracking-wider">결제방법</th>
+                          <th className="px-3 sm:px-6 py-4 text-left text-xs text-gray-600 font-semibold uppercase tracking-wider">상태</th>
+                          <th className="px-3 sm:px-6 py-4 text-left text-xs text-gray-600 font-semibold uppercase tracking-wider">관리</th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
-                        {filteredOrders.map((order) => (
+                        {currentOrders.map((order) => (
                           <tr key={order.orderId} className="hover:bg-gray-50">
                             <td className="px-3 py-4 whitespace-nowrap">
                               <input
@@ -2272,6 +2291,19 @@ const Admin: React.FC = () => {
                         ))}
                       </tbody>
                     </table>
+                  </div>
+                  
+                  {/* 주문 관리 페이지네이션 */}
+                  <div className="px-3 sm:px-6 py-6">
+                    <Pagination
+                      currentPage={currentOrderPage}
+                      totalPages={totalOrderPages}
+                      onPageChange={setCurrentOrderPage}
+                      totalItems={filteredOrders.length}
+                      itemsPerPage={ordersPerPage}
+                      className="justify-between"
+                      showInfo={true}
+                    />
                   </div>
                 </div>
               </div>

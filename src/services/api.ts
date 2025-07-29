@@ -290,6 +290,20 @@ export const ordersAPI = {
     });
   },
 
+  // 결제 확인
+  confirmPayment: async (orderId: string) => {
+    return apiRequest(`/orders/order/${orderId}/confirm`, {
+      method: 'PUT',
+    });
+  },
+
+  // 결제 취소
+  cancelPayment: async (orderId: string) => {
+    return apiRequest(`/orders/order/${orderId}/cancel`, {
+      method: 'PUT',
+    });
+  },
+
   // 주문 상세 조회
   getById: async (orderId: string) => {
     return apiRequest(`/orders/${orderId}`);
