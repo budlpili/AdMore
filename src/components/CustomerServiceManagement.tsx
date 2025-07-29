@@ -40,7 +40,7 @@ interface Notice {
 interface CustomerServiceManagementProps {
   chatMessages: ChatMessage[];
   onChatMessagesChange: (messages: ChatMessage[]) => void;
-  initialTab?: 'notices' | 'inquiries' | 'terms' | 'privacy';
+  initialTab?: 'notices' | 'terms' | 'privacy';
 }
 
 const CustomerServiceManagement: React.FC<CustomerServiceManagementProps> = ({
@@ -48,7 +48,7 @@ const CustomerServiceManagement: React.FC<CustomerServiceManagementProps> = ({
   onChatMessagesChange,
   initialTab = 'notices'
 }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'notices' | 'inquiries' | 'terms' | 'privacy'>(initialTab);
+  const [activeSubTab, setActiveSubTab] = useState<'notices' | 'terms' | 'privacy'>(initialTab);
   const [notices, setNotices] = useState<Notice[]>([]);
   const [showNoticeForm, setShowNoticeForm] = useState(false);
   const [editingNotice, setEditingNotice] = useState<Notice | null>(null);
@@ -102,6 +102,46 @@ const CustomerServiceManagement: React.FC<CustomerServiceManagementProps> = ({
   const [isHtmlModalOpen, setIsHtmlModalOpen] = useState(false);
   const [htmlCode, setHtmlCode] = useState('');
   const [currentEditingType, setCurrentEditingType] = useState<'terms' | 'privacy'>('terms');
+
+  // 1:1문의 관련 상태들 제거
+  // const [showReplyModal, setShowReplyModal] = useState(false);
+  // const [replyContent, setReplyContent] = useState('');
+  // const [replyingToMessage, setReplyingToMessage] = useState<ChatMessage | null>(null);
+
+  // 1:1문의 관련 함수들 제거
+  // const deleteChatMessage = (messageId: string) => {
+  //   const updatedMessages = chatMessages.filter(message => message.id !== messageId);
+  //   onChatMessagesChange(updatedMessages);
+  // };
+
+  // const handleReplyClick = (message: ChatMessage) => {
+  //   setReplyingToMessage(message);
+  //   setReplyContent('');
+  //   setShowReplyModal(true);
+  // };
+
+  // const handleSubmitReply = () => {
+  //   if (!replyContent.trim() || !replyingToMessage) return;
+  //   const newReply: ChatMessage = {
+  //     id: `reply_${Date.now()}`,
+  //     user: '관리자',
+  //     message: replyContent,
+  //     timestamp: new Date().toLocaleString('ko-KR'),
+  //     type: 'admin',
+  //     productInfo: replyingToMessage.productInfo
+  //   };
+  //   const updatedMessages = [...chatMessages, newReply];
+  //   onChatMessagesChange(updatedMessages);
+  //   setShowReplyModal(false);
+  //   setReplyContent('');
+  //   setReplyingToMessage(null);
+  // };
+
+  // const handleCancelReply = () => {
+  //   setShowReplyModal(false);
+  //   setReplyContent('');
+  //   setReplyingToMessage(null);
+  // };
 
   // TipTap editor configuration
   const editor = useEditor({
@@ -482,11 +522,6 @@ const CustomerServiceManagement: React.FC<CustomerServiceManagementProps> = ({
     setCurrentNoticePage(1);
   }, [notices.length]);
 
-  const deleteChatMessage = (messageId: string) => {
-    const updatedMessages = chatMessages.filter(msg => msg.id !== messageId);
-    onChatMessagesChange(updatedMessages);
-  };
-
   return (
     <div>
       {/* 서브메뉴 탭 네비게이션 */}
@@ -503,17 +538,6 @@ const CustomerServiceManagement: React.FC<CustomerServiceManagementProps> = ({
             >
               <FontAwesomeIcon icon={faBell} className="text-sm" />
               공지사항
-            </button>
-            <button
-              onClick={() => setActiveSubTab('inquiries')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200 flex items-center gap-2 ${
-                activeSubTab === 'inquiries'
-                  ? 'border-orange-500 text-orange-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              <FontAwesomeIcon icon={faHeadset} className="text-sm" />
-              1:1문의
             </button>
             <button
               onClick={() => setActiveSubTab('terms')}
@@ -726,55 +750,6 @@ const CustomerServiceManagement: React.FC<CustomerServiceManagementProps> = ({
                   {editingNotice ? '수정' : '등록'}
                 </button>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 1:1문의 서브탭 */}
-      {activeSubTab === 'inquiries' && (
-        <div className="bg-white rounded-lg shadow">
-          <div className="p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold">1:1문의</h3>
-              <span className="text-sm text-gray-500">총 {chatMessages.length}건</span>
-            </div>
-            <div className="space-y-4">
-              {chatMessages.length === 0 ? (
-                <p className="text-gray-500 text-center py-8">문의 내역이 없습니다.</p>
-              ) : (
-                <div className="space-y-4">
-                  {chatMessages.map((message) => (
-                    <div key={message.id} className="border border-gray-200 rounded-lg p-4">
-                      <div className="flex justify-between items-start mb-2">
-                        <div className="flex items-center gap-2">
-                          <span className={`px-2 py-1 rounded text-xs ${
-                            message.type === 'user' 
-                              ? 'bg-orange-100 text-orange-800' 
-                              : 'bg-orange-100 text-orange-800'
-                          }`}>
-                            {message.type === 'user' ? '고객' : '관리자'}
-                          </span>
-                          <span className="font-medium text-sm">{message.user}</span>
-                          <span className="text-xs text-gray-500">{message.timestamp}</span>
-                        </div>
-                        <button
-                          onClick={() => deleteChatMessage(message.id)}
-                          className="text-red-500 hover:text-red-700 p-1"
-                        >
-                          <FontAwesomeIcon icon={faTrash} className="text-sm" />
-                        </button>
-                      </div>
-                      <div className="bg-gray-50 p-3 rounded">
-                        <p className="text-sm text-gray-700">{message.message}</p>
-                        {message.productInfo && (
-                          <p className="text-xs text-gray-500 mt-2">상품: {message.productInfo}</p>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -1371,6 +1346,49 @@ const CustomerServiceManagement: React.FC<CustomerServiceManagementProps> = ({
           </div>
         </div>
       )}
+
+      {/* 1:1문의 답변 모달 */}
+      {/* This modal is no longer used for replying to messages, but kept for potential future use or if the user wants to re-add it. */}
+      {/* {showReplyModal && replyingToMessage && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6">
+            <h3 className="text-lg font-semibold mb-4">답변 작성</h3>
+            <div className="space-y-4">
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <p className="text-sm text-gray-700 leading-relaxed">{replyingToMessage.message}</p>
+                {replyingToMessage.productInfo && (
+                  <div className="mt-3 pt-3 border-t border-gray-100">
+                    <p className="text-xs text-gray-500">
+                      <span className="font-medium">관련 상품:</span> {replyingToMessage.productInfo}
+                    </p>
+                  </div>
+                )}
+              </div>
+              <textarea
+                value={replyContent}
+                onChange={(e) => setReplyContent(e.target.value)}
+                rows={8}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
+                placeholder="답변 내용을 입력하세요."
+              />
+            </div>
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                onClick={handleCancelReply}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleSubmitReply}
+                className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600"
+              >
+                답변 등록
+              </button>
+            </div>
+          </div>
+        </div>
+      )} */}
     </div>
   );
 };

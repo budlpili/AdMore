@@ -10,6 +10,7 @@ import { authAPI, productAPI, categoryAPI, tagAPI, reviewsAPI } from '../service
 import ProductManagement from '../components/ProductManagement';
 import ReviewManagement from '../components/ReviewManagement';
 import CustomerServiceManagement from '../components/CustomerServiceManagement';
+import InquiryManagement from '../components/InquiryManagement';
 import Pagination from '../components/Pagination';
 import { products as initialProducts, getProducts, saveProducts, resetProducts } from '../data/products';
 import { mockReviews } from '../data/reviews-list';
@@ -69,6 +70,7 @@ interface ChatMessage {
   timestamp: string;
   type: 'user' | 'admin';
   productInfo?: string;
+  status?: 'pending' | 'answered' | 'closed';
 }
 
 interface SidebarItem {
@@ -94,12 +96,18 @@ const maskEmail = (email: string): string => {
 const Admin: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'orders' | 'reviews' | 'customerService' | 'users'>('dashboard');
-  const [customerServiceTab, setCustomerServiceTab] = useState<'notices' | 'inquiries' | 'terms' | 'privacy'>('notices');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'orders' | 'reviews' | 'customerService' | 'inquiries' | 'users'>('dashboard');
+  const [customerServiceTab, setCustomerServiceTab] = useState<'notices' | 'terms' | 'privacy'>('notices');
   const [isCustomerServiceExpanded, setIsCustomerServiceExpanded] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+
+  // chatMessages 상태를 localStorage에 저장하는 함수
+  const updateChatMessages = (newMessages: ChatMessage[]) => {
+    setChatMessages(newMessages);
+    localStorage.setItem('chatMessages', JSON.stringify(newMessages));
+  };
   const [users, setUsers] = useState<User[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -179,7 +187,7 @@ const Admin: React.FC = () => {
         // URL 파라미터에서 탭 설정
         const params = new URLSearchParams(location.search);
         const tabParam = params.get('tab');
-        if (tabParam && ['dashboard', 'products', 'orders', 'reviews', 'customerService', 'users'].includes(tabParam)) {
+        if (tabParam && ['dashboard', 'products', 'orders', 'reviews', 'customerService', 'inquiries', 'users'].includes(tabParam)) {
           setActiveTab(tabParam as any);
         }
         
@@ -687,10 +695,10 @@ const Admin: React.FC = () => {
     { id: 'reviews', label: '리뷰관리', icon: faStar, count: reviews.length, action: undefined },
     { id: 'customerService', label: '고객센터', icon: faComments, count: undefined, action: undefined, subItems: [
       { id: 'notices', label: '공지사항', icon: faBell, count: undefined, action: undefined },
-      { id: 'inquiries', label: '1:1문의', icon: faHeadset, count: chatMessages.length, action: undefined },
       { id: 'terms', label: '이용약관', icon: faFileAlt, count: undefined, action: undefined },
       { id: 'privacy', label: '개인정보취급방침', icon: faShieldAlt, count: undefined, action: undefined }
     ] },
+    { id: 'inquiries', label: '1:1문의', icon: faHeadset, count: chatMessages.length, action: undefined },
     { id: 'users', label: '회원관리', icon: faUser, count: totalUsers, action: undefined },
   ];
 
@@ -724,7 +732,7 @@ const Admin: React.FC = () => {
       setActiveTab('customerService');
       setIsCustomerServiceExpanded(!isCustomerServiceExpanded);
       setIsMobileSidebarOpen(false); // 모바일에서도 닫기
-    } else if (['dashboard', 'orders', 'reviews', 'users'].includes(tabId)) {
+    } else if (['dashboard', 'orders', 'reviews', 'inquiries', 'users'].includes(tabId)) {
       setActiveTab(tabId as any);
       setIsMobileSidebarOpen(false); // 모바일에서도 닫기
     }
@@ -1075,7 +1083,7 @@ const Admin: React.FC = () => {
                         key={subItem.id}
                         onClick={() => {
                           setActiveTab('customerService');
-                          setCustomerServiceTab(subItem.id as 'notices' | 'inquiries' | 'terms' | 'privacy');
+                          setCustomerServiceTab(subItem.id as 'notices' | 'terms' | 'privacy');
                           setIsMobileSidebarOpen(false);
                         }}
                         className="w-full h-9 flex items-center px-12 py-2 rounded text-sm transition-all duration-200 hover:bg-gray-200"
@@ -1231,7 +1239,7 @@ const Admin: React.FC = () => {
                         key={subItem.id}
                         onClick={() => {
                           setActiveTab('customerService');
-                          setCustomerServiceTab(subItem.id as 'notices' | 'inquiries' | 'terms' | 'privacy');
+                          setCustomerServiceTab(subItem.id as 'notices' | 'terms' | 'privacy');
                           setIsMobileSidebarOpen(false);
                         }}
                         className="w-full h-9 flex items-center px-12 py-2 rounded text-sm transition-all duration-200 hover:bg-gray-200"
@@ -1457,6 +1465,7 @@ const Admin: React.FC = () => {
                           {activeTab === 'orders' && '주문 관리'}
                           {activeTab === 'reviews' && '리뷰 관리'}
                           {activeTab === 'customerService' && '고객센터'}
+                          {activeTab === 'inquiries' && '1:1문의'}
                           {activeTab === 'users' && '회원 관리'}
                         </span>
                       </div>
@@ -1467,7 +1476,6 @@ const Admin: React.FC = () => {
                           <FontAwesomeIcon icon={faChevronRight} className="text-[10px] text-gray-400" />
                           <span className="ml-2 text-xs font-medium text-gray-500">
                             {customerServiceTab === 'notices' && '공지사항'}
-                            {customerServiceTab === 'inquiries' && '1:1문의'}
                             {customerServiceTab === 'terms' && '이용약관'}
                             {customerServiceTab === 'privacy' && '개인정보취급방침'}
                           </span>
@@ -2315,6 +2323,14 @@ const Admin: React.FC = () => {
                 chatMessages={chatMessages}
                 onChatMessagesChange={setChatMessages}
                 initialTab={customerServiceTab}
+              />
+            )}
+
+            {/* 1:1문의 탭 */}
+            {activeTab === 'inquiries' && (
+              <InquiryManagement 
+                chatMessages={chatMessages}
+                onChatMessagesChange={updateChatMessages}
               />
             )}
 
