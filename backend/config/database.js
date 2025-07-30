@@ -135,16 +135,29 @@ const initializeTables = () => {
   )`);
 
   // 채팅 메시지 테이블
-  db.run(`CREATE TABLE IF NOT EXISTS chat_messages (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    userId INTEGER,
-    user TEXT NOT NULL,
-    message TEXT NOT NULL,
-    timestamp TEXT DEFAULT (datetime('now', 'localtime')),
-    type TEXT DEFAULT 'user',
-    productInfo TEXT,
-    FOREIGN KEY (userId) REFERENCES users (id)
-  )`);
+  const createChatMessagesTable = `
+    CREATE TABLE IF NOT EXISTS chat_messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_email TEXT NOT NULL,
+      message TEXT NOT NULL,
+      timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+      type TEXT CHECK(type IN ('user', 'admin')) NOT NULL,
+      inquiry_type TEXT CHECK(inquiry_type IN ('product', 'payment_cancellation')),
+      product_info TEXT,
+      payment_info TEXT,
+      status TEXT DEFAULT 'pending',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `;
+
+  db.run(createChatMessagesTable, (err) => {
+    if (err) {
+      console.error('채팅 메시지 테이블 생성 오류:', err.message);
+    } else {
+      console.log('채팅 메시지 테이블이 생성되었습니다.');
+    }
+  });
 
   // 공지사항 테이블
   db.run(`CREATE TABLE IF NOT EXISTS notices (

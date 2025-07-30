@@ -17,6 +17,7 @@ import { mockReviews } from '../data/reviews-list';
 import { defaultUsers, User } from '../data/users';
 import { defaultOrderList } from '../data/orderdata';
 import { Product } from '../types';
+import { useWebSocket } from '../hooks/useWebSocket';
 
 interface Order {
   orderId: string;
@@ -102,6 +103,31 @@ const Admin: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+
+  // WebSocket 훅 사용
+  const {
+    isConnected,
+    messages: wsMessages,
+    sendMessage,
+    updateMessageStatus,
+    loadMessages
+  } = useWebSocket({
+    isAdmin: true,
+    onNewMessage: (message) => {
+      console.log('새 메시지 수신:', message);
+      setChatMessages(prev => [...prev, message]);
+    },
+    onStatusUpdate: (data) => {
+      console.log('상태 업데이트:', data);
+      setChatMessages(prev => 
+        prev.map(msg => 
+          msg.user === data.userEmail 
+            ? { ...msg, status: data.status as 'pending' | 'answered' | 'closed' }
+            : msg
+        )
+      );
+    }
+  });
 
   // chatMessages 상태를 localStorage에 저장하는 함수
   const updateChatMessages = (newMessages: ChatMessage[]) => {
@@ -345,13 +371,8 @@ const Admin: React.FC = () => {
   };
 
   const loadChatMessages = () => {
-    try {
-      const messages = JSON.parse(localStorage.getItem('chatMessages') || '[]');
-      setChatMessages(messages);
-    } catch (error) {
-      console.error('채팅 메시지 로드 에러:', error);
-      setChatMessages([]);
-    }
+    // WebSocket에서 메시지 로드
+    loadMessages();
   };
 
   // 리뷰 새로고침 함수

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faHome, faComments, faHeadset, faChevronLeft, faXmark, faPaperclip, faPaperPlane } from '@fortawesome/free-solid-svg-icons';
+import { useWebSocket } from '../hooks/useWebSocket';
 
 type Message = {
   from: 'user' | 'admin';
@@ -13,13 +14,48 @@ type Message = {
 type ChatWidgetProps = {
   isChatOpen: boolean;
   setIsChatOpen: (open: boolean) => void;
+  userEmail?: string;
+  inquiryType?: 'product' | 'payment_cancellation';
+  productInfo?: string;
+  paymentInfo?: {
+    paymentNumber: string;
+    productName: string;
+    amount: string;
+    paymentDate: string;
+  };
 };
 
-const ChatWidget: React.FC<ChatWidgetProps> = ({ isChatOpen, setIsChatOpen }) => {
+const ChatWidget: React.FC<ChatWidgetProps> = ({ 
+  isChatOpen, 
+  setIsChatOpen, 
+  userEmail = 'guest@example.com',
+  inquiryType = 'product',
+  productInfo,
+  paymentInfo
+}) => {
   const [mode, setMode] = useState<'home' | 'chat'>('home');
   const [messages, setMessages] = useState<Message[]>([
     { from: 'admin', text: '고객님 반갑습니다!\n상담 운영 시간 안내\n· 평일 10:00 ~ 17:00\n· 주말, 공휴일 휴무\n순차적으로 확인하여 답변드리도록 하겠습니다.' }
   ]);
+
+  // WebSocket 훅 사용
+  const {
+    isConnected,
+    messages: wsMessages,
+    sendMessage,
+    loadMessages
+  } = useWebSocket({
+    userEmail,
+    onNewMessage: (message) => {
+      console.log('새 메시지 수신:', message);
+      // WebSocket 메시지를 UI 메시지로 변환
+      const newMessage: Message = {
+        from: message.type === 'admin' ? 'admin' : 'user',
+        text: message.message
+      };
+      setMessages(prev => [...prev, newMessage]);
+    }
+  });
   const [input, setInput] = useState('');
   const chatEndRef = useRef<HTMLDivElement>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -66,9 +102,21 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ isChatOpen, setIsChatOpen }) =>
 
   const handleSend = () => {
     if (!input.trim() && !file) return;
+    
     if (input.trim()) {
+      // WebSocket을 통해 메시지 전송
+      sendMessage({
+        message: input,
+        type: 'user',
+        inquiryType,
+        productInfo,
+        paymentInfo
+      });
+      
+      // UI에 즉시 메시지 추가
       setMessages(msgs => [...msgs, { from: 'user', text: input }]);
     }
+    
     if (file) {
       setMessages(msgs => [
         ...msgs,
@@ -82,10 +130,8 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ isChatOpen, setIsChatOpen }) =>
       setFile(null);
       setFilePreview(null);
     }
+    
     setInput('');
-    setTimeout(() => {
-      setMessages(msgs => [...msgs, { from: 'admin', text: '상담 운영팀이 곧 답변드리겠습니다.' }]);
-    }, 1200);
   };
 
   const handleOpen = () => {
@@ -158,7 +204,10 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ isChatOpen, setIsChatOpen }) =>
                         <div className="mb-1">빠른 시간 내 순차적으로 확인하여 <br /> 답변드리도록 하겠습니다.</div>
                       </div>
                       <button className="w-full bg-orange-600 text-white py-3 rounded-lg font-semibold text-sm mb-4 
-                      hover:bg-orange-700 transition" onClick={() => setMode('chat')}>문의하기</button>
+                      hover:bg-orange-700 transition" onClick={() => {
+                        setMode('chat');
+                        loadMessages();
+                      }}>문의하기</button>
                     </div>
 
                     <div className="flex flex-col items-center gap-2 bg-white border border-gray-100 rounded-lg px-4 py-4 

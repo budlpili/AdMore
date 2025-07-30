@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faHeadset, faTrash, faClock, faPhone, faEnvelope, faCheckCircle, faHourglassHalf, faExclamationCircle, faSearch, faStar, faShieldAlt, faExclamationTriangle, faUser, faBuilding, faFileInvoice, faChartLine } from '@fortawesome/free-solid-svg-icons';
+import { faHeadset, faTrash, faClock, faPhone, faEnvelope, faCheckCircle, faHourglassHalf, faExclamationCircle, faSearch, faStar, faShieldAlt, faExclamationTriangle, faUser, faBuilding, faFileInvoice, faChartLine, faCreditCard } from '@fortawesome/free-solid-svg-icons';
 
 interface ChatMessage {
   id: string;
@@ -9,6 +9,13 @@ interface ChatMessage {
   timestamp: string;
   type: 'user' | 'admin';
   productInfo?: string;
+  inquiryType?: 'product' | 'payment_cancellation';
+  paymentInfo?: {
+    paymentNumber: string;
+    productName: string;
+    amount: string;
+    paymentDate: string;
+  };
   status?: 'pending' | 'answered' | 'closed';
 }
 
@@ -38,29 +45,32 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
       const sampleMessages: ChatMessage[] = [
         {
           id: '1',
-          user: '김철수',
+          user: 'kim.cheolsu@gmail.com',
           message: '유튜브 구독자 수가 제대로 증가하지 않는 것 같아요. 확인해주세요.',
           timestamp: '2025-01-15 14:30',
           type: 'user',
           status: 'pending',
+          inquiryType: 'product',
           productInfo: '유튜브 마케팅 - 구독자 증가'
         },
         {
           id: '2',
-          user: '이영희',
+          user: 'lee.younghee@naver.com',
           message: '결제가 완료되었는데 서비스가 시작되지 않았어요.',
           timestamp: '2025-01-15 15:20',
           type: 'user',
           status: 'pending',
+          inquiryType: 'product',
           productInfo: '인스타그램 팔로워 증가'
         },
         {
           id: '3',
-          user: '박민수',
+          user: 'park.minsu@daum.net',
           message: '서비스 이용 중 문제가 발생했습니다. 도움이 필요해요.',
           timestamp: '2025-01-15 16:10',
           type: 'user',
           status: 'answered',
+          inquiryType: 'product',
           productInfo: '틱톡 뷰 증가'
         },
         {
@@ -70,7 +80,38 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
           timestamp: '2025-01-15 16:15',
           type: 'admin',
           status: 'answered',
+          inquiryType: 'product',
           productInfo: '틱톡 뷰 증가'
+        },
+        {
+          id: '5',
+          user: 'choi.junghee@gmail.com',
+          message: '결제취소 요청드립니다. 실수로 중복 결제가 되었어요.',
+          timestamp: '2025-01-15 17:00',
+          type: 'user',
+          status: 'pending',
+          inquiryType: 'payment_cancellation',
+          paymentInfo: {
+            paymentNumber: 'PAY-20250728143916',
+            productName: '인스타그램 관리해드려요',
+            amount: '40,000원',
+            paymentDate: '2025년 07월 28일 05시 39분'
+          }
+        },
+        {
+          id: '6',
+          user: '관리자',
+          message: '결제취소 요청을 확인했습니다. 취소사유를 입력해주시면 처리해드리겠습니다.',
+          timestamp: '2025-01-15 17:05',
+          type: 'admin',
+          status: 'answered',
+          inquiryType: 'payment_cancellation',
+          paymentInfo: {
+            paymentNumber: 'PAY-20250728143916',
+            productName: '인스타그램 관리해드려요',
+            amount: '40,000원',
+            paymentDate: '2025년 07월 28일 05시 39분'
+          }
         }
       ];
       onChatMessagesChange(sampleMessages);
@@ -105,7 +146,7 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
       id: `reply_${Date.now()}`,
       user: '관리자',
       message: replyContent,
-      timestamp: new Date().toLocaleString('ko-KR'),
+      timestamp: new Date().toISOString().slice(0, 16).replace('T', ' '),
       type: 'admin',
       productInfo: replyingToMessage.productInfo,
       status: 'answered'
@@ -138,6 +179,14 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
       msg.user === closingMessage.user ? { ...msg, status: 'closed' as const } : msg
     );
     onChatMessagesChange(updatedMessages);
+    
+    // selectedMessage도 업데이트된 상태로 갱신
+    const updatedSelectedMessage = updatedMessages.find(msg => 
+      msg.user === closingMessage.user && msg.id === selectedMessage?.id
+    );
+    if (updatedSelectedMessage) {
+      setSelectedMessage(updatedSelectedMessage);
+    }
     
     setShowCloseConfirmModal(false);
     setClosingMessage(null);
@@ -179,7 +228,7 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
       id: `message_${Date.now()}`,
       user: '관리자',
       message: messageInput,
-      timestamp: new Date().toLocaleString('ko-KR'),
+      timestamp: new Date().toISOString().slice(0, 16).replace('T', ' '),
       type: 'admin',
       status: 'answered',
       productInfo: selectedMessage.productInfo
@@ -211,18 +260,28 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
     return matchesStatus && matchesSearch;
   });
 
-  const pendingCount = chatMessages.filter(msg => msg.status === 'pending').length;
-  const answeredCount = chatMessages.filter(msg => msg.status === 'answered').length;
-  const closedCount = chatMessages.filter(msg => msg.status === 'closed').length;
+  // 유저별로 최신 상태를 계산
+  const userStatuses = Array.from(new Set(chatMessages.map(msg => msg.user)))
+    .filter(user => user !== '관리자')
+    .map(user => {
+      const userMessages = chatMessages.filter(msg => msg.user === user);
+      const latestMessage = userMessages[userMessages.length - 1];
+      return { user, status: latestMessage.status };
+    });
+
+  const pendingCount = userStatuses.filter(u => u.status === 'pending').length;
+  const inProgressCount = userStatuses.filter(u => u.status === 'answered').length;
+  const completedCount = userStatuses.filter(u => u.status === 'closed').length;
+  const totalUserCount = userStatuses.length;
 
   const getStatusIcon = (status?: string) => {
     switch (status) {
       case 'pending':
         return <FontAwesomeIcon icon={faHourglassHalf} className="text-yellow-500" />;
       case 'answered':
-        return <FontAwesomeIcon icon={faCheckCircle} className="text-green-500" />;
+        return <FontAwesomeIcon icon={faClock} className="text-blue-500" />;
       case 'closed':
-        return <FontAwesomeIcon icon={faExclamationCircle} className="text-gray-500" />;
+        return <FontAwesomeIcon icon={faCheckCircle} className="text-green-500" />;
       default:
         return <FontAwesomeIcon icon={faHourglassHalf} className="text-yellow-500" />;
     }
@@ -233,12 +292,19 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
       case 'pending':
         return '답변대기';
       case 'answered':
-        return '답변완료';
+        return '답변중';
       case 'closed':
-        return '채팅종료';
+        return '답변완료';
       default:
         return '답변대기';
     }
+  };
+
+  // 이메일에서 이니셜 추출 함수
+  const getInitials = (email: string) => {
+    if (!email.includes('@')) return email.charAt(0).toUpperCase();
+    const localPart = email.split('@')[0];
+    return localPart.charAt(0).toUpperCase();
   };
 
   return (
@@ -262,7 +328,7 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              전체 ({chatMessages.length})
+              전체 ({totalUserCount})
             </button>
             <button
               onClick={() => setStatusFilter('pending')}
@@ -272,18 +338,18 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              답변대기 ({pendingCount})
+              대기 ({pendingCount})
             </button>
-            {/* <button
+            <button
               onClick={() => setStatusFilter('answered')}
               className={`px-4 py-2 rounded-full text-xs font-medium transition-colors ${
                 statusFilter === 'answered' 
-                  ? 'bg-green-500 text-white' 
+                  ? 'bg-blue-500 text-white' 
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              답변완료 ({answeredCount})
-            </button> */}
+              답변중 ({inProgressCount})
+            </button>
             <button
               onClick={() => setStatusFilter('closed')}
               className={`px-4 py-2 rounded-full text-xs font-medium transition-colors ${
@@ -292,7 +358,7 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              답변완료 ({closedCount})
+              완료 ({completedCount})
             </button>
           </div>
 
@@ -339,7 +405,7 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
                           <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center">
-                            <span className="text-white text-xs font-bold">{user.charAt(0)}</span>
+                            <span className="text-white text-xs font-bold">{getInitials(user)}</span>
                           </div>
                           <div className="flex-1">
                             <div className="font-medium text-sm text-gray-900">{user}</div>
@@ -387,11 +453,10 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
           {selectedMessage && (
             <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
               <div className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center">
-                <span className="text-white text-sm font-bold">{selectedMessage.user.charAt(0)}</span>
+                <span className="text-white text-sm font-bold">{getInitials(selectedMessage.user)}</span>
               </div>
               <div>
                 <h3 className="font-medium text-gray-900">{selectedMessage.user}</h3>
-                <p className="text-sm text-gray-600">문의 상태: {getStatusText(selectedMessage.status)}</p>
               </div>
               <div className="ml-auto">
                 <button
@@ -400,10 +465,10 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                   className={`px-3 py-1 text-sm rounded-lg ${
                     selectedMessage.status === 'closed'
                       ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                      : 'bg-red-500 text-white hover:bg-red-600'
+                      : 'bg-green-500 text-white hover:bg-green-600'
                   }`}
                 >
-                  {selectedMessage.status === 'closed' ? '채팅종료됨' : '채팅종료'}
+                  {selectedMessage.status === 'closed' ? '답변완료됨' : '답변완료'}
                 </button>
               </div>
             </div>
@@ -443,14 +508,11 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                         <div className={`text-xs mt-2 ${
                           message.type === 'admin' ? 'text-orange-100' : 'text-gray-500'
                         }`}>
-                          {message.timestamp}
                         </div>
                       </div>
-                      {message.productInfo && (
-                        <div className="mt-2 text-xs text-gray-500">
-                          관련 상품: {message.productInfo}
-                        </div>
-                      )}
+                      <div className="text-xs text-gray-500 text-right mt-1">
+                          {message.timestamp}
+                      </div>
                     </div>
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center mx-2 ${
                       message.type === 'admin' ? 'order-1 bg-orange-500' : 'order-2 bg-gray-300'
@@ -458,11 +520,21 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                       <span className={`text-xs font-bold ${
                         message.type === 'admin' ? 'text-white' : 'text-gray-600'
                       }`}>
-                        {message.type === 'admin' ? 'A' : message.user.charAt(0)}
+                        {message.type === 'admin' ? 'A' : getInitials(message.user)}
                       </span>
                     </div>
                   </div>
                 ))}
+              
+              {/* 답변완료 상태일 때 채팅 내용 맨 마지막에 안내 메시지 표시 */}
+              {selectedMessage.status === 'closed' && (
+                <div className="flex justify-center pt-4 relative">
+                  <div className="px-4 py-3 text-center bg-gray-100 rounded-full w-full">
+                    <FontAwesomeIcon icon={faCheckCircle} className="text-green-500 mr-2" />
+                    <span className="text-sm font-medium text-gray-700">채팅이 종료되었습니다</span>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -471,6 +543,14 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
           {!selectedMessage ? (
             <div className="flex items-center justify-center h-20 text-gray-500">
               <p>유저를 선택하여 메시지를 보내세요</p>
+            </div>
+          ) : selectedMessage.status === 'closed' ? (
+            <div className="flex items-center justify-center h-20 text-gray-500 bg-gray-50 rounded-lg">
+              <div className="text-center">
+                <FontAwesomeIcon icon={faCheckCircle} className="text-2xl text-gray-400 mb-2" />
+                <p className="text-sm font-medium">채팅이 종료되었습니다</p>
+                <p className="text-xs text-gray-400 mt-1">더 이상 메시지를 주고받을 수 없습니다</p>
+              </div>
             </div>
           ) : (
             <>
@@ -549,28 +629,59 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
           <div className="mt-6">
             <h4 className="text-sm font-medium text-gray-900 mb-3">거래 정보</h4>
             <div className="space-y-3">
-              <div className="border border-gray-200 rounded-lg p-3">
-                <div className="flex flex-col items-center gap-3">
-                  <div className="w-full h-40 bg-red-100 rounded-lg flex items-center justify-center overflow-hidden">
-                    <img src="/images/product_02.png" alt="youtube" className="w-full h-full object-cover" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-sm font-medium">유튜브 마케팅</span>
+              {selectedMessage && selectedMessage.inquiryType === 'payment_cancellation' && selectedMessage.paymentInfo ? (
+                // 결제취소 요청 정보
+                <div className="border border-gray-200 rounded-lg p-3">
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <FontAwesomeIcon icon={faCreditCard} className="text-red-500" />
+                      <span className="text-sm font-medium text-red-600">결제취소 요청</span>
                     </div>
-                    <p className="text-xs text-gray-600 mb-2">
-                      유튜브 구독자, 조회수, 쇼츠 시청시간, 수익창출
-                    </p>
-                    <div className="flex flex-col items-start gap-0.5">
-                      <span className="text-xs text-gray-600">주문번호: 20250729-0001</span>
-                      <span className="text-xs text-gray-600">주문일시: 2025-07-29 10:00</span>
-                      <span className="text-xs text-gray-600">주문상태: 주문완료</span>
-                      <span className="text-xs text-gray-600">수량: 7일</span>
-                      <span className="text-sm font-bold text-orange-600">가격정보: 5,000원</span>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-xs text-gray-600">결제번호:</span>
+                        <span className="text-xs font-medium">{selectedMessage.paymentInfo.paymentNumber}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-xs text-gray-600">상품명:</span>
+                        <span className="text-xs font-medium">{selectedMessage.paymentInfo.productName}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-xs text-gray-600">결제금액:</span>
+                        <span className="text-xs font-bold text-red-600">{selectedMessage.paymentInfo.amount}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-xs text-gray-600">결제일:</span>
+                        <span className="text-xs font-medium">{selectedMessage.paymentInfo.paymentDate}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                // 상품 정보
+                <div className="border border-gray-200 rounded-lg p-3">
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="w-full h-40 bg-red-100 rounded-lg flex items-center justify-center overflow-hidden">
+                      <img src="/images/product_02.png" alt="youtube" className="w-full h-full object-cover" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-sm font-medium">유튜브 마케팅</span>
+                      </div>
+                      <p className="text-xs text-gray-600 mb-2">
+                        유튜브 구독자, 조회수, 쇼츠 시청시간, 수익창출
+                      </p>
+                      <div className="flex flex-col items-start gap-0.5">
+                        <span className="text-xs text-gray-600">주문번호: 20250729-0001</span>
+                        <span className="text-xs text-gray-600">주문일시: 2025-07-29 10:00</span>
+                        <span className="text-xs text-gray-600">주문상태: 주문완료</span>
+                        <span className="text-xs text-gray-600">수량: 7일</span>
+                        <span className="text-sm font-bold text-orange-600">가격정보: 5,000원</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
           {/* 운영 정보 */}
@@ -638,16 +749,16 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                <FontAwesomeIcon icon={faExclamationTriangle} className="text-red-500" />
+              <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                <FontAwesomeIcon icon={faCheckCircle} className="text-green-500" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900">채팅 종료</h3>
+              <h3 className="text-lg font-semibold text-gray-900">답변 완료</h3>
             </div>
             <p className="text-gray-700 mb-6">
-              <strong>{closingMessage.user}</strong>님과의 채팅을 종료하시겠습니까?
+              <strong>{closingMessage.user}</strong>님의 문의에 대한 답변이 완료되었습니까?
               <br />
               <span className="text-sm text-gray-500">
-                종료 후에는 더 이상 메시지를 주고받을 수 없습니다.
+                완료 처리 후에는 더 이상 메시지를 주고받을 수 없습니다.
               </span>
             </p>
             <div className="flex justify-end gap-3">
@@ -659,9 +770,9 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
               </button>
               <button 
                 onClick={confirmCloseChat} 
-                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
+                className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
               >
-                채팅 종료
+                답변 완료
               </button>
             </div>
           </div>
