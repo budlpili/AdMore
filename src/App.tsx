@@ -19,7 +19,7 @@ import ReviewWritePage from './pages/ReviewWritePage';
 import Admin from './pages/Admin';
 import ApiTest from './components/ApiTest';
 
-const AppRoutes: React.FC<{ isChatOpen: boolean; setIsChatOpen: (open: boolean) => void }> = ({ isChatOpen, setIsChatOpen }) => {
+const AppRoutes: React.FC<{ isChatOpen: boolean; setIsChatOpen: (open: boolean) => void; userEmail: string }> = ({ isChatOpen, setIsChatOpen, userEmail }) => {
   const location = useLocation();
   const isOrderPage = location.pathname.startsWith('/order');
   const isProductDetailPage = location.pathname.startsWith('/products/') && location.pathname !== '/products';
@@ -65,7 +65,7 @@ const AppRoutes: React.FC<{ isChatOpen: boolean; setIsChatOpen: (open: boolean) 
         </Routes>
       )}
       
-      {!isAdminPage && !isApiTestPage && <ChatWidget isChatOpen={isChatOpen} setIsChatOpen={setIsChatOpen} />}
+      {!isAdminPage && !isApiTestPage && <ChatWidget isChatOpen={isChatOpen} setIsChatOpen={setIsChatOpen} userEmail={userEmail} inquiryType="product" />}
       {!isOrderPage && !isProductDetailPage && !isAdminPage && !isApiTestPage && <MobileNavBar setIsChatOpen={setIsChatOpen} isChatOpen={isChatOpen} type="global" />}
       {isOrderPage && <MobileNavBar setIsChatOpen={setIsChatOpen} isChatOpen={isChatOpen} type="order" />}
     </>
@@ -74,6 +74,15 @@ const AppRoutes: React.FC<{ isChatOpen: boolean; setIsChatOpen: (open: boolean) 
 
 const App: React.FC = () => {
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [userEmail, setUserEmail] = useState<string>('guest@example.com');
+  
+  // 사용자 이메일 정보 로드
+  React.useEffect(() => {
+    const savedUserEmail = localStorage.getItem('userEmail');
+    if (savedUserEmail) {
+      setUserEmail(savedUserEmail);
+    }
+  }, []);
   
   // 상담창 열기 이벤트 처리
   React.useEffect(() => {
@@ -92,7 +101,7 @@ const App: React.FC = () => {
         v7_relativeSplatPath: true
       }}
     >
-      <AppRoutes isChatOpen={isChatOpen} setIsChatOpen={setIsChatOpen} />
+      <AppRoutes isChatOpen={isChatOpen} setIsChatOpen={setIsChatOpen} userEmail={userEmail} />
     </Router>
   );
 };

@@ -137,9 +137,9 @@ const initializeTables = () => {
   // 채팅 메시지 테이블
   const createChatMessagesTable = `
     CREATE TABLE IF NOT EXISTS chat_messages (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_email TEXT NOT NULL,
-      message TEXT NOT NULL,
+    message TEXT NOT NULL,
       timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
       type TEXT CHECK(type IN ('user', 'admin')) NOT NULL,
       inquiry_type TEXT CHECK(inquiry_type IN ('product', 'payment_cancellation')),

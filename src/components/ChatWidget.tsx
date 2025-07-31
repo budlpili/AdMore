@@ -4,11 +4,13 @@ import { faHome, faComments, faHeadset, faChevronLeft, faXmark, faPaperclip, faP
 import { useWebSocket } from '../hooks/useWebSocket';
 
 type Message = {
+  id?: string;
   from: 'user' | 'admin';
   text?: string;
   file?: string | null;
   fileName?: string;
   fileType?: string;
+  timestamp?: string; // 메시지 생성 시간 추가
 };
 
 type ChatWidgetProps = {
@@ -33,9 +35,43 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
   productInfo,
   paymentInfo
 }) => {
+  // 오늘 날짜를 한국어로 포맷팅하는 함수
+  const getTodayDate = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const weekdays = ['일', '월', '화', '수', '목', '금', '토'];
+    const weekday = weekdays[today.getDay()];
+    
+    return `${year}년 ${month}월 ${day}일 (${weekday})`;
+  };
+
+  // 날짜를 한국어로 포맷팅하는 함수
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const weekdays = ['일', '월', '화', '수', '목', '금', '토'];
+    const weekday = weekdays[date.getDay()];
+    
+    return `${year}년 ${month}월 ${day}일 (${weekday})`;
+  };
+
+  // 날짜가 같은지 확인하는 함수
+  const isSameDate = (date1: string, date2: string) => {
+    const d1 = new Date(date1);
+    const d2 = new Date(date2);
+    return d1.toDateString() === d2.toDateString();
+  };
+
   const [mode, setMode] = useState<'home' | 'chat'>('home');
   const [messages, setMessages] = useState<Message[]>([
-    { from: 'admin', text: '고객님 반갑습니다!\n상담 운영 시간 안내\n· 평일 10:00 ~ 17:00\n· 주말, 공휴일 휴무\n순차적으로 확인하여 답변드리도록 하겠습니다.' }
+    { 
+      from: 'admin', 
+      text: '고객님 반갑습니다!\n\n상담 운영 시간 안내\n· 평일 10:00 ~ 17:00\n· 주말, 공휴일 휴무\n순차적으로 확인하여 답변드리도록 하겠습니다.' 
+    }
   ]);
 
   // WebSocket 훅 사용
@@ -48,19 +84,43 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     userEmail,
     onNewMessage: (message) => {
       console.log('새 메시지 수신:', message);
+      
       // WebSocket 메시지를 UI 메시지로 변환
       const newMessage: Message = {
+        id: message.id,
         from: message.type === 'admin' ? 'admin' : 'user',
-        text: message.message
+        text: message.message,
+        timestamp: message.timestamp // 메시지 생성 시간 추가
       };
-      setMessages(prev => [...prev, newMessage]);
+      
+      // 중복 메시지 방지: 같은 내용의 메시지가 이미 있는지 확인
+      setMessages(prev => {
+        const isDuplicate = prev.some(msg => 
+          msg.text === message.message && 
+          msg.from === (message.type === 'admin' ? 'admin' : 'user') &&
+          Math.abs(new Date().getTime() - (msg.timestamp ? new Date(msg.timestamp).getTime() : 0)) < 5000 // 5초 이내
+        );
+        
+        if (isDuplicate) {
+          console.log('중복 메시지 감지, 추가하지 않음:', message.message);
+          return prev;
+        }
+        
+        console.log('새 메시지 추가:', newMessage);
+        return [...prev, newMessage];
+      });
     }
   });
+
+  // WebSocket 연결 상태 로깅
+  console.log('ChatWidget - WebSocket 연결 상태:', isConnected);
+  console.log('ChatWidget - 사용자 이메일:', userEmail);
   const [input, setInput] = useState('');
   const chatEndRef = useRef<HTMLDivElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isSending, setIsSending] = useState(false);
 
   useEffect(() => {
     if (isChatOpen && mode === 'chat' && chatEndRef.current) {
@@ -102,8 +162,17 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
 
   const handleSend = () => {
     if (!input.trim() && !file) return;
+    if (isSending) return; // 전송 중이면 중복 전송 방지
+    
+    setIsSending(true);
     
     if (input.trim()) {
+      console.log('메시지 전송 시도:', {
+        message: input,
+        userEmail,
+        isConnected
+      });
+      
       // WebSocket을 통해 메시지 전송
       sendMessage({
         message: input,
@@ -113,8 +182,8 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
         paymentInfo
       });
       
-      // UI에 즉시 메시지 추가
-      setMessages(msgs => [...msgs, { from: 'user', text: input }]);
+      // 입력 즉시 초기화 (중복 전송 방지)
+      setInput('');
     }
     
     if (file) {
@@ -131,7 +200,10 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
       setFilePreview(null);
     }
     
-    setInput('');
+    // 전송 완료 후 상태 초기화
+    setTimeout(() => {
+      setIsSending(false);
+    }, 100);
   };
 
   const handleOpen = () => {
@@ -206,6 +278,8 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                       <button className="w-full bg-orange-600 text-white py-3 rounded-lg font-semibold text-sm mb-4 
                       hover:bg-orange-700 transition" onClick={() => {
                         setMode('chat');
+                        // 채팅 모드 진입 시 기존 메시지 초기화 (시스템 메시지만 유지)
+                        setMessages([{ from: 'admin', text: '고객님 반갑습니다!\n\n상담 운영 시간 안내\n· 평일 10:00 ~ 17:00\n· 주말, 공휴일 휴무\n순차적으로 확인하여 답변드리도록 하겠습니다.' }]);
                         loadMessages();
                       }}>문의하기</button>
                     </div>
@@ -231,45 +305,90 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                     {messages.map((msg, idx) => {
                       const now = new Date();
                       const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                      
+                      // 날짜 구분선 렌더링
+                      const showDateDivider = () => {
+                        if (idx === 0) {
+                          // 첫 번째 메시지인 경우 오늘 날짜 표시
+                          return (
+                            <div key={`date-${idx}`} className="flex justify-center mb-4">
+                              <div className="bg-gray-200 text-gray-600 px-3 py-1 rounded-full text-xs font-medium">
+                                {getTodayDate()}
+                              </div>
+                            </div>
+                          );
+                        }
+                        
+                        // 이전 메시지와 날짜가 다른 경우 날짜 구분선 표시
+                        const currentMsgDate = msg.timestamp || new Date().toISOString();
+                        const prevMsgDate = messages[idx - 1]?.timestamp || new Date().toISOString();
+                        
+                        if (!isSameDate(currentMsgDate, prevMsgDate)) {
+                          return (
+                            <div key={`date-${idx}`} className="flex justify-center mb-4">
+                              <div className="bg-gray-200 text-gray-600 px-3 py-1 rounded-full text-xs font-medium">
+                                {formatDate(currentMsgDate)}
+                              </div>
+                            </div>
+                          );
+                        }
+                        
+                        return null;
+                      };
+
+                      const dateDivider = showDateDivider();
+                      
                       if (msg.from === 'admin') {
                         return (
-                          <div key={idx} className="mb-4 flex items-start">
-                            <span className="w-7 h-7 rounded-full mt-0 mr-2 flex items-center justify-center bg-gray-100 border border-gray-200">
-                              <FontAwesomeIcon icon={faHeadset} className="text-lg text-gray-500" />
-                            </span>
-                            <div className="flex flex-col">
-                              <span className="text-xs font-bold text-gray-700 mb-1 ml-1">애드모어 운영팀</span>
-                              <div className="bg-gray-100 border border-gray-200 rounded-lg px-4 py-2 text-[13px] text-gray-900 max-w-[70%] break-words whitespace-pre-line">
-                                {msg.text}
+                          <React.Fragment key={idx}>
+                            {dateDivider}
+                            <div className="mb-4 flex items-start">
+                              <span className="w-7 h-7 rounded-full mt-0 mr-2 flex items-center justify-center bg-gray-100 border border-gray-200">
+                                <FontAwesomeIcon icon={faHeadset} className="text-lg text-gray-500" />
+                              </span>
+                              <div className="flex flex-col">
+                                <span className="text-xs font-bold text-gray-700 mb-1 ml-1">애드모어 운영팀</span>
+                                <div className="bg-gray-100 border border-gray-200 rounded-lg px-4 py-2 text-[13px] text-gray-900 max-w-[70%] break-words whitespace-pre-line">
+                                  {msg.text}
+                                </div>
+                                <span className="text-[11px] text-gray-400 mt-1 self-start">{time}</span>
                               </div>
-                              <span className="text-[11px] text-gray-400 mt-1 self-start">{time}</span>
                             </div>
-                          </div>
+                          </React.Fragment>
                         );
                       } else {
                         if (msg.file) {
                           if (msg.fileType && msg.fileType.startsWith('image/')) {
                             return (
-                              <div key={idx} className="mb-4 flex flex-col items-end">
-                                <img src={msg.file} alt={msg.fileName} className="w-32 h-32 object-cover rounded border mb-1" />
-                                <span className="text-[11px] text-gray-400 mr-1">{msg.fileName}</span>
-                              </div>
+                              <React.Fragment key={idx}>
+                                {dateDivider}
+                                <div className="mb-4 flex flex-col items-end">
+                                  <img src={msg.file} alt={msg.fileName} className="w-32 h-32 object-cover rounded border mb-1" />
+                                  <span className="text-[11px] text-gray-400 mr-1">{msg.fileName}</span>
+                                </div>
+                              </React.Fragment>
                             );
                           } else {
                             return (
-                              <div key={idx} className="mb-4 flex flex-col items-end">
-                                <a href={msg.file} download={msg.fileName} className="text-xs text-blue-600 underline">{msg.fileName}</a>
-                              </div>
+                              <React.Fragment key={idx}>
+                                {dateDivider}
+                                <div className="mb-4 flex flex-col items-end">
+                                  <a href={msg.file} download={msg.fileName} className="text-xs text-blue-600 underline">{msg.fileName}</a>
+                                </div>
+                              </React.Fragment>
                             );
                           }
                         } else {
                           return (
-                            <div key={idx} className="mb-4 flex flex-col items-end">
-                              <div className="bg-orange-600 text-white rounded-lg px-4 py-2 text-sm max-w-[70%] break-words whitespace-pre-line">
-                                {msg.text}
+                            <React.Fragment key={idx}>
+                              {dateDivider}
+                              <div className="mb-4 flex flex-col items-end">
+                                <div className="bg-orange-600 text-white rounded-lg px-4 py-2 text-sm max-w-[70%] break-words whitespace-pre-line">
+                                  {msg.text}
+                                </div>
+                                <span className="text-[11px] text-gray-400 mt-1 mr-1">{time}</span>
                               </div>
-                              <span className="text-[11px] text-gray-400 mt-1 mr-1">{time}</span>
-                            </div>
+                            </React.Fragment>
                           );
                         }
                       }

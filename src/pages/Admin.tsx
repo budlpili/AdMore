@@ -115,7 +115,22 @@ const Admin: React.FC = () => {
     isAdmin: true,
     onNewMessage: (message) => {
       console.log('새 메시지 수신:', message);
-      setChatMessages(prev => [...prev, message]);
+      // InquiryManagement에서 처리하도록 하지 않고 여기서만 처리
+      setChatMessages(prev => {
+        const isDuplicate = prev.some(msg => 
+          msg.id === message.id || 
+          (msg.message === message.message && 
+           msg.user === message.user && 
+           Math.abs(new Date(msg.timestamp).getTime() - new Date(message.timestamp).getTime()) < 5000)
+        );
+        
+        if (isDuplicate) {
+          console.log('중복 메시지 감지, 추가하지 않음:', message);
+          return prev;
+        }
+        
+        return [...prev, message];
+      });
     },
     onStatusUpdate: (data) => {
       console.log('상태 업데이트:', data);
@@ -2352,6 +2367,7 @@ const Admin: React.FC = () => {
               <InquiryManagement 
                 chatMessages={chatMessages}
                 onChatMessagesChange={updateChatMessages}
+                sendMessage={sendMessage}
               />
             )}
 

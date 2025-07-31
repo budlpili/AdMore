@@ -81,8 +81,18 @@ io.on('connection', (socket) => {
 
   // 메시지 전송
   socket.on('send_message', async (messageData) => {
+    console.log('서버에서 메시지 수신:', messageData);
     try {
       const { userEmail, message, type, inquiryType, productInfo, paymentInfo } = messageData;
+      
+      console.log('메시지 데이터 파싱:', {
+        userEmail,
+        message,
+        type,
+        inquiryType,
+        productInfo,
+        paymentInfo
+      });
       
       // 데이터베이스에 메시지 저장
       const insertQuery = `
@@ -91,6 +101,16 @@ io.on('connection', (socket) => {
       `;
       
       const paymentInfoJson = paymentInfo ? JSON.stringify(paymentInfo) : null;
+      
+      console.log('데이터베이스 저장 시도:', [
+        userEmail, 
+        message, 
+        type, 
+        inquiryType, 
+        productInfo, 
+        paymentInfoJson, 
+        'pending'
+      ]);
       
       db.run(insertQuery, [
         userEmail, 
@@ -107,11 +127,16 @@ io.on('connection', (socket) => {
           return;
         }
 
+        // KST 시간으로 저장
+        const now = new Date();
+        const kstTime = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+        const timestamp = kstTime.toISOString().slice(0, 16).replace('T', ' ');
+        
         const savedMessage = {
           id: this.lastID,
           userEmail,
           message,
-          timestamp: new Date().toISOString().slice(0, 16).replace('T', ' '),
+          timestamp: timestamp,
           type,
           inquiryType,
           productInfo,
@@ -119,10 +144,13 @@ io.on('connection', (socket) => {
           status: 'pending'
         };
 
+        console.log('저장된 메시지:', savedMessage);
+
         // 모든 클라이언트에게 메시지 브로드캐스트
         io.emit('new_message', savedMessage);
         
         console.log(`메시지 전송: ${userEmail} -> ${message}`);
+        console.log(`연결된 클라이언트 수: ${Object.keys(io.sockets.sockets).length}`);
       });
     } catch (error) {
       console.error('메시지 처리 오류:', error);
