@@ -368,7 +368,13 @@ const SignUp: React.FC = () => {
                   )}
                 </div>
                 <label htmlFor="agreeTerms" className="ml-2 block text-xs text-gray-700 font-semibold">
-                  <Link to="/terms" className="text-blue-600 hover:underline">이용약관</Link>에 동의합니다 *
+                  <button 
+                  type="button"
+                  onClick={() => window.open('/terms', '_blank')}
+                  className="text-blue-600 hover:underline cursor-pointer"
+                >
+                  이용약관
+                </button>에 동의합니다 *
                 </label>
               </div>
 
@@ -390,7 +396,13 @@ const SignUp: React.FC = () => {
                   )}
                 </div>
                 <label htmlFor="agreePrivacy" className="ml-2 block text-xs text-gray-700 font-semibold">
-                  <Link to="/privacy" className="text-blue-600 hover:underline">개인정보처리방침</Link>에 동의합니다 *
+                  <button 
+                  type="button"
+                  onClick={() => window.open('/privacy', '_blank')}
+                  className="text-blue-600 hover:underline cursor-pointer"
+                >
+                  개인정보처리방침
+                </button>에 동의합니다 *
                 </label>
               </div>
 

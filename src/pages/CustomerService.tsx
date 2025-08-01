@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faBell, faHeadset, faFileAlt, faShieldAlt 
@@ -14,6 +14,7 @@ interface CustomerServiceProps {
 }
 
 const CustomerService: React.FC<CustomerServiceProps> = ({ setIsChatOpen }) => {
+  const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<string>('notice');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -30,6 +31,14 @@ const CustomerService: React.FC<CustomerServiceProps> = ({ setIsChatOpen }) => {
     subject: '',
     message: ''
   });
+
+  // URL 파라미터에서 탭 확인
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab === 'terms' || tab === 'privacy') {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
 
   // 공지사항 로드
   useEffect(() => {

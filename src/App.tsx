@@ -18,6 +18,8 @@ import MobileNavBar from './components/MobileNavBar';
 import ReviewWritePage from './pages/ReviewWritePage';
 import Admin from './pages/Admin';
 import ApiTest from './components/ApiTest';
+import Terms from './pages/Terms';
+import Privacy from './pages/Privacy';
 
 const AppRoutes: React.FC<{ isChatOpen: boolean; setIsChatOpen: (open: boolean) => void; userEmail: string }> = ({ isChatOpen, setIsChatOpen, userEmail }) => {
   const location = useLocation();
@@ -45,6 +47,8 @@ const AppRoutes: React.FC<{ isChatOpen: boolean; setIsChatOpen: (open: boolean) 
               <Route path="/mypage" element={<UserPage setIsChatOpen={setIsChatOpen} />} />
               <Route path="/user" element={<UserPage setIsChatOpen={setIsChatOpen} />} />
               <Route path="/review/write" element={<ReviewWritePage />} />
+              <Route path="/terms" element={<Terms />} />
+              <Route path="/privacy" element={<Privacy />} />
               <Route path="/admin" element={<Admin />} />
               <Route path="/api-test" element={<ApiTest />} />
             </Routes>
