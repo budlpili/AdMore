@@ -176,6 +176,8 @@ const Admin: React.FC = () => {
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
   const [isOrderStatusDropdownOpen, setIsOrderStatusDropdownOpen] = useState(false);
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  const [selectAllUsers, setSelectAllUsers] = useState(false);
 
   // 주문 관리 페이지네이션 관련 상태
   const [currentOrderPage, setCurrentOrderPage] = useState(1);
@@ -759,6 +761,129 @@ const Admin: React.FC = () => {
 
   const homeItem: SidebarItem = { id: 'home', label: '홈으로', icon: faHome, action: () => navigate('/'), count: undefined };
   const logoutItem: SidebarItem = { id: 'logout', label: '로그아웃', icon: faSignOutAlt, action: () => navigate('/login'), count: undefined };
+
+  // 회원 선택 관련 함수들
+  const toggleUserSelection = (userId: string) => {
+    setSelectedUsers(prev => 
+      prev.includes(userId) 
+        ? prev.filter(id => id !== userId)
+        : [...prev, userId]
+    );
+  };
+
+  const toggleSelectAllUsers = () => {
+    if (selectAllUsers) {
+      setSelectedUsers([]);
+      setSelectAllUsers(false);
+    } else {
+      setSelectedUsers(currentUsers.map(user => user.id));
+      setSelectAllUsers(true);
+    }
+  };
+
+  // 선택된 사용자들의 상태 변경
+  const updateSelectedUsersStatus = async (newStatus: 'active' | 'inactive' | 'suspended') => {
+    if (selectedUsers.length === 0) {
+      alert('선택된 사용자가 없습니다.');
+      return;
+    }
+
+    const statusText = {
+      'active': '활성',
+      'inactive': '비활성',
+      'suspended': '정지'
+    };
+
+    const confirmMessage = `선택된 ${selectedUsers.length}명의 사용자 상태를 "${statusText[newStatus]}"로 변경하시겠습니까?\n\n이 작업은 되돌릴 수 있습니다.`;
+
+    if (window.confirm(confirmMessage)) {
+      try {
+        // 모든 선택된 사용자에 대해 API 호출
+        const promises = selectedUsers.map(userId => 
+          usersAPI.updateStatus(userId, newStatus)
+        );
+        
+        await Promise.all(promises);
+        
+        // 성공 시 회원 목록 다시 로드
+        await loadUsers();
+        setSelectedUsers([]);
+        setSelectAllUsers(false);
+        alert(`선택된 ${selectedUsers.length}명의 사용자 상태가 "${statusText[newStatus]}"로 변경되었습니다.`);
+      } catch (error) {
+        console.error('사용자 상태 일괄 업데이트 에러:', error);
+        alert('사용자 상태 일괄 업데이트에 실패했습니다.');
+      }
+    }
+  };
+
+  // 선택된 사용자들의 역할 변경
+  const updateSelectedUsersRole = async (newRole: 'admin' | 'user') => {
+    if (selectedUsers.length === 0) {
+      alert('선택된 사용자가 없습니다.');
+      return;
+    }
+
+    const roleText = {
+      'admin': '관리자',
+      'user': '일반회원'
+    };
+
+    const confirmMessage = `선택된 ${selectedUsers.length}명의 사용자 역할을 "${roleText[newRole]}"로 변경하시겠습니까?\n\n이 작업은 되돌릴 수 있습니다.`;
+
+    if (window.confirm(confirmMessage)) {
+      try {
+        // 모든 선택된 사용자에 대해 API 호출
+        const promises = selectedUsers.map(userId => 
+          usersAPI.updateRole(userId, newRole)
+        );
+        
+        await Promise.all(promises);
+        
+        // 성공 시 회원 목록 다시 로드
+        await loadUsers();
+        setSelectedUsers([]);
+        setSelectAllUsers(false);
+        alert(`선택된 ${selectedUsers.length}명의 사용자 역할이 "${roleText[newRole]}"로 변경되었습니다.`);
+      } catch (error) {
+        console.error('사용자 역할 일괄 업데이트 에러:', error);
+        alert('사용자 역할 일괄 업데이트에 실패했습니다.');
+      }
+    }
+  };
+
+  // 선택된 사용자들 삭제
+  const deleteSelectedUsers = async () => {
+    if (selectedUsers.length === 0) {
+      alert('선택된 사용자가 없습니다.');
+      return;
+    }
+
+    const confirmMessage = `선택된 ${selectedUsers.length}명의 사용자를 삭제하시겠습니까?\n\n⚠️ 주의: 이 작업은 되돌릴 수 없습니다.\n선택된 사용자들의 모든 데이터가 영구적으로 삭제됩니다.`;
+
+    if (window.confirm(confirmMessage)) {
+      // 한 번 더 확인
+      if (window.confirm('정말로 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다.')) {
+        try {
+          // 모든 선택된 사용자에 대해 API 호출
+          const promises = selectedUsers.map(userId => 
+            usersAPI.delete(userId)
+          );
+          
+          await Promise.all(promises);
+          
+          // 성공 시 회원 목록 다시 로드
+          await loadUsers();
+          setSelectedUsers([]);
+          setSelectAllUsers(false);
+          alert(`선택된 ${selectedUsers.length}명의 사용자가 성공적으로 삭제되었습니다.`);
+        } catch (error) {
+          console.error('사용자 일괄 삭제 에러:', error);
+          alert('사용자 일괄 삭제에 실패했습니다.');
+        }
+      }
+    }
+  };
 
   // 회원 역할 변경
   const updateUserRole = async (userId: string, newRole: 'admin' | 'user') => {
@@ -2549,12 +2674,69 @@ const Admin: React.FC = () => {
                   </div>
                 </div>
 
+                {/* 일괄 관리 버튼 */}
+                {selectedUsers.length > 0 && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm text-blue-800">
+                        <span className="font-semibold">{selectedUsers.length}명</span>의 사용자가 선택되었습니다.
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => updateSelectedUsersStatus('active')}
+                          className="text-xs px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
+                        >
+                          활성화
+                        </button>
+                        <button
+                          onClick={() => updateSelectedUsersStatus('inactive')}
+                          className="text-xs px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600 transition-colors"
+                        >
+                          비활성화
+                        </button>
+                        <button
+                          onClick={() => updateSelectedUsersStatus('suspended')}
+                          className="text-xs px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+                        >
+                          정지
+                        </button>
+                        <button
+                          onClick={() => updateSelectedUsersRole('admin')}
+                          className="text-xs px-3 py-1 bg-purple-500 text-white rounded hover:bg-purple-600 transition-colors"
+                        >
+                          관리자로
+                        </button>
+                        <button
+                          onClick={() => updateSelectedUsersRole('user')}
+                          className="text-xs px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                        >
+                          일반회원으로
+                        </button>
+                        <button
+                          onClick={deleteSelectedUsers}
+                          className="text-xs px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                        >
+                          삭제
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* 회원 테이블 */}
                 <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
                   <div className="overflow-x-auto">
                     <table className="w-full">
                       <thead className="border-b border-gray-300">
                         <tr>
+                          <th className="px-6 py-4 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
+                            <input
+                              type="checkbox"
+                              checked={selectAllUsers}
+                              onChange={toggleSelectAllUsers}
+                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            />
+                          </th>
                           <th className="px-6 py-4 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">번호</th>
                           <th className="px-6 py-4 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
                             <button
@@ -2624,6 +2806,14 @@ const Admin: React.FC = () => {
                         {currentUsers.map((user, idx) => (
                           <tr key={user.id} className="hover:bg-gray-50">
                             <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">
+                              <input
+                                type="checkbox"
+                                checked={selectedUsers.includes(user.id)}
+                                onChange={() => toggleUserSelection(user.id)}
+                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                              />
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">
                               {indexOfFirstUser + idx + 1}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-xs font-medium text-gray-900">
@@ -2645,42 +2835,13 @@ const Admin: React.FC = () => {
                               </span>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-xs">
-                              <div className="flex flex-wrap gap-1">
-                                <button
-                                  onClick={() => updateUserRole(user.id, user.role === 'admin' ? 'user' : 'admin')}
-                                  className={`text-xs px-2 py-1 rounded border transition-colors ${
-                                    user.role === 'admin' 
-                                      ? 'text-blue-600 border-blue-300 hover:bg-blue-50' 
-                                      : 'text-purple-600 border-purple-300 hover:bg-purple-50'
-                                  }`}
-                                >
-                                  {user.role === 'admin' ? '일반회원으로' : '관리자로'}
-                                </button>
-                                <button
-                                  onClick={() => updateUserStatus(user.id, 'active')}
-                                  className="text-green-600 hover:text-green-900 text-xs px-2 py-1 rounded border border-green-300 hover:bg-green-50"
-                                >
-                                  활성화
-                                </button>
-                                <button
-                                  onClick={() => updateUserStatus(user.id, 'inactive')}
-                                  className="text-yellow-600 hover:text-yellow-900 text-xs px-2 py-1 rounded border border-yellow-300 hover:bg-yellow-50"
-                                >
-                                  비활성화
-                                </button>
-                                <button
-                                  onClick={() => updateUserStatus(user.id, 'suspended')}
-                                  className="text-red-600 hover:text-red-900 text-xs px-2 py-1 rounded border border-red-300 hover:bg-red-50"
-                                >
-                                  정지
-                                </button>
-                                <button
-                                  onClick={() => deleteUser(user.id)}
-                                  className="text-red-600 hover:text-red-900 text-xs px-2 py-1 rounded border border-red-300 hover:bg-red-50"
-                                >
-                                  <FontAwesomeIcon icon={faTrash} />
-                                </button>
-                              </div>
+                              <button
+                                onClick={() => deleteUser(user.id)}
+                                className="text-red-600 hover:text-red-900 text-xs px-2 py-1 rounded border border-red-300 hover:bg-red-50"
+                                title="삭제"
+                              >
+                                <FontAwesomeIcon icon={faTrash} />
+                              </button>
                             </td>
                           </tr>
                         ))}
