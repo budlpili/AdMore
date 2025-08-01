@@ -178,7 +178,7 @@ const Home: React.FC = () => {
   // 마지막 슬라이드에서는 전체 콘텐츠가 보이도록 조정
   if (slideIndex === maxIndex && maxIndex > 0) {
     const totalContentWidth = topProducts.length * cardWidthPx + (topProducts.length - 1) * gapPx;
-    const maxMoveX = Math.max(0, totalContentWidth - containerWidth + 64); // 64px 여유 공간
+    const maxMoveX = Math.max(0, totalContentWidth - containerWidth + 4); // 4px 여유 공간
     moveX = maxMoveX;
   }
 

@@ -311,8 +311,8 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
               {mode === 'home' ? (
                 <>
                   <div className="flex-1 overflow-y-auto px-4 py-4 bg-gray-50">
-                    <div className="flex flex-col items-center justify-center bg-white border border-gray-100 rounded-lg px-3 text-sm text-gray-700 w-full mb-4">
-                      <div className="rounded-lg p-4 text-sm text-gray-700 w-full">
+                    <div className="flex flex-col items-center justify-start bg-white border border-gray-100 rounded-lg px-3 text-sm text-gray-700 w-full mb-4">
+                      <div className="rounded-lg p-4 text-sm text-gray-700 w-full whitespace-pre-wrap">
                         <div className="font-bold mb-1">고객님 반갑습니다 <span className='text-orange-500'>🤩🤩</span></div>
                         <div className="mb-1">상담 운영 시간 안내</div>
                         <div className="mb-1">· 평일 10:00 ~ 17:00</div>
@@ -331,8 +331,8 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                       }}>문의하기</button>
                     </div>
 
-                    <div className="flex flex-col items-center gap-2 bg-white border border-gray-100 rounded-lg px-4 py-4 
-                    text-sm text-gray-700 w-full mb-4">
+                    {/* <div className="flex flex-col items-center gap-2 bg-white border border-gray-100 rounded-lg px-4 py-4 
+                      text-sm text-gray-700 w-full mb-4">
                       <div className="flex items-center gap-2 bg-white rounded-lg px-0 w-full">
                         <input type="tel" className="flex-1 px-3 py-3 border-2 border-gray-200 rounded-md focus:outline-none focus:ring-2 
                         focus:ring-orange-500 text-sm" placeholder="휴대폰 번호를 입력해 주세요." />
@@ -340,7 +340,8 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                           hover:bg-orange-200 transition">SMS <br /> 등록</button>
                       </div>
                       <div className="text-xs text-gray-400 w-full">* SMS 등록하시면 답변을 SMS로도 받아보실 수 있어요!</div>
-                    </div>
+                    </div> */}
+
                     
                     
 
@@ -400,7 +401,8 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                               </span>
                               <div className="flex flex-col">
                                 <span className="text-xs font-bold text-gray-700 mb-1 ml-1">애드모어 운영팀</span>
-                                <div className="bg-gray-100 border border-gray-200 rounded-lg px-4 py-2 text-[13px] text-gray-900 max-w-[70%] break-words whitespace-pre-line">
+                                <div className="bg-gray-100 border border-gray-200 rounded-lg px-4 py-2 text-[13px] text-gray-900 
+                                    max-w-[70%] min-w-[160px] break-words whitespace-pre-line">
                                   {msg.text}
                                 </div>
                                 <span className="text-[11px] text-gray-400 mt-1 self-start">{time}</span>
@@ -435,7 +437,8 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                             <React.Fragment key={idx}>
                               {dateDivider}
                               <div className="mb-4 flex flex-col items-end">
-                                <div className="bg-orange-600 text-white rounded-lg px-4 py-2 text-sm max-w-[70%] break-words whitespace-pre-line">
+                                <div className="bg-orange-600 text-white rounded-lg px-4 py-2 text-sm max-w-[70%] min-w-[100px] 
+                                    break-words whitespace-pre-line">
                                   {msg.text}
                                 </div>
                                 <span className="text-[11px] text-gray-400 mt-1 mr-1">{time}</span>

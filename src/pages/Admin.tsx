@@ -2857,7 +2857,7 @@ const Admin: React.FC = () => {
                       <tbody className="bg-white divide-y divide-gray-200">
                         {currentUsers.map((user, idx) => (
                           <tr key={user.id} className="hover:bg-gray-50">
-                            <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">
+                            <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500 flex justify-center">
                               <input
                                 type="checkbox"
                                 checked={selectedUsers.includes(user.id)}
@@ -2865,19 +2865,19 @@ const Admin: React.FC = () => {
                                 className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                               />
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">
+                            <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500 text-center">
                               {indexOfFirstUser + idx + 1}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-xs font-medium text-gray-900">
+                            <td className="px-3 py-4 whitespace-nowrap text-xs font-medium text-gray-900">
                               <span className="ml-2">{user.name}</span>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">{user.email}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">{user.phone}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">{user.joinDate}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">
+                            <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500">{user.email}</td>
+                            <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500">{user.phone}</td>
+                            <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500">{user.joinDate}</td>
+                            <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500">
                               {user.role === 'admin' ? '관리자' : '일반회원'}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-xs">
+                            <td className="px-3 py-4 whitespace-nowrap text-xs">
                               <span className={`block px-2 text-xs text-center leading-5 font-semibold rounded-full ${
                                 user.status === 'active' ? 'bg-green-100 text-green-800' :
                                 user.status === 'inactive' ? 'bg-yellow-100 text-yellow-800' :
