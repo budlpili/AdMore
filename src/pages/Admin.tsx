@@ -2752,7 +2752,7 @@ const Admin: React.FC = () => {
                     <table className="w-full">
                       <thead className="border-b border-gray-300">
                         <tr>
-                          <th className="px-6 py-4 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
+                          <th className="min-w-[50px] max-w-[50px] px-6 py-4 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
                             <input
                               type="checkbox"
                               checked={selectAllUsers}
@@ -2760,7 +2760,7 @@ const Admin: React.FC = () => {
                               className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                             />
                           </th>
-                          <th className="min-w-[100px] max-w-[100px] px-6 py-4 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">번호</th>
+                          <th className="min-w-[72px] max-w-[72px] px-6 py-4 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">번호</th>
                           <th className="px-6 py-4 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
                             <button
                               onClick={() => toggleSortOrder('name')}

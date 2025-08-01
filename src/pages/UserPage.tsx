@@ -293,11 +293,41 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
   
   // paymentsStatusFilter 상태 추가
   const [paymentsStatusFilter, setPaymentsStatusFilter] = useState('전체');
+  
+  // 이름 변경 상태
+  const [userName, setUserName] = useState('');
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [nameError, setNameError] = useState('');
 
   const handleLogout = () => {
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('userEmail');
+    localStorage.removeItem('userRole');
     navigate('/');
+  };
+
+  // 사용자 정보 로드
+  const loadUserInfo = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const response = await fetch('http://localhost:5001/api/auth/profile', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const userData = await response.json();
+        setUserName(userData.name || '');
+        setNewName(userData.name || '');
+      }
+    } catch (error) {
+      console.error('사용자 정보 로드 실패:', error);
+    }
   };
   // 즐겨찾기 상태
   const [favoriteIds, setFavoriteIds] = useState<number[]>([]);
@@ -307,6 +337,9 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
     setFavoriteIds(favorites);
     const favoriteProductsList = products.filter(product => favorites.includes(product.id));
     setFavoriteProducts(favoriteProductsList);
+    
+    // 사용자 정보 로드
+    loadUserInfo();
   }, []);
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -364,6 +397,61 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
       setFavoriteIds([]);
       setFavoriteProducts([]);
       alert('모든 즐겨찾기가 삭제되었습니다.');
+    }
+  };
+
+  // 이름 변경 함수들
+  const handleStartEditName = () => {
+    setIsEditingName(true);
+    setNewName(userName);
+    setNameError('');
+  };
+
+  const handleCancelEditName = () => {
+    setIsEditingName(false);
+    setNewName(userName);
+    setNameError('');
+  };
+
+  const handleSaveName = async () => {
+    if (!newName.trim()) {
+      setNameError('이름을 입력해주세요.');
+      return;
+    }
+
+    if (newName.trim().length < 2) {
+      setNameError('이름은 2자 이상 입력해주세요.');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('로그인이 필요합니다.');
+        return;
+      }
+
+      const response = await fetch('http://localhost:5001/api/auth/profile', {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ name: newName.trim() })
+      });
+
+      if (response.ok) {
+        setUserName(newName.trim());
+        setIsEditingName(false);
+        setNameError('');
+        alert('이름이 변경되었습니다.');
+      } else {
+        const errorData = await response.json();
+        setNameError(errorData.message || '이름 변경에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('이름 변경 실패:', error);
+      setNameError('이름 변경 중 오류가 발생했습니다.');
     }
   };
   const toggleFavorite = (id: number) => {
@@ -2432,6 +2520,54 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
               {activeTab === 'settings' && (
                 <div className="flex flex-col">
                   {/* <div className="font-bold mb-2">환경설정</div> */}
+                  {/* 이름 변경 */}
+                  <div className="bg-white rounded-lg border px-6 py-8 mb-8">
+                    <div className="font-semibold text-sm mb-4">이름 변경</div>
+                    <div className="space-y-4">
+                      {isEditingName ? (
+                        <>
+                          <input
+                            type="text"
+                            value={newName}
+                            onChange={(e) => setNewName(e.target.value)}
+                            placeholder="새로운 이름을 입력해 주세요"
+                            className="w-full px-4 py-3 border rounded focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm"
+                          />
+                          {nameError && <p className="text-red-500 text-xs">{nameError}</p>}
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={handleSaveName}
+                              className="flex-1 py-3 rounded bg-gradient-to-r from-orange-400 to-orange-600 text-sm text-white font-semibold shadow hover:from-orange-500 hover:to-orange-700 transition"
+                            >
+                              저장
+                            </button>
+                            <button
+                              onClick={handleCancelEditName}
+                              className="flex-1 py-3 rounded bg-gray-200 text-gray-700 text-sm font-semibold hover:bg-gray-300 transition"
+                            >
+                              취소
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="flex items-center justify-between p-4 bg-gray-50 rounded border">
+                            <div>
+                              <p className="text-sm text-gray-600 mb-1">현재 이름</p>
+                              <p className="font-semibold text-gray-900">{userName || '이름 없음'}</p>
+                            </div>
+                            <button
+                              onClick={handleStartEditName}
+                              className="px-4 py-2 text-sm text-orange-600 border border-orange-600 rounded hover:bg-orange-50 transition"
+                            >
+                              변경
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  
                   {/* 비밀번호 변경 */}
                   <div className="bg-white rounded-lg border px-6 py-8 mb-8">
                     <div className="font-semibold text-sm mb-4">비밀번호 변경</div>

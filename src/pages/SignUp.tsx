@@ -5,6 +5,7 @@ import { authAPI } from '../services/api';
 
 const SignUp: React.FC = () => {
   const [formData, setFormData] = useState<SignUpForm>({
+    name: '',
     email: '',
     password: '',
     confirmPassword: '',
@@ -72,6 +73,17 @@ const SignUp: React.FC = () => {
   const validateForm = (): boolean => {
     console.log('=== 폼 검증 시작 ===');
     const newErrors: FormErrors = {};
+
+    // Name validation
+    if (!formData.name) {
+      newErrors.name = '이름을 입력해주세요.';
+      console.log('이름 누락');
+    } else if (formData.name.length < 2) {
+      newErrors.name = '이름은 2자 이상 입력해주세요.';
+      console.log('이름 길이 부족');
+    } else {
+      console.log('이름 검증 통과');
+    }
 
     // Email validation
     if (!formData.email) {
@@ -147,7 +159,7 @@ const SignUp: React.FC = () => {
       const userData = {
         email: formData.email,
         password: formData.password,
-        name: formData.email.split('@')[0], // 임시로 이메일 앞부분을 이름으로 사용
+        name: formData.name,
         phone: '' // 전화번호는 선택사항
       };
       
@@ -187,6 +199,26 @@ const SignUp: React.FC = () => {
 
           {/* Sign Up Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Name */}
+            <div>
+              <label htmlFor="name" className="block text-xs font-semibold text-gray-700 mb-1">
+                이름(닉네임) *
+              </label>
+              <input
+                type="text"
+                id="name"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                className={`w-full px-3 py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm ${
+                  errors.name ? 'border-red-500' : 'border-gray-300'
+                }`}
+                placeholder="이름 또는 닉네임을 입력해주세요"
+                disabled={isSubmitting}
+              />
+              {errors.name && <p className="mt-1 text-xs text-red-600">{errors.name}</p>}
+            </div>
+
             {/* Email */}
             <div>
               <label htmlFor="email" className="block text-xs font-semibold text-gray-700 mb-1">
