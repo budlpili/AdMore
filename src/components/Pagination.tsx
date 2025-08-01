@@ -52,7 +52,7 @@ const Pagination: React.FC<PaginationProps> = ({
   return (
     <div className={`flex justify-between items-center ${className}`}>
       {showInfo && (
-        <div className="text-sm text-gray-600">
+        <div className="text-xs text-gray-500">
           총 {totalItems}개 중 {startItem}-{endItem}개
         </div>
       )}
@@ -61,7 +61,7 @@ const Pagination: React.FC<PaginationProps> = ({
         <button
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 1}
-          className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+          className="px-2 py-1 border border-gray-300 rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
         >
           이전
         </button>
@@ -70,7 +70,7 @@ const Pagination: React.FC<PaginationProps> = ({
           <button
             key={pageNum}
             onClick={() => onPageChange(pageNum)}
-            className={`px-3 py-1 border border-gray-300 rounded text-sm ${
+            className={`px-2 py-1 border border-gray-300 rounded text-xs ${
               currentPage === pageNum
                 ? 'bg-orange-500 text-white border-orange-500'
                 : 'hover:bg-gray-50'
@@ -83,7 +83,7 @@ const Pagination: React.FC<PaginationProps> = ({
         <button
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
-          className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+          className="px-2 py-1 border border-gray-300 rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
         >
           다음
         </button>

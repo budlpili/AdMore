@@ -67,6 +67,15 @@ const login = (req, res) => {
       return res.status(401).json({ message: '이메일 또는 비밀번호가 올바르지 않습니다.' });
     }
 
+    // 사용자 상태 확인
+    if (user.status === 'inactive') {
+      return res.status(403).json({ message: '비활성화된 계정입니다. 관리자에게 문의하세요.' });
+    }
+
+    if (user.status === 'suspended') {
+      return res.status(403).json({ message: '정지된 계정입니다. 관리자에게 문의하세요.' });
+    }
+
     // 비밀번호 확인
     bcrypt.compare(password, user.password, (err, isMatch) => {
       if (err) {
