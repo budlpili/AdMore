@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faHome, faComments, faHeadset, faChevronLeft, faXmark, faPaperclip, faPaperPlane } from '@fortawesome/free-solid-svg-icons';
 import { useWebSocket } from '../hooks/useWebSocket';
@@ -67,12 +67,48 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
   };
 
   const [mode, setMode] = useState<'home' | 'chat'>('home');
+  const [showLoginModal, setShowLoginModal] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     { 
       from: 'admin', 
       text: '고객님 반갑습니다!\n\n상담 운영 시간 안내\n· 평일 10:00 ~ 17:00\n· 주말, 공휴일 휴무\n순차적으로 확인하여 답변드리도록 하겠습니다.' 
     }
   ]);
+
+  // onNewMessage 콜백을 useCallback으로 안정화
+  const handleNewMessage = useCallback((message: any) => {
+    console.log('새 메시지 수신:', message);
+    
+    // WebSocket 메시지를 UI 메시지로 변환
+    const newMessage: Message = {
+      id: message.id,
+      from: message.type === 'admin' ? 'admin' : 'user',
+      text: message.message,
+      timestamp: message.timestamp // 메시지 생성 시간 추가
+    };
+    
+    console.log('새 메시지 추가 시도:', newMessage);
+    
+    // 중복 메시지 방지: 같은 내용의 메시지가 이미 있는지 확인
+    setMessages(prev => {
+      console.log('이전 메시지들:', prev);
+      
+      const isDuplicate = prev.some(msg => 
+        msg.text === message.message && 
+        msg.from === (message.type === 'admin' ? 'admin' : 'user') &&
+        Math.abs(new Date().getTime() - (msg.timestamp ? new Date(msg.timestamp).getTime() : 0)) < 5000 // 5초 이내
+      );
+      
+      if (isDuplicate) {
+        console.log('중복 메시지 감지, 추가하지 않음:', message.message);
+        return prev;
+      }
+      
+      const newMessages = [...prev, newMessage];
+      console.log('새 메시지 추가됨, 총 메시지 수:', newMessages.length);
+      return newMessages;
+    });
+  }, []);
 
   // WebSocket 훅 사용
   const {
@@ -82,35 +118,29 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     loadMessages
   } = useWebSocket({
     userEmail,
-    onNewMessage: (message) => {
-      console.log('새 메시지 수신:', message);
-      
-      // WebSocket 메시지를 UI 메시지로 변환
-      const newMessage: Message = {
-        id: message.id,
-        from: message.type === 'admin' ? 'admin' : 'user',
-        text: message.message,
-        timestamp: message.timestamp // 메시지 생성 시간 추가
-      };
-      
-      // 중복 메시지 방지: 같은 내용의 메시지가 이미 있는지 확인
-      setMessages(prev => {
-        const isDuplicate = prev.some(msg => 
-          msg.text === message.message && 
-          msg.from === (message.type === 'admin' ? 'admin' : 'user') &&
-          Math.abs(new Date().getTime() - (msg.timestamp ? new Date(msg.timestamp).getTime() : 0)) < 5000 // 5초 이내
-        );
-        
-        if (isDuplicate) {
-          console.log('중복 메시지 감지, 추가하지 않음:', message.message);
-          return prev;
-        }
-        
-        console.log('새 메시지 추가:', newMessage);
-        return [...prev, newMessage];
-      });
-    }
+    onNewMessage: handleNewMessage
   });
+
+  // WebSocket에서 받은 메시지를 로컬 상태와 동기화
+  useEffect(() => {
+    console.log('wsMessages 변경됨:', wsMessages);
+    if (wsMessages && wsMessages.length > 0) {
+      const convertedMessages: Message[] = wsMessages.map(msg => ({
+        id: msg.id,
+        from: msg.type === 'admin' ? 'admin' : 'user',
+        text: msg.message,
+        timestamp: msg.timestamp
+      }));
+      
+      console.log('변환된 메시지들:', convertedMessages);
+      setMessages(convertedMessages);
+    }
+  }, [wsMessages]);
+
+  // 디버깅을 위한 메시지 상태 로깅
+  useEffect(() => {
+    console.log('현재 messages 상태:', messages);
+  }, [messages]);
 
   // WebSocket 연결 상태 로깅
   console.log('ChatWidget - WebSocket 연결 상태:', isConnected);
@@ -160,9 +190,20 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     }
   };
 
+  const checkLoginStatus = () => {
+    if (!userEmail || userEmail === 'guest@example.com') {
+      setShowLoginModal(true);
+      return false;
+    }
+    return true;
+  };
+
   const handleSend = () => {
     if (!input.trim() && !file) return;
     if (isSending) return; // 전송 중이면 중복 전송 방지
+    
+    // 로그인하지 않은 사용자 체크
+    if (!checkLoginStatus()) return;
     
     setIsSending(true);
     
@@ -207,6 +248,9 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
   };
 
   const handleOpen = () => {
+    // 로그인하지 않은 사용자 체크
+    if (!checkLoginStatus()) return;
+    
     setIsChatOpen(true);
     setMode('home');
   };
@@ -277,6 +321,9 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                       </div>
                       <button className="w-full bg-orange-600 text-white py-3 rounded-lg font-semibold text-sm mb-4 
                       hover:bg-orange-700 transition" onClick={() => {
+                        // 로그인하지 않은 사용자 체크
+                        if (!checkLoginStatus()) return;
+                        
                         setMode('chat');
                         // 채팅 모드 진입 시 기존 메시지 초기화 (시스템 메시지만 유지)
                         setMessages([{ from: 'admin', text: '고객님 반갑습니다!\n\n상담 운영 시간 안내\n· 평일 10:00 ~ 17:00\n· 주말, 공휴일 휴무\n순차적으로 확인하여 답변드리도록 하겠습니다.' }]);
@@ -303,8 +350,13 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                 <>
                   <div className="flex-1 overflow-y-auto max-h-[380px] px-4 py-3 bg-gray-50">
                     {messages.map((msg, idx) => {
-                      const now = new Date();
-                      const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                      // 메시지의 실제 전송 시간을 사용 (백엔드에서 KST로 저장됨)
+                      const messageTime = msg.timestamp ? new Date(msg.timestamp + ':00') : new Date();
+                      const time = messageTime.toLocaleTimeString('ko-KR', { 
+                        hour: '2-digit', 
+                        minute: '2-digit',
+                        hour12: false 
+                      });
                       
                       // 날짜 구분선 렌더링
                       const showDateDivider = () => {
@@ -450,6 +502,42 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* 로그인 필요 모달 */}
+      {showLoginModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl p-6 mx-4 max-w-sm w-full">
+            <div className="text-center">
+              <div className="w-16 h-16 mx-auto mb-4 bg-orange-100 rounded-full flex items-center justify-center">
+                <FontAwesomeIcon icon={faComments} className="text-2xl text-orange-600" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">로그인이 필요합니다</h3>
+              <p className="text-gray-600 mb-6 text-sm leading-relaxed">
+                1:1 문의를 이용하시려면<br />
+                회원가입이 필요합니다.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowLoginModal(false)}
+                  className="flex-1 py-3 px-4 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={() => {
+                    setShowLoginModal(false);
+                    // 로그인 페이지로 이동
+                    window.location.href = '/login';
+                  }}
+                  className="flex-1 py-3 px-4 bg-orange-600 text-white rounded-lg font-medium hover:bg-orange-700 transition"
+                >
+                  로그인
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

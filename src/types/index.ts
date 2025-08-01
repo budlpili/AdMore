@@ -105,4 +105,12 @@ export interface User {
   role?: string;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  user: string;
+  message: string;
+  timestamp: string;
+  type: 'user' | 'admin';
 } 

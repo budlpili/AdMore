@@ -96,8 +96,8 @@ io.on('connection', (socket) => {
       
       // 데이터베이스에 메시지 저장
       const insertQuery = `
-        INSERT INTO chat_messages (user_email, message, type, inquiry_type, product_info, payment_info, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO chat_messages (user, message, type, timestamp)
+        VALUES (?, ?, ?, datetime('now', 'localtime'))
       `;
       
       const paymentInfoJson = paymentInfo ? JSON.stringify(paymentInfo) : null;
@@ -105,21 +105,13 @@ io.on('connection', (socket) => {
       console.log('데이터베이스 저장 시도:', [
         userEmail, 
         message, 
-        type, 
-        inquiryType, 
-        productInfo, 
-        paymentInfoJson, 
-        'pending'
+        type
       ]);
       
       db.run(insertQuery, [
         userEmail, 
         message, 
-        type, 
-        inquiryType, 
-        productInfo, 
-        paymentInfoJson, 
-        'pending'
+        type
       ], function(err) {
         if (err) {
           console.error('메시지 저장 오류:', err);
@@ -127,21 +119,17 @@ io.on('connection', (socket) => {
           return;
         }
 
-        // KST 시간으로 저장
+        // 한국 시간(KST)으로 현재 시간 생성
         const now = new Date();
-        const kstTime = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+        const kstTime = new Date(now.getTime() + (9 * 60 * 60 * 1000)); // UTC+9
         const timestamp = kstTime.toISOString().slice(0, 16).replace('T', ' ');
         
         const savedMessage = {
           id: this.lastID,
-          userEmail,
+          user: userEmail,
           message,
           timestamp: timestamp,
-          type,
-          inquiryType,
-          productInfo,
-          paymentInfo,
-          status: 'pending'
+          type
         };
 
         console.log('저장된 메시지:', savedMessage);
@@ -223,17 +211,28 @@ app.get('/api/chat/messages', (req, res) => {
     
     const messages = rows.map(row => ({
       id: row.id,
-      user: row.user_email,
+      user: row.user,
       message: row.message,
       timestamp: row.timestamp,
-      type: row.type,
-      inquiryType: row.inquiry_type,
-      productInfo: row.product_info,
-      paymentInfo: row.payment_info ? JSON.parse(row.payment_info) : null,
-      status: row.status
+      type: row.type
     }));
     
     res.json(messages);
+  });
+});
+
+// 모든 메시지 삭제 API
+app.delete('/api/chat/messages/clear', (req, res) => {
+  const query = `DELETE FROM chat_messages`;
+  
+  db.run(query, [], function(err) {
+    if (err) {
+      console.error('메시지 삭제 오류:', err);
+      return res.status(500).json({ error: '메시지 삭제에 실패했습니다.' });
+    }
+    
+    console.log(`모든 메시지 삭제 완료: ${this.changes}개 메시지 삭제됨`);
+    res.json({ message: '모든 메시지가 삭제되었습니다.', deletedCount: this.changes });
   });
 });
 

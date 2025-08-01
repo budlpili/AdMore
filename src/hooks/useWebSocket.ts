@@ -42,12 +42,18 @@ export const useWebSocket = ({
 
   // WebSocket 연결
   const connect = useCallback(() => {
-    if (socketRef.current?.connected || connectionAttemptedRef.current) {
-      console.log('이미 연결되었거나 연결 시도 중입니다.');
+    // 기존 연결이 있으면 해제
+    if (socketRef.current?.connected) {
+      console.log('기존 연결 해제 중...');
+      socketRef.current.disconnect();
+    }
+    
+    if (connectionAttemptedRef.current) {
+      console.log('이미 연결 시도 중입니다.');
       return socketRef.current;
     }
 
-    console.log('WebSocket 연결 시도 중...');
+    // console.log('WebSocket 연결 시도 중...');
     connectionAttemptedRef.current = true;
 
     const socket = io('http://localhost:5001', {
@@ -62,15 +68,15 @@ export const useWebSocket = ({
     socketRef.current = socket;
 
     socket.on('connect', () => {
-      console.log('WebSocket 연결됨 - Socket ID:', socket.id);
+      // console.log('WebSocket 연결됨 - Socket ID:', socket.id);
       setIsConnected(true);
       
       // 사용자 또는 관리자 로그인
       if (isAdmin) {
-        console.log('관리자 로그인 이벤트 전송');
+        // console.log('관리자 로그인 이벤트 전송');
         socket.emit('admin_login');
       } else if (userEmail) {
-        console.log('사용자 로그인 이벤트 전송:', userEmail);
+        // console.log('사용자 로그인 이벤트 전송:', userEmail);
         socket.emit('user_login', userEmail);
       }
     });
@@ -88,15 +94,53 @@ export const useWebSocket = ({
     });
 
     socket.on('new_message', (message: any) => {
-      console.log('새 메시지 수신:', message);
+      // console.log('새 메시지 수신:', message);
       // userEmail 필드를 user로 매핑, id는 문자열로 변환
       const formattedMessage = {
         ...message,
         user: message.userEmail || message.user,
         id: String(message.id)
       };
-      setMessages(prev => [...prev, formattedMessage]);
-      onNewMessage?.(formattedMessage);
+      
+      // console.log('formattedMessage:', formattedMessage);
+      // console.log('현재 userEmail:', userEmail);
+      // console.log('isAdmin:', isAdmin);
+      
+      // 관리자가 아닌 경우 현재 사용자의 메시지만 추가
+      if (!isAdmin && userEmail) {
+        // console.log('사용자 모드 - 메시지 필터링 중...');
+        if (formattedMessage.user === userEmail || formattedMessage.type === 'admin') {
+          // console.log('메시지 추가 및 onNewMessage 콜백 호출');
+          setMessages(prev => {
+            // 중복 메시지 체크
+            const isDuplicate = prev.some(msg => msg.id === formattedMessage.id);
+            if (isDuplicate) {
+              // console.log('중복 메시지 감지, 추가하지 않음:', formattedMessage.id);
+              return prev;
+            }
+            const newMessages = [...prev, formattedMessage];
+            // onNewMessage 콜백 호출 (실시간 업데이트를 위해)
+            onNewMessage?.(formattedMessage);
+            return newMessages;
+          });
+        } else {
+          // console.log('메시지 필터링됨 - 다른 사용자의 메시지');
+        }
+      } else {
+        // console.log('관리자 모드 또는 userEmail 없음 - 모든 메시지 추가');
+        setMessages(prev => {
+          // 중복 메시지 체크
+          const isDuplicate = prev.some(msg => msg.id === formattedMessage.id);
+          if (isDuplicate) {
+            // console.log('중복 메시지 감지, 추가하지 않음:', formattedMessage.id);
+            return prev;
+          }
+          const newMessages = [...prev, formattedMessage];
+          // onNewMessage 콜백 호출 (실시간 업데이트를 위해)
+          onNewMessage?.(formattedMessage);
+          return newMessages;
+        });
+      }
     });
 
     socket.on('message_status_updated', (data: { userEmail: string; status: string }) => {
@@ -142,14 +186,16 @@ export const useWebSocket = ({
     };
     targetUserEmail?: string; // 관리자 메시지의 대상 사용자 이메일
   }) => {
-    console.log('sendMessage 호출됨:', {
-      socketConnected: socketRef.current?.connected,
-      userEmail,
-      messageData
-    });
+    console.log('=== sendMessage 호출됨 ===');
+    console.log('socketConnected:', socketRef.current?.connected);
+    console.log('userEmail:', userEmail);
+    console.log('isAdmin:', isAdmin);
+    console.log('messageData:', messageData);
     
     if (!socketRef.current?.connected) {
+      console.error('=== WebSocket 연결 오류 ===');
       console.error('WebSocket이 연결되지 않았습니다. 연결을 시도합니다.');
+      console.error('socketRef.current:', socketRef.current);
       connect();
       return;
     }
@@ -165,8 +211,10 @@ export const useWebSocket = ({
       ...messageData
     };
 
-    console.log('WebSocket으로 메시지 전송:', data);
+    console.log('=== WebSocket으로 메시지 전송 ===');
+    console.log('전송할 데이터:', data);
     socketRef.current.emit('send_message', data);
+    console.log('메시지 전송 완료');
   }, [userEmail, connect]);
 
   // 메시지 상태 업데이트
@@ -185,25 +233,35 @@ export const useWebSocket = ({
   // 기존 메시지 로드
   const loadMessages = useCallback(async () => {
     try {
-      console.log('기존 메시지 로드 중...');
+      // console.log('기존 메시지 로드 중...');
       const response = await fetch('http://localhost:5001/api/chat/messages');
       if (response.ok) {
         const data = await response.json();
-        console.log('로드된 메시지:', data);
+        // console.log('로드된 메시지:', data);
         // userEmail 필드를 user로 매핑, id는 문자열로 변환
         const formattedData = data.map((message: any) => ({
           ...message,
           user: message.userEmail || message.user,
           id: String(message.id)
         }));
-        setMessages(formattedData);
+        
+        // 관리자가 아닌 경우 현재 사용자의 메시지만 필터링
+        if (!isAdmin && userEmail) {
+          const userMessages = formattedData.filter((message: any) => 
+            message.user === userEmail || 
+            (message.user === 'admin' && message.inquiryType && message.productInfo)
+          );
+          setMessages(userMessages);
+        } else {
+          setMessages(formattedData);
+        }
       } else {
         console.error('메시지 로드 실패:', response.status);
       }
     } catch (error) {
       console.error('메시지 로드 오류:', error);
     }
-  }, []);
+  }, [isAdmin, userEmail]);
 
   // 연결 해제
   const disconnect = useCallback(() => {
@@ -216,12 +274,19 @@ export const useWebSocket = ({
   }, []);
 
   useEffect(() => {
-    console.log('useWebSocket useEffect 실행:', { userEmail, isAdmin });
+    // console.log('useWebSocket useEffect 실행:', { userEmail, isAdmin });
     
-    // 초기 연결
-    if (!socketRef.current) {
-      connect();
+    // 이미 연결되어 있고 userEmail/isAdmin이 변경되지 않았다면 재연결하지 않음
+    if (socketRef.current?.connected) {
+      // console.log('이미 연결되어 있음, 재연결 건너뜀');
+      return;
     }
+    
+    // connectionAttemptedRef 리셋
+    connectionAttemptedRef.current = false;
+    
+    // 새로운 연결
+    connect();
     
     // 기존 메시지 로드
     loadMessages();
@@ -230,19 +295,7 @@ export const useWebSocket = ({
       // 컴포넌트 언마운트 시에만 연결 해제
       // disconnect();
     };
-  }, []); // 의존성 배열을 비워서 한 번만 실행
-
-  // userEmail이 변경될 때 로그인 이벤트만 다시 전송
-  useEffect(() => {
-    if (socketRef.current?.connected && userEmail) {
-      console.log('사용자 이메일 변경으로 로그인 이벤트 재전송:', userEmail);
-      if (isAdmin) {
-        socketRef.current.emit('admin_login');
-      } else {
-        socketRef.current.emit('user_login', userEmail);
-      }
-    }
-  }, [userEmail, isAdmin]);
+  }, [userEmail, isAdmin]); // connect, loadMessages 제거하여 무한 루프 방지
 
   return {
     isConnected,

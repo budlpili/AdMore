@@ -22,7 +22,7 @@ interface ChatMessage {
 interface InquiryManagementProps {
   chatMessages: ChatMessage[];
   onChatMessagesChange: (messages: ChatMessage[]) => void;
-  sendMessage: (messageData: {
+  sendMessage?: (messageData: {
     message: string;
     type: 'user' | 'admin';
     inquiryType?: 'product' | 'payment_cancellation';
@@ -53,105 +53,137 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
   React.useEffect(() => {
     if (chatMessages.length === 0) {
       const sampleMessages: ChatMessage[] = [
+        // user1@example.com의 문의
         {
           id: '1',
-          user: 'kim.cheolsu@gmail.com',
-          message: '유튜브 구독자 수가 제대로 증가하지 않는 것 같아요. 확인해주세요.',
+          user: 'user1@example.com',
+          message: '유튜브 구독자 증가 서비스에 대해 문의드립니다.',
           timestamp: '2025-01-15 14:30',
-          type: 'user',
-          status: 'pending',
-          inquiryType: 'product',
-          productInfo: '유튜브 마케팅 - 구독자 증가'
+          type: 'user'
         },
         {
           id: '2',
-          user: 'lee.younghee@naver.com',
-          message: '결제가 완료되었는데 서비스가 시작되지 않았어요.',
-          timestamp: '2025-01-15 15:20',
-          type: 'user',
-          status: 'pending',
-          inquiryType: 'product',
-          productInfo: '인스타그램 팔로워 증가'
+          user: '관리자',
+          message: '안녕하세요. 유튜브 구독자 증가 서비스에 대해 어떤 점이 궁금하신가요?',
+          timestamp: '2025-01-15 14:35',
+          type: 'admin'
         },
         {
           id: '3',
-          user: 'park.minsu@daum.net',
-          message: '서비스 이용 중 문제가 발생했습니다. 도움이 필요해요.',
-          timestamp: '2025-01-15 16:10',
-          type: 'user',
-          status: 'answered',
-          inquiryType: 'product',
-          productInfo: '틱톡 뷰 증가'
+          user: 'user1@example.com',
+          message: '구독자 수가 제대로 증가하지 않는 것 같아요. 확인해주세요.',
+          timestamp: '2025-01-15 14:40',
+          type: 'user'
         },
+        
+        // user2@example.com의 문의
         {
           id: '4',
-          user: '관리자',
-          message: '안녕하세요. 문제를 확인해보겠습니다. 잠시만 기다려주세요.',
-          timestamp: '2025-01-15 16:15',
-          type: 'admin',
-          status: 'answered',
-          inquiryType: 'product',
-          productInfo: '틱톡 뷰 증가'
+          user: 'user2@example.com',
+          message: '인스타그램 팔로워 증가 서비스 이용 중 문제가 발생했습니다.',
+          timestamp: '2025-01-15 15:20',
+          type: 'user'
         },
+        
+        // user3@example.com의 문의
         {
           id: '5',
-          user: 'choi.junghee@gmail.com',
-          message: '결제취소 요청드립니다. 실수로 중복 결제가 되었어요.',
-          timestamp: '2025-01-15 17:00',
-          type: 'user',
-          status: 'pending',
-          inquiryType: 'payment_cancellation',
-          paymentInfo: {
-            paymentNumber: 'PAY-20250728143916',
-            productName: '인스타그램 관리해드려요',
-            amount: '40,000원',
-            paymentDate: '2025년 07월 28일 05시 39분'
-          }
+          user: 'user3@example.com',
+          message: '틱톡 뷰 증가 서비스에 대해 문의드립니다.',
+          timestamp: '2025-01-15 16:10',
+          type: 'user'
         },
         {
           id: '6',
           user: '관리자',
-          message: '결제취소 요청을 확인했습니다. 취소사유를 입력해주시면 처리해드리겠습니다.',
-          timestamp: '2025-01-15 17:05',
-          type: 'admin',
-          status: 'pending',
-          inquiryType: 'payment_cancellation',
-          paymentInfo: {
-            paymentNumber: 'PAY-20250728143916',
-            productName: '인스타그램 관리해드려요',
-            amount: '40,000원',
-            paymentDate: '2025년 07월 28일 05시 39분'
-          }
+          message: '안녕하세요. 틱톡 뷰 증가 서비스에 대해 어떤 점이 궁금하신가요?',
+          timestamp: '2025-01-15 16:15',
+          type: 'admin'
         },
+        
+        // user4@example.com의 결제취소 문의
         {
           id: '7',
-          user: 'budlpili@gmail.com',
-          message: '유튜브 마케팅 서비스에 대해 문의드립니다.',
+          user: 'user4@example.com',
+          message: '결제취소 요청드립니다. 실수로 중복 결제가 되었어요.',
+          timestamp: '2025-01-15 17:00',
+          type: 'user'
+        },
+        {
+          id: '8',
+          user: '관리자',
+          message: '결제취소 요청을 확인했습니다. 취소사유를 입력해주시면 처리해드리겠습니다.',
+          timestamp: '2025-01-15 17:05',
+          type: 'admin'
+        },
+        
+        // user5@example.com의 문의
+        {
+          id: '9',
+          user: 'user5@example.com',
+          message: '페이스북 팔로워 증가 서비스에 대해 문의드립니다.',
           timestamp: '2025-07-30 08:56',
-          type: 'user',
-          status: 'pending',
-          inquiryType: 'product',
-          productInfo: '유튜브 마케팅'
+          type: 'user'
+        },
+        {
+          id: '10',
+          user: '관리자',
+          message: '안녕하세요. 페이스북 팔로워 증가 서비스에 대해 어떤 점이 궁금하신가요?',
+          timestamp: '2025-07-30 09:00',
+          type: 'admin'
+        },
+        {
+          id: '11',
+          user: 'user5@example.com',
+          message: '팔로워 증가 속도와 안전성에 대해 알고 싶어요.',
+          timestamp: '2025-07-30 09:05',
+          type: 'user'
         }
       ];
       onChatMessagesChange(sampleMessages);
     }
   }, [chatMessages.length, onChatMessagesChange]);
 
-  // 필터링된 메시지 계산
-  const filteredMessages = chatMessages.filter(message => {
-    const matchesStatus = statusFilter === 'all' || message.status === statusFilter;
+  // 사용자별 메시지 그룹화
+  const userMessages = chatMessages.reduce((acc, message) => {
+    if (message.user !== '관리자') {
+      if (!acc[message.user]) {
+        acc[message.user] = [];
+      }
+      acc[message.user].push(message);
+    }
+    return acc;
+  }, {} as Record<string, ChatMessage[]>);
+
+  // 각 사용자의 최신 메시지로 대표 메시지 생성
+  const representativeMessages = Object.entries(userMessages).map(([user, messages]) => {
+    const latestMessage = messages.sort((a, b) => 
+      new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    )[0];
+    
+    return {
+      ...latestMessage,
+      user,
+      // 해당 사용자의 모든 메시지 개수
+      messageCount: messages.length,
+      // 해당 사용자의 관리자 응답 개수
+      adminResponseCount: messages.filter(msg => msg.type === 'admin').length
+    };
+  });
+
+  // 필터링된 대표 메시지 계산
+  const filteredMessages = representativeMessages.filter(message => {
     const matchesSearch = searchTerm === '' || 
       message.user.toLowerCase().includes(searchTerm.toLowerCase()) ||
       message.message.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesStatus && matchesSearch;
+    return matchesSearch;
   });
 
   // 통계 계산
-  const totalUserCount = Array.from(new Set(chatMessages.map(msg => msg.user))).filter(user => user !== '관리자').length;
-  const pendingCount = chatMessages.filter(msg => msg.status === 'pending' && msg.user !== '관리자').length;
-  const inProgressCount = chatMessages.filter(msg => msg.status === 'answered' && msg.user !== '관리자').length;
-  const completedCount = chatMessages.filter(msg => msg.status === 'closed' && msg.user !== '관리자').length;
+  const totalUserCount = Object.keys(userMessages).length;
+  const pendingCount = representativeMessages.filter(msg => msg.adminResponseCount === 0).length;
+  const inProgressCount = representativeMessages.filter(msg => msg.adminResponseCount > 0).length;
+  const completedCount = 0; // 현재는 완료 상태를 추적하지 않음
 
   // 채팅 컨테이너 자동 스크롤
   useEffect(() => {
@@ -250,14 +282,16 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
     setMessageInput('');
 
     // WebSocket을 통해 메시지 전송
-    sendMessage({
-      message: messageToSend,
-      type: 'admin',
-      inquiryType: selectedMessage.inquiryType,
-      productInfo: selectedMessage.productInfo,
-      paymentInfo: selectedMessage.paymentInfo,
-      targetUserEmail: selectedMessage.user // 선택된 사용자의 이메일 추가
-    });
+    if (sendMessage) {
+      sendMessage({
+        message: messageToSend,
+        type: 'admin',
+        inquiryType: selectedMessage.inquiryType,
+        productInfo: selectedMessage.productInfo,
+        paymentInfo: selectedMessage.paymentInfo,
+        targetUserEmail: selectedMessage.user // 선택된 사용자의 이메일 추가
+      });
+    }
 
     // 전송 상태 리셋
     setTimeout(() => {
@@ -302,34 +336,16 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
   // 날짜 형식 통일 함수 (KST로 변환)
   const formatTimestamp = (timestamp: string) => {
     try {
-      // 현재 시간과 비교하여 1분 이내 차이면 현재 시간 반환
-      const now = new Date();
-      const inputDate = new Date(timestamp);
+      // 백엔드에서 KST로 저장된 시간을 올바르게 파싱
+      const date = new Date(timestamp + ':00');
       
-      if (!isNaN(inputDate.getTime())) {
-        const timeDiff = Math.abs(now.getTime() - inputDate.getTime());
-        if (timeDiff < 60000) { // 1분 이내
-          return now.toLocaleString('ko-KR', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: false
-          }).replace(/\. /g, '-').replace('.', '').replace(' ', ' ');
-        }
-      }
-      
-      // 기존 timestamp가 이미 YYYY-MM-DD HH:MM 형식인 경우
-      if (timestamp.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/)) {
-        return timestamp;
-      }
-      
-      // ISO 문자열을 KST로 변환
-      const date = new Date(timestamp);
       if (!isNaN(date.getTime())) {
-        const kstDate = new Date(date.getTime() + 9 * 60 * 60 * 1000);
-        return kstDate.toISOString().slice(0, 16).replace('T', ' ');
+        // 24시간 형식으로 시간만 표시 (HH:MM)
+        return date.toLocaleTimeString('ko-KR', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false
+        });
       }
       
       return timestamp;
@@ -531,11 +547,11 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
               
               {/* 실제 채팅 메시지 */}
               <div className="space-y-4">
-                {filteredMessages
-                  .filter(msg =>
-                    msg.user === selectedMessage.user ||
-                    (msg.user === '관리자' && msg.productInfo === selectedMessage.productInfo)
-                  )
+                {chatMessages
+                  .filter(msg => {
+                    // 선택된 사용자의 메시지이거나, 관리자 메시지
+                    return msg.user === selectedMessage.user || msg.user === '관리자';
+                  })
                   .sort((a, b) => {
                     // timestamp가 YYYY-MM-DD HH:MM 형식인 경우와 ISO 형식인 경우를 모두 처리
                     const dateA = new Date(a.timestamp.replace(' ', 'T'));
@@ -548,7 +564,7 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                       if (idx === 0) {
                         // 첫 번째 메시지인 경우 해당 날짜 표시
                         return (
-                          <div key={`date-${message.id}`} className="flex justify-center mb-4">
+                          <div key={`date-${message.id}-${idx}`} className="flex justify-center mb-4">
                             <div className="bg-gray-200 text-gray-600 px-3 py-1 rounded-full text-xs font-medium">
                               {formatDate(message.timestamp)}
                             </div>
@@ -562,7 +578,7 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                       
                       if (prevMsgDate && !isSameDate(currentMsgDate, prevMsgDate)) {
                         return (
-                          <div key={`date-${message.id}`} className="flex justify-center mb-4">
+                          <div key={`date-${message.id}-${idx}`} className="flex justify-center mb-4">
                             <div className="bg-gray-200 text-gray-600 px-3 py-1 rounded-full text-xs font-medium">
                               {formatDate(currentMsgDate)}
                             </div>
@@ -576,7 +592,7 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                     const dateDivider = showDateDivider();
 
                     return (
-                      <React.Fragment key={message.id}>
+                      <React.Fragment key={`${message.id}-${idx}`}>
                         {dateDivider}
                         <div className={`flex ${message.type === 'admin' ? 'justify-end' : 'justify-start'}`}>
                           <div className={`max-w-[70%] ${message.type === 'admin' ? 'order-2' : 'order-1'}`}>

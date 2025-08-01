@@ -114,26 +114,17 @@ const Admin: React.FC = () => {
   } = useWebSocket({
     isAdmin: true,
     onNewMessage: (message) => {
-      console.log('새 메시지 수신:', message);
-      // InquiryManagement에서 처리하도록 하지 않고 여기서만 처리
+      // 새로운 메시지가 도착하면 chatMessages에 추가
       setChatMessages(prev => {
-        const isDuplicate = prev.some(msg => 
-          msg.id === message.id || 
-          (msg.message === message.message && 
-           msg.user === message.user && 
-           Math.abs(new Date(msg.timestamp).getTime() - new Date(message.timestamp).getTime()) < 5000)
-        );
-        
+        const isDuplicate = prev.some(msg => msg.id === message.id);
         if (isDuplicate) {
-          console.log('중복 메시지 감지, 추가하지 않음:', message);
           return prev;
         }
-        
         return [...prev, message];
       });
     },
     onStatusUpdate: (data) => {
-      console.log('상태 업데이트:', data);
+      // 메시지 상태 업데이트
       setChatMessages(prev => 
         prev.map(msg => 
           msg.user === data.userEmail 
@@ -143,6 +134,14 @@ const Admin: React.FC = () => {
       );
     }
   });
+
+  // wsMessages를 chatMessages와 동기화
+  useEffect(() => {
+    if (wsMessages && wsMessages.length > 0) {
+      setChatMessages(wsMessages);
+      localStorage.setItem('chatMessages', JSON.stringify(wsMessages));
+    }
+  }, [wsMessages]);
 
   // chatMessages 상태를 localStorage에 저장하는 함수
   const updateChatMessages = (newMessages: ChatMessage[]) => {
@@ -225,20 +224,6 @@ const Admin: React.FC = () => {
       try {
         setIsLoading(true);
         
-        // URL 파라미터에서 탭 설정
-        const params = new URLSearchParams(location.search);
-        const tabParam = params.get('tab');
-        if (tabParam && ['dashboard', 'products', 'orders', 'reviews', 'customerService', 'inquiries', 'users'].includes(tabParam)) {
-          setActiveTab(tabParam as any);
-        }
-        
-        // location.state에서 새로운 주문 정보 확인
-        if (location.state?.newOrder) {
-          console.log('새로운 주문이 감지되었습니다:', location.state.newOrder);
-          // 새로운 주문이 있으면 주문 탭으로 이동
-          setActiveTab('orders');
-        }
-        
         // 자동 관리자 로그인
         const token = localStorage.getItem('authToken');
         if (!token) {
@@ -267,6 +252,23 @@ const Admin: React.FC = () => {
     };
 
     initializeData();
+  }, []); // 컴포넌트 마운트 시에만 실행
+
+  // URL 파라미터와 location.state 변경 처리
+  useEffect(() => {
+    // URL 파라미터에서 탭 설정
+    const params = new URLSearchParams(location.search);
+    const tabParam = params.get('tab');
+    if (tabParam && ['dashboard', 'products', 'orders', 'reviews', 'customerService', 'inquiries', 'users'].includes(tabParam)) {
+      setActiveTab(tabParam as any);
+    }
+    
+    // location.state에서 새로운 주문 정보 확인
+    if (location.state?.newOrder) {
+      console.log('새로운 주문이 감지되었습니다:', location.state.newOrder);
+      // 새로운 주문이 있으면 주문 탭으로 이동
+      setActiveTab('orders');
+    }
   }, [location.search, location.state]);
 
   const loadProducts = async () => {
@@ -344,7 +346,7 @@ const Admin: React.FC = () => {
       if (response.ok) {
         const data = await response.json();
         setOrders(data.orders);
-        console.log('백엔드에서 주문 데이터 로드 완료:', data.orders);
+        // console.log('백엔드에서 주문 데이터 로드 완료:', data.orders);
       } else {
         console.error('주문 데이터 로드 실패:', response.status);
         setOrders([]);
@@ -470,7 +472,7 @@ const Admin: React.FC = () => {
       if (response.ok) {
         const data = await response.json();
         setUsers(data.users);
-        console.log('백엔드에서 회원 데이터 로드 완료:', data.users);
+        // console.log('백엔드에서 회원 데이터 로드 완료:', data.users);
       } else {
         console.error('회원 데이터 로드 실패:', response.status);
         setUsers([]);

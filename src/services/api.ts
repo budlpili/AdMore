@@ -23,19 +23,19 @@ const apiRequest = async <T = any>(endpoint: string, options: RequestInit = {}):
     };
   }
 
-  console.log('=== API 요청 시작 ===');
-  console.log('URL:', url);
-  console.log('Method:', config.method || 'GET');
-  console.log('Headers:', config.headers);
-  console.log('Body:', config.body);
+  // console.log('=== API 요청 시작 ===');
+  // console.log('URL:', url);
+  // console.log('Method:', config.method || 'GET');
+  // console.log('Headers:', config.headers);
+  // console.log('Body:', config.body);
 
   try {
     const response = await fetch(url, config);
     
-    console.log('=== API 응답 ===');
-    console.log('Status:', response.status);
-    console.log('Status Text:', response.statusText);
-    console.log('Headers:', response.headers);
+    // console.log('=== API 응답 ===');
+    // console.log('Status:', response.status);
+    // console.log('Status Text:', response.statusText);
+    // console.log('Headers:', response.headers);
     
     if (!response.ok) {
       // HTTP 에러 응답을 파싱하여 에러 객체 생성
@@ -55,7 +55,7 @@ const apiRequest = async <T = any>(endpoint: string, options: RequestInit = {}):
     }
     
     const responseData = await response.json();
-    console.log('Success Response:', responseData);
+    // console.log('Success Response:', responseData);
     return responseData;
   } catch (error) {
     console.error('API 요청 오류:', error);
@@ -81,14 +81,14 @@ export const authAPI = {
     });
   },
 
-  // 회원가입 (새로운 users API 사용)
+  // 회원가입
   register: async (userData: {
     email: string;
     password: string;
     name: string;
     phone?: string;
   }) => {
-    return apiRequest('/users/register', {
+    return apiRequest('/auth/register', {
       method: 'POST',
       body: JSON.stringify(userData),
     });
