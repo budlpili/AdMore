@@ -49,15 +49,15 @@ const getSlidesToShow = () => {
   if (width < 480) {
     slides = 1.2; // 모바일 - 다음 카드 20% 보임
   } else if (width < 640) {
-    slides = 1.3; // 작은 모바일 - 다음 카드 30% 보임
+    slides = 1.4; // 작은 모바일 - 다음 카드 30% 보임
   } else if (width < 768) {
-    slides = 2.2; // 태블릿 - 다음 카드 20% 보임
+    slides = 2.4; // 태블릿 - 다음 카드 20% 보임
   } else if (width < 1024) {
-    slides = 3.2; // 작은 데스크톱 - 다음 카드 20% 보임
+    slides = 2.4; // 작은 데스크톱 - 다음 카드 20% 보임
   } else if (width < 1280) {
-    slides = 4.2; // 데스크톱 - 다음 카드 20% 보임
+    slides = 3.4; // 데스크톱 - 다음 카드 20% 보임
   } else {
-    slides = 4.2; // 큰 데스크톱 - 다음 카드 20% 보임
+    slides = 3.4; // 큰 데스크톱 - 다음 카드 20% 보임
   }
   
   console.log(`화면 너비: ${width}px, slidesToShow: ${slides}`);
@@ -134,7 +134,7 @@ const Home: React.FC = () => {
         const newSlidesToShow = getSlidesToShow();
         setSlidesToShow(newSlidesToShow);
         // 슬라이드 인덱스가 새로운 slidesToShow를 초과하지 않도록 조정
-        const newMaxIndex = Math.max(0, Math.floor(topProducts.length - newSlidesToShow));
+        const newMaxIndex = Math.max(0, topProducts.length - Math.floor(newSlidesToShow));
         if (slideIndex > newMaxIndex) {
           setSlideIndex(newMaxIndex);
         }
@@ -153,7 +153,8 @@ const Home: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, [topProducts.length, slideIndex]);
 
-  const maxIndex = Math.max(0, Math.floor(topProducts.length - slidesToShow));
+  // 마지막 카드가 완전히 보이도록 maxIndex 계산 수정
+  const maxIndex = Math.max(0, topProducts.length - Math.floor(slidesToShow));
   const handlePrev = () => setSlideIndex(idx => Math.max(0, idx - 1));
   const handleNext = () => setSlideIndex(idx => Math.min(maxIndex, idx + 1));
 
@@ -170,7 +171,16 @@ const Home: React.FC = () => {
   const gapPx = 16; // gap-x-4
   const totalGap = gapPx * (Math.floor(slidesToShow) - 1);
   const cardWidthPx = slidesToShow > 0 ? (containerWidth - totalGap) / slidesToShow : 0;
-  const moveX = slideIndex * (cardWidthPx + gapPx);
+  
+  // 마지막 카드가 완전히 보이도록 moveX 계산 수정
+  let moveX = slideIndex * (cardWidthPx + gapPx);
+  
+  // 마지막 슬라이드에서는 전체 콘텐츠가 보이도록 조정
+  if (slideIndex === maxIndex && maxIndex > 0) {
+    const totalContentWidth = topProducts.length * cardWidthPx + (topProducts.length - 1) * gapPx;
+    const maxMoveX = Math.max(0, totalContentWidth - containerWidth + 64); // 64px 여유 공간
+    moveX = maxMoveX;
+  }
 
   if (loading) {
     return (
@@ -222,7 +232,7 @@ const Home: React.FC = () => {
           <div className="overflow-hidden pb-4">
             <div
               ref={trackRef}
-              className="flex transition-transform duration-500 gap-x-2 sm:gap-x-4"
+              className="flex transition-transform duration-500 gap-x-2 sm:gap-x-4 pr-8 sm:pr-16"
               style={{ transform: `translateX(-${moveX}px)` }}
             >
               {topProducts.map((product, idx) => (
@@ -249,7 +259,7 @@ const Home: React.FC = () => {
           </button>
           
           {/* 모바일용 스와이프 안내 */}
-          <div className="sm:hidden text-center mt-4">
+          <div className="sm:hidden text-center mt-1">
             <p className="text-sm text-gray-500">← 좌우로 스와이프하여 더 많은 상품을 확인하세요</p>
           </div>
         </div>
