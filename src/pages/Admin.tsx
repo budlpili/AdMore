@@ -423,34 +423,7 @@ const Admin: React.FC = () => {
   const currentReviews = sortedReviews.slice(indexOfFirstReview, indexOfLastReview);
   const totalPages = Math.ceil(sortedReviews.length / reviewsPerPage);
 
-  // 페이지 번호 계산
-  const getPageNumbers = (current: number, total: number) => {
-    const delta = 2;
-    const range = [];
-    const rangeWithDots = [];
 
-    for (let i = Math.max(2, current - delta); i <= Math.min(total - 1, current + delta); i++) {
-      range.push(i);
-    }
-
-    if (current - delta > 2) {
-      rangeWithDots.push(1, '...');
-    } else {
-      rangeWithDots.push(1);
-    }
-
-    rangeWithDots.push(...range);
-
-    if (current + delta < total - 1) {
-      rangeWithDots.push('...', total);
-    } else {
-      rangeWithDots.push(total);
-    }
-
-    return rangeWithDots;
-  };
-
-  const pageNumbers = getPageNumbers(currentPage, totalPages);
 
   // 정렬 함수들
   const handleRatingSort = () => {
@@ -463,10 +436,7 @@ const Admin: React.FC = () => {
     setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
   };
 
-  // 페이지 변경
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
+
 
   const loadUsers = async () => {
     try {
@@ -2850,41 +2820,16 @@ const Admin: React.FC = () => {
                   </div>
                   
                   {/* 페이지네이션 */}
-                  <div className="bg-white px-4 py-3 mb-4 flex items-center justify-between border-t border-gray-200 sm:px-6">
-                    <div className="flex-1 flex items-center justify-between w-full">
-                      <div className="text-xs text-gray-500">
-                        총 {filteredUsers.length}개 중 {filteredUsers.length === 0 ? 0 : indexOfFirstUser + 1}-{Math.min(indexOfLastUser, filteredUsers.length)}개 표시
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <button
-                          onClick={() => setCurrentUserPage(currentUserPage - 1)}
-                          disabled={currentUserPage === 1}
-                          className={`px-2 py-1 rounded border text-xs font-medium transition-colors ${currentUserPage === 1 ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}
-                        >
-                          이전
-                        </button>
-                        {Array.from({ length: Math.min(10, totalUserPages) }, (_, i) => i + 1).map((page) => (
-                          <button
-                            key={page}
-                            onClick={() => setCurrentUserPage(page)}
-                            className={`px-3 py-1 rounded border text-xs font-medium transition-colors ${
-                              currentUserPage === page 
-                                ? 'bg-orange-500 text-white border-orange-500' 
-                                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                            }`}
-                          >
-                            {page}
-                          </button>
-                        ))}
-                        <button
-                          onClick={() => setCurrentUserPage(currentUserPage + 1)}
-                          disabled={currentUserPage === totalUserPages || totalUserPages === 0}
-                          className={`px-2 py-1 rounded border text-xs font-medium transition-colors ${(currentUserPage === totalUserPages || totalUserPages === 0) ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}
-                        >
-                          다음
-                        </button>
-                      </div>
-                    </div>
+                  <div className="mt-6">
+                    <Pagination
+                      currentPage={currentUserPage}
+                      totalPages={totalUserPages}
+                      onPageChange={setCurrentUserPage}
+                      totalItems={filteredUsers.length}
+                      itemsPerPage={usersPerPage}
+                      className="justify-between"
+                      showInfo={true}
+                    />
                   </div>
                 </div>
               </div>
