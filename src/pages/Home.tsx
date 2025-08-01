@@ -177,7 +177,7 @@ const Home: React.FC = () => {
         <h2 className="text-2xl font-bold text-gray-900 mb-6 pt-4">인기 상품</h2>
         <div className="relative">
           <button
-            className="absolute -left-4 top-1/2 -translate-y-1/2 z-10 bg-white/10 border rounded-full w-12 h-12 flex items-center justify-center shadow hover:bg-gray-100"
+            className="absolute -left-4 top-1/2 -translate-y-1/2 z-10 bg-white/70 border rounded-full w-12 h-12 flex items-center justify-center shadow hover:bg-gray-100"
             onClick={handlePrev}
             disabled={slideIndex === 0}
             aria-label="이전"

@@ -311,7 +311,35 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
   const loadUserInfo = async () => {
     try {
       const token = localStorage.getItem('token');
-      if (!token) return;
+      const userEmail = localStorage.getItem('userEmail');
+      
+      if (!token) {
+        console.log('토큰이 없습니다.');
+        return;
+      }
+
+      if (!userEmail) {
+        console.log('사용자 이메일이 없습니다.');
+        return;
+      }
+
+      console.log('토큰 확인:', token.substring(0, 20) + '...');
+      console.log('사용자 이메일:', userEmail);
+      
+      // 토큰 디코딩 시도 (클라이언트 사이드에서)
+      try {
+        const tokenParts = token.split('.');
+        if (tokenParts.length === 3) {
+          const payload = JSON.parse(atob(tokenParts[1]));
+          console.log('토큰 페이로드:', payload);
+          const expDate = new Date(payload.exp * 1000);
+          console.log('토큰 만료 시간:', expDate);
+          console.log('현재 시간:', new Date());
+          console.log('토큰 만료 여부:', new Date() > expDate);
+        }
+      } catch (e) {
+        console.log('토큰 디코딩 실패:', e);
+      }
 
       const response = await fetch('http://localhost:5001/api/auth/profile', {
         headers: {
@@ -322,8 +350,22 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
 
       if (response.ok) {
         const userData = await response.json();
+        console.log('사용자 정보 로드 성공:', userData);
         setUserName(userData.name || '');
         setNewName(userData.name || '');
+      } else if (response.status === 401) {
+        console.error('토큰이 만료되었거나 유효하지 않습니다.');
+        // 토큰이 만료된 경우 로그아웃 처리
+        localStorage.removeItem('token');
+        localStorage.removeItem('isLoggedIn');
+        localStorage.removeItem('userEmail');
+        localStorage.removeItem('userRole');
+        alert('로그인이 만료되었습니다. 다시 로그인해주세요.');
+        navigate('/login');
+      } else {
+        console.error('사용자 정보 로드 실패:', response.status, response.statusText);
+        const errorData = await response.json().catch(() => ({}));
+        console.error('에러 상세:', errorData);
       }
     } catch (error) {
       console.error('사용자 정보 로드 실패:', error);
@@ -431,6 +473,8 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
         return;
       }
 
+      console.log('이름 변경 토큰 확인:', token.substring(0, 20) + '...');
+
       const response = await fetch('http://localhost:5001/api/auth/profile', {
         method: 'PUT',
         headers: {
@@ -444,7 +488,26 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
         setUserName(newName.trim());
         setIsEditingName(false);
         setNameError('');
+        
+        // 관리자페이지에 사용자 정보 변경 알림
+        window.dispatchEvent(new CustomEvent('userInfoChanged', {
+          detail: {
+            type: 'name',
+            newName: newName.trim(),
+            userEmail: localStorage.getItem('userEmail')
+          }
+        }));
+        
         alert('이름이 변경되었습니다.');
+      } else if (response.status === 401) {
+        console.error('토큰이 만료되었거나 유효하지 않습니다.');
+        // 토큰이 만료된 경우 로그아웃 처리
+        localStorage.removeItem('token');
+        localStorage.removeItem('isLoggedIn');
+        localStorage.removeItem('userEmail');
+        localStorage.removeItem('userRole');
+        alert('로그인이 만료되었습니다. 다시 로그인해주세요.');
+        navigate('/login');
       } else {
         const errorData = await response.json();
         setNameError(errorData.message || '이름 변경에 실패했습니다.');
@@ -2551,14 +2614,13 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                         </>
                       ) : (
                         <>
-                          <div className="flex items-center justify-between p-4 bg-gray-50 rounded border">
-                            <div>
-                              <p className="text-sm text-gray-600 mb-1">현재 이름</p>
-                              <p className="font-semibold text-gray-900">{userName || '이름 없음'}</p>
+                          <div className="flex items-center justify-between">
+                            <div className="bg-gray-50 rounded border w-full">
+                              <p className="text-sm font-semibold text-gray-900 px-4 py-2">{userName || '이름 없음'}</p>
                             </div>
                             <button
                               onClick={handleStartEditName}
-                              className="px-4 py-2 text-sm text-orange-600 border border-orange-600 rounded hover:bg-orange-50 transition"
+                              className="ml-2 w-1/4 px-4 py-2 text-sm text-orange-600 border border-orange-600 rounded hover:bg-orange-50 transition"
                             >
                               변경
                             </button>

@@ -258,6 +258,36 @@ const Admin: React.FC = () => {
     initializeData();
   }, []); // 컴포넌트 마운트 시에만 실행
 
+  // 사용자 정보 변경 이벤트 리스너
+  useEffect(() => {
+    const handleUserInfoChanged = (event: CustomEvent) => {
+      const { type, newName, userEmail } = event.detail;
+      
+      if (type === 'name' && userEmail) {
+        // 사용자 목록에서 해당 사용자의 이름 업데이트
+        setUsers(prevUsers => 
+          prevUsers.map(user => 
+            user.email === userEmail 
+              ? { ...user, name: newName }
+              : user
+          )
+        );
+        
+        // 필터링된 사용자 목록은 users 상태가 업데이트되면 자동으로 재계산됨
+        
+        console.log(`사용자 ${userEmail}의 이름이 ${newName}으로 변경되었습니다.`);
+      }
+    };
+
+    // 이벤트 리스너 등록
+    window.addEventListener('userInfoChanged', handleUserInfoChanged as EventListener);
+    
+    // 컴포넌트 언마운트 시 이벤트 리스너 제거
+    return () => {
+      window.removeEventListener('userInfoChanged', handleUserInfoChanged as EventListener);
+    };
+  }, []);
+
   // URL 파라미터와 location.state 변경 처리
   useEffect(() => {
     // URL 파라미터에서 탭 설정
