@@ -69,4 +69,82 @@ router.get('/', (req, res) => {
   });
 });
 
+// 특정 회원 조회
+router.get('/:id', (req, res) => {
+  const { id } = req.params;
+  
+  db.get('SELECT id, name, email, phone, joinDate, status, role FROM users WHERE id = ?', [id], (err, user) => {
+    if (err) {
+      return res.status(500).json({ message: '회원 조회 중 오류가 발생했습니다.' });
+    }
+    
+    if (!user) {
+      return res.status(404).json({ message: '회원을 찾을 수 없습니다.' });
+    }
+    
+    res.json({ user });
+  });
+});
+
+// 회원 상태 변경
+router.put('/:id/status', (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+  
+  if (!status || !['active', 'inactive', 'suspended'].includes(status)) {
+    return res.status(400).json({ message: '유효하지 않은 상태값입니다.' });
+  }
+  
+  db.run('UPDATE users SET status = ? WHERE id = ?', [status, id], function(err) {
+    if (err) {
+      return res.status(500).json({ message: '회원 상태 변경 중 오류가 발생했습니다.' });
+    }
+    
+    if (this.changes === 0) {
+      return res.status(404).json({ message: '회원을 찾을 수 없습니다.' });
+    }
+    
+    res.json({ message: '회원 상태가 성공적으로 변경되었습니다.' });
+  });
+});
+
+// 회원 역할 변경
+router.put('/:id/role', (req, res) => {
+  const { id } = req.params;
+  const { role } = req.body;
+  
+  if (!role || !['admin', 'user'].includes(role)) {
+    return res.status(400).json({ message: '유효하지 않은 역할값입니다.' });
+  }
+  
+  db.run('UPDATE users SET role = ? WHERE id = ?', [role, id], function(err) {
+    if (err) {
+      return res.status(500).json({ message: '회원 역할 변경 중 오류가 발생했습니다.' });
+    }
+    
+    if (this.changes === 0) {
+      return res.status(404).json({ message: '회원을 찾을 수 없습니다.' });
+    }
+    
+    res.json({ message: '회원 역할이 성공적으로 변경되었습니다.' });
+  });
+});
+
+// 회원 삭제
+router.delete('/:id', (req, res) => {
+  const { id } = req.params;
+  
+  db.run('DELETE FROM users WHERE id = ?', [id], function(err) {
+    if (err) {
+      return res.status(500).json({ message: '회원 삭제 중 오류가 발생했습니다.' });
+    }
+    
+    if (this.changes === 0) {
+      return res.status(404).json({ message: '회원을 찾을 수 없습니다.' });
+    }
+    
+    res.json({ message: '회원이 성공적으로 삭제되었습니다.' });
+  });
+});
+
 module.exports = router; 
