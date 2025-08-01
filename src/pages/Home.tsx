@@ -43,9 +43,25 @@ const removeFavorite = (productId: number) => {
 };
 
 const getSlidesToShow = () => {
-  if (window.innerWidth < 640) return 1;
-  if (window.innerWidth < 1024) return 2;
-  return 4;
+  const width = window.innerWidth;
+  let slides;
+  
+  if (width < 480) {
+    slides = 1; // 모바일
+  } else if (width < 640) {
+    slides = 1; // 작은 모바일
+  } else if (width < 768) {
+    slides = 2; // 태블릿
+  } else if (width < 1024) {
+    slides = 3; // 작은 데스크톱
+  } else if (width < 1280) {
+    slides = 4; // 데스크톱
+  } else {
+    slides = 4; // 큰 데스크톱 (5개 대신 4개로 제한)
+  }
+  
+  console.log(`화면 너비: ${width}px, slidesToShow: ${slides}`);
+  return slides;
 };
 
 const Home: React.FC = () => {
@@ -89,6 +105,8 @@ const Home: React.FC = () => {
     loadProducts();
     const savedFavorites = getFavorites();
     setFavorites(savedFavorites);
+    // 초기 slidesToShow 설정
+    setSlidesToShow(getSlidesToShow());
   }, []);
 
   // 상담창 열기 처리
@@ -110,15 +128,30 @@ const Home: React.FC = () => {
 
   // 슬라이드 관련
   useLayoutEffect(() => {
-    if (trackRef.current) {
-      setContainerWidth(trackRef.current.offsetWidth);
-    }
-    const handleResize = () => {
-      if (trackRef.current) setContainerWidth(trackRef.current.offsetWidth);
+    const updateLayout = () => {
+      if (trackRef.current) {
+        setContainerWidth(trackRef.current.offsetWidth);
+        const newSlidesToShow = getSlidesToShow();
+        setSlidesToShow(newSlidesToShow);
+        // 슬라이드 인덱스가 새로운 slidesToShow를 초과하지 않도록 조정
+        const newMaxIndex = Math.max(0, topProducts.length - newSlidesToShow);
+        if (slideIndex > newMaxIndex) {
+          setSlideIndex(newMaxIndex);
+        }
+      }
     };
+
+    // 초기 설정
+    updateLayout();
+
+    // 리사이즈 이벤트 리스너
+    const handleResize = () => {
+      updateLayout();
+    };
+
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [slidesToShow]);
+  }, [topProducts.length, slideIndex]);
 
   const maxIndex = Math.max(0, topProducts.length - slidesToShow);
   const handlePrev = () => setSlideIndex(idx => Math.max(0, idx - 1));
@@ -155,17 +188,17 @@ const Home: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
       {/* Hero Section */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white py-20">
+      <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white py-12 sm:py-16 lg:py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-4xl md:text-6xl font-bold mb-6">
-            소셜미디어 마케팅의 새로운 기준
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold mb-4 sm:mb-6 leading-tight">
+            소셜미디어 마케팅의<br className="sm:hidden" /> 새로운 기준
           </h1>
-          <p className="text-xl md:text-2xl mb-8 text-blue-100">
+          <p className="text-lg sm:text-xl md:text-2xl mb-6 sm:mb-8 text-blue-100 px-4">
             애드모어와 함께 당신의 소셜미디어를 성장시키세요
           </p>
           <Link
             to="/products"
-            className="bg-white text-blue-600 px-8 py-3 rounded-lg text-lg font-semibold hover:bg-gray-100 transition duration-300"
+            className="inline-block bg-white text-blue-600 px-6 sm:px-8 py-3 sm:py-4 rounded-lg text-base sm:text-lg font-semibold hover:bg-gray-100 transition duration-300 shadow-lg hover:shadow-xl"
           >
             상품 보기
           </Link>
@@ -173,21 +206,23 @@ const Home: React.FC = () => {
       </div>
 
       {/* Popular Products Section - 슬라이드 */}
-      <div className="max-w-5xl mx-auto px-4 py-12">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6 pt-4">인기 상품</h2>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+        <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-4 sm:mb-6 pt-4 text-center sm:text-left">인기 상품</h2>
         <div className="relative">
+          {/* 이전 버튼 - 모바일에서는 숨김, 태블릿 이상에서만 표시 */}
           <button
-            className="absolute -left-4 top-1/2 -translate-y-1/2 z-10 bg-white/70 border rounded-full w-12 h-12 flex items-center justify-center shadow hover:bg-gray-100"
+            className="hidden sm:flex absolute -left-2 sm:-left-4 top-1/2 -translate-y-1/2 z-10 bg-white/80 border rounded-full w-8 h-8 sm:w-12 sm:h-12 flex items-center justify-center shadow-lg hover:bg-gray-100 transition-colors"
             onClick={handlePrev}
             disabled={slideIndex === 0}
             aria-label="이전"
           >
-            <FontAwesomeIcon icon={faChevronLeft} className="text-2xl text-gray-500" />
+            <FontAwesomeIcon icon={faChevronLeft} className="text-lg sm:text-2xl text-gray-500" />
           </button>
+          
           <div className="overflow-hidden pb-4">
             <div
               ref={trackRef}
-              className="flex transition-transform duration-500 gap-x-4"
+              className="flex transition-transform duration-500 gap-x-2 sm:gap-x-4"
               style={{ transform: `translateX(-${moveX}px)` }}
             >
               {topProducts.map((product, idx) => (
@@ -202,14 +237,21 @@ const Home: React.FC = () => {
               ))}
             </div>
           </div>
+          
+          {/* 다음 버튼 - 모바일에서는 숨김, 태블릿 이상에서만 표시 */}
           <button
-            className="absolute -right-4 top-1/2 -translate-y-1/2 z-10 bg-white/10 border rounded-full w-12 h-12 flex items-center justify-center shadow hover:bg-gray-100"
+            className="hidden sm:flex absolute -right-2 sm:-right-4 top-1/2 -translate-y-1/2 z-10 bg-white/80 border rounded-full w-8 h-8 sm:w-12 sm:h-12 flex items-center justify-center shadow-lg hover:bg-gray-100 transition-colors"
             onClick={handleNext}
             disabled={slideIndex === maxIndex}
             aria-label="다음"
           >
-            <FontAwesomeIcon icon={faChevronRight} className="text-2xl text-gray-500" />
+            <FontAwesomeIcon icon={faChevronRight} className="text-lg sm:text-2xl text-gray-500" />
           </button>
+          
+          {/* 모바일용 스와이프 안내 */}
+          <div className="sm:hidden text-center mt-4">
+            <p className="text-sm text-gray-500">← 좌우로 스와이프하여 더 많은 상품을 확인하세요</p>
+          </div>
         </div>
       </div>
 
@@ -233,9 +275,9 @@ const Home: React.FC = () => {
       </div> */}
 
       {/* All Products Section */}
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">전체 상품</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+        <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-4 sm:mb-6 text-center sm:text-left">전체 상품</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 sm:gap-6">
           {filteredProducts.map((product) => (
             <ProductCard
               key={product.id}
