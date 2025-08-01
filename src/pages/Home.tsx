@@ -47,17 +47,17 @@ const getSlidesToShow = () => {
   let slides;
   
   if (width < 480) {
-    slides = 1; // 모바일
+    slides = 1.2; // 모바일 - 다음 카드 20% 보임
   } else if (width < 640) {
-    slides = 1; // 작은 모바일
+    slides = 1.3; // 작은 모바일 - 다음 카드 30% 보임
   } else if (width < 768) {
-    slides = 2; // 태블릿
+    slides = 2.2; // 태블릿 - 다음 카드 20% 보임
   } else if (width < 1024) {
-    slides = 3; // 작은 데스크톱
+    slides = 3.2; // 작은 데스크톱 - 다음 카드 20% 보임
   } else if (width < 1280) {
-    slides = 4; // 데스크톱
+    slides = 4.2; // 데스크톱 - 다음 카드 20% 보임
   } else {
-    slides = 4; // 큰 데스크톱 (5개 대신 4개로 제한)
+    slides = 4.2; // 큰 데스크톱 - 다음 카드 20% 보임
   }
   
   console.log(`화면 너비: ${width}px, slidesToShow: ${slides}`);
@@ -134,7 +134,7 @@ const Home: React.FC = () => {
         const newSlidesToShow = getSlidesToShow();
         setSlidesToShow(newSlidesToShow);
         // 슬라이드 인덱스가 새로운 slidesToShow를 초과하지 않도록 조정
-        const newMaxIndex = Math.max(0, topProducts.length - newSlidesToShow);
+        const newMaxIndex = Math.max(0, Math.floor(topProducts.length - newSlidesToShow));
         if (slideIndex > newMaxIndex) {
           setSlideIndex(newMaxIndex);
         }
@@ -153,7 +153,7 @@ const Home: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, [topProducts.length, slideIndex]);
 
-  const maxIndex = Math.max(0, topProducts.length - slidesToShow);
+  const maxIndex = Math.max(0, Math.floor(topProducts.length - slidesToShow));
   const handlePrev = () => setSlideIndex(idx => Math.max(0, idx - 1));
   const handleNext = () => setSlideIndex(idx => Math.min(maxIndex, idx + 1));
 
@@ -168,7 +168,7 @@ const Home: React.FC = () => {
   };
 
   const gapPx = 16; // gap-x-4
-  const totalGap = gapPx * (slidesToShow - 1);
+  const totalGap = gapPx * (Math.floor(slidesToShow) - 1);
   const cardWidthPx = slidesToShow > 0 ? (containerWidth - totalGap) / slidesToShow : 0;
   const moveX = slideIndex * (cardWidthPx + gapPx);
 
