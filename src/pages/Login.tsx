@@ -14,6 +14,7 @@ const Login: React.FC = () => {
   const [recoveryErrors, setRecoveryErrors] = useState<{ email?: string; general?: string }>({});
   const [recoverySuccess, setRecoverySuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showRecoveryMessage, setShowRecoveryMessage] = useState(false);
   const navigate = useNavigate();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -88,8 +89,7 @@ const Login: React.FC = () => {
     e.preventDefault();
     if (validateRecoveryForm()) {
       // 비밀번호 찾기 기능은 아직 구현되지 않음
-      alert('비밀번호 찾기 기능은 준비 중입니다. 관리자에게 문의해주세요.');
-      setShowPasswordRecovery(false);
+      setShowRecoveryMessage(true);
     }
   };
 
@@ -99,6 +99,7 @@ const Login: React.FC = () => {
     setRecoveryEmail('');
     setRecoveryErrors({});
     setRecoverySuccess(false);
+    setShowRecoveryMessage(false);
   };
 
   return (
@@ -188,7 +189,27 @@ const Login: React.FC = () => {
             </div>
 
             {/* General Error */}
-            {errors.general && <p className="mt-0 text-xs text-red-600 text-left">{errors.general}</p>}
+            {errors.general && (
+              <div className="mt-0 text-xs text-red-600 text-left">
+                <p>{errors.general}</p>
+                {(errors.general.includes('비활성화된 계정') || errors.general.includes('정지된 계정')) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const subject = encodeURIComponent('계정 상태 문의');
+                      const body = encodeURIComponent(`안녕하세요,\n\n계정 상태에 대해 문의드립니다.\n\n이메일: ${formData.email}\n\n문의 내용:\n\n감사합니다.`);
+                      window.open(`mailto:info@ilmare.com?subject=${subject}&body=${body}`, '_blank');
+                    }}
+                    className="mt-2 inline-flex items-center px-3 py-1 bg-blue-600 text-white text-xs rounded-md hover:bg-blue-700 transition-colors duration-200"
+                  >
+                    <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                    관리자에게 문의하기
+                  </button>
+                )}
+              </div>
+            )}
 
             {/* Submit Button */}
             <button
@@ -228,7 +249,7 @@ const Login: React.FC = () => {
               </button>
             </div>
 
-            {!recoverySuccess ? (
+            {!recoverySuccess && !showRecoveryMessage ? (
               <>
                 <p className="text-sm text-gray-600 mb-4">
                   가입하신 이메일 주소를 입력하시면 임시 비밀번호를 발급해드립니다.
@@ -276,6 +297,40 @@ const Login: React.FC = () => {
                   </div>
                 </form>
               </>
+            ) : showRecoveryMessage ? (
+              <div className="text-center">
+                <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">비밀번호 찾기 기능 준비 중</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  비밀번호 찾기 기능은 현재 준비 중입니다.<br />
+                  관리자에게 문의해주세요.
+                </p>
+                <div className="space-y-3">
+                  <button
+                    onClick={() => {
+                      const subject = encodeURIComponent('비밀번호 찾기 문의');
+                      const body = encodeURIComponent(`안녕하세요,\n\n비밀번호 찾기에 대해 문의드립니다.\n\n이메일: ${recoveryEmail}\n\n문의 내용:\n\n감사합니다.`);
+                      window.open(`mailto:info@ilmare.com?subject=${subject}&body=${body}`, '_blank');
+                    }}
+                    className="w-full inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition-colors duration-200"
+                  >
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                    관리자에게 문의하기
+                  </button>
+                  <button
+                    onClick={closeRecoveryModal}
+                    className="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm font-medium transition-colors"
+                  >
+                    닫기
+                  </button>
+                </div>
+              </div>
             ) : (
               <div className="text-center">
                 <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
