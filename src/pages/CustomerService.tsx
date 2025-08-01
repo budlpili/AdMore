@@ -41,7 +41,28 @@ const CustomerService: React.FC<CustomerServiceProps> = ({ setIsChatOpen }) => {
   const loadNotices = async () => {
     try {
       const response = await customerServiceAPI.getNotices();
-      setNotices(response);
+      console.log('공지사항 데이터:', response);
+      console.log('첫 번째 공지사항 상세:', response[0]);
+      console.log('첫 번째 공지사항의 모든 키:', Object.keys(response[0] || {}));
+      
+      // 백엔드 데이터를 프론트엔드 형식으로 변환
+      const transformedNotices = response.map((notice: any) => {
+        console.log('개별 공지사항:', notice);
+        console.log('important 값:', notice.important, '타입:', typeof notice.important);
+        
+        return {
+          id: notice.id,
+          title: notice.title,
+          content: notice.content,
+          important: notice.important === true || notice.important === 1 || notice.important === '1',
+          createdAt: notice.createdAt,
+          updatedAt: notice.updatedAt,
+          author: notice.author || '관리자'
+        };
+      });
+      
+      console.log('변환된 공지사항:', transformedNotices);
+      setNotices(transformedNotices);
     } catch (error) {
       console.error('Failed to load notices:', error);
       // Fallback to default notices if API fails
@@ -259,16 +280,16 @@ const CustomerService: React.FC<CustomerServiceProps> = ({ setIsChatOpen }) => {
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="w-16 sm:w-20 px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           번호
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="min-w-[150px] sm:min-w-[200px] px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           제목
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="hidden sm:table-cell px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           날짜
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="w-16 sm:w-20 px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           상태
                         </th>
                       </tr>
@@ -280,18 +301,27 @@ const CustomerService: React.FC<CustomerServiceProps> = ({ setIsChatOpen }) => {
                           className="hover:bg-gray-50 cursor-pointer"
                           onClick={() => handleNoticeClick(notice)}
                         >
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900">
                             {notices.length - (startIndex + index)}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {notice.title}
+                          <td className="px-3 sm:px-6 py-4 text-xs sm:text-sm font-medium text-gray-900">
+                            <div className="truncate sm:whitespace-normal">
+                              {notice.title}
+                            </div>
+                            <div className="sm:hidden text-xs text-gray-500 mt-1">
+                              {notice.createdAt}
+                            </div>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <td className="hidden sm:table-cell px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {notice.createdAt}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
+                            {(() => {
+                              console.log('렌더링 - 공지사항 ID:', notice.id, 'important:', notice.important);
+                              return null;
+                            })()}
                             {notice.important && (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
                                 중요
                               </span>
                             )}
@@ -375,7 +405,7 @@ const CustomerService: React.FC<CustomerServiceProps> = ({ setIsChatOpen }) => {
               </div>
               <div className="border-t border-gray-200 pt-4">
                 <div className="prose max-w-none">
-                  <p className="text-gray-700 whitespace-pre-wrap">
+                  <p className="text-gray-700 whitespace-pre-wrap min-h-[200px]">
                     {selectedNotice.content}
                   </p>
                 </div>

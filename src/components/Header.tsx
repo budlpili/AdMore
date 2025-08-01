@@ -464,6 +464,13 @@ const Header: React.FC<HeaderProps> = ({ setIsChatOpen }) => {
 
                   <button 
                     onClick={() => {
+                      // 로그인하지 않은 사용자 체크
+                      const userEmail = localStorage.getItem('userEmail');
+                      if (!userEmail || userEmail === 'guest@example.com') {
+                        alert('1:1 문의를 이용하시려면 회원가입이 필요합니다.\n\n회원가입 후 이용해 주세요.');
+                        return;
+                      }
+                      
                       setIsChatOpen?.(true);
                       setIsMenuOpen(false);
                     }}

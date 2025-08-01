@@ -326,10 +326,10 @@ const Reviews: React.FC = () => {
         <div className="mb-8 flex flex-row justify-between items-end">
           <div className="flex flex-col justify-start items-start gap-3">
             <div className="flex items-center gap-2">
-              <h1 className="text-3xl font-bold text-gray-900 mr-2">리뷰 목록</h1>
-              <span className="text-blue-500 text-xl font-bold">({sorted.length.toLocaleString()}+)</span>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mr-2">리뷰 목록</h1>
+              <span className="text-blue-500 text-lg sm:text-xl font-bold">({sorted.length.toLocaleString()}+)</span>
             </div>
-            <span className="text-gray-400 text-base font-semibold">실제로 구매하신 고객님들의 후기를 확인해보세요.</span>
+            <span className="text-gray-400 text-sm sm:text-base font-semibold">실제로 구매하신 고객님들의 후기를 확인해보세요.</span>
           </div>
           
         </div>
@@ -406,14 +406,14 @@ const Reviews: React.FC = () => {
                 )}
               </div>
               */}
-              <div className="flex justify-end items-center space-x-2 w-full">
+              <div className="flex flex-col xs:flex-row justify-end items-center gap-4 xs:gap-0 w-full">
                 {/* 검색창 */}
                 <div className="relative w-full flex justify-end items-center">
                   <input
                     type="text"
                     placeholder="검색어를 입력해 주세요."
                     className="border border-gray-300 rounded-xl px-3 py-2 pr-10 text-sm 
-                      focus:outline-none focus:ring-2 focus:ring-orange-200 min-w-[200px] sm:max-w-[240px] w-full"
+                      focus:outline-none focus:ring-2 focus:ring-orange-200 min-w-[160px] sm:max-w-[240px] w-full"
                     value={search}
                     onChange={e => { setSearch(e.target.value); setCurrentPage(1); }}
                   />
@@ -424,7 +424,7 @@ const Reviews: React.FC = () => {
                   </span>
                 </div>
                 {/* 정렬 버튼 그룹 */}
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2 ml-0 xs:ml-2">
                   {/* 별점 정렬 버튼 */}
                   <button
                     onClick={handleRatingSort}
@@ -460,7 +460,7 @@ const Reviews: React.FC = () => {
 
             {pagedReviews.map(review => (
               <div key={review.id} className="bg-white rounded-lg shadow p-6">
-                <div className="flex flex-col xxs:flex-row xxs:items-center mb-2 gap-1 sm:gap-0">
+                <div className="flex flex-col xs:flex-row xs:items-center mb-2 gap-1 sm:gap-0">
                   <div className="flex items-center">
                     <span className="font-semibold text-blue-600 mr-2">{maskEmail(review.user)}</span>
                     <span className="flex items-center mr-3">
@@ -489,7 +489,7 @@ const Reviews: React.FC = () => {
                   </div>
                 )}
                 <div className="text-sm text-gray-600 mt-4 border border-orange-200 p-2 rounded-lg">
-                  <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center justify-between gap-2 flex-col sm:flex-row">
                     <div className="flex items-center gap-3">
                       {/* 상품 이미지 */}
                       <div className="w-16 h-12 bg-gray-200 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
@@ -588,8 +588,8 @@ const Reviews: React.FC = () => {
                       </div>
                     </div>
                     <button 
-                      className="text-sm font-semibold px-3 py-3 text-orange-600 min-w-[40px] max-w-[50px] sm:max-w-none sm:flex-row flex-col
-                        hover:text-orange-800 bg-orange-50 hover:bg-orange-100 rounded-md transition-colors flex items-center gap-1"
+                      className="text-sm font-semibold px-3 py-2 text-white w-full sm:max-w-[86px] sm:flex-row flex-col
+                        bg-orange-500 hover:bg-orange-600 hover:text-white rounded-md transition-colors flex items-center gap-1"
                       onClick={() => handleConsultation(review)}
                     >
                       <FontAwesomeIcon icon={faComments} className="text-xs sm:block hidden" />

@@ -590,10 +590,10 @@ const CustomerServiceManagement: React.FC<CustomerServiceManagementProps> = ({
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-white">
                       <tr>
-                        <th className="min-w-[100px] px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        <th className="min-w-[100px] max-w-[100px] px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                           번호
                         </th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        <th className="min-w-[200px] max-w-[200px] px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                           제목
                         </th>
                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">

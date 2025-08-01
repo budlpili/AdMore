@@ -35,6 +35,7 @@ export interface Notice {
   createdAt: string;
   updatedAt: string;
   author: string;
+  status?: number | string;
 }
 
 export interface InquiryForm {

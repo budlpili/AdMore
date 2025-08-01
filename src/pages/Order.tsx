@@ -165,8 +165,8 @@ const Order: React.FC = () => {
   const totalOriginal = calculateOriginalPrice(quantity);
   const discountRate = calculateDiscountRate(quantity);
   const discount = totalOriginal - totalPrice;
-  // 쿠폰 할인 금액 계산 (예: 최대 할인 한도 적용)
-  const couponDiscount = selectedCoupon ? Math.min(totalPrice * (selectedCoupon.discountRate / 100), selectedCoupon.maxDiscount) : 0;
+  // 쿠폰 할인 금액 계산 (쿠폰 사용 비활성화)
+  const couponDiscount = 0;
   const finalPrice = totalPrice - couponDiscount;
 
   // 주문 처리 함수
@@ -377,16 +377,16 @@ const Order: React.FC = () => {
         </div>
         <div className="bg-white rounded-xl shadow p-6">
           <div className="font-semibold mb-2">쿠폰 사용</div>
-          <div className="text-xs text-gray-500 mb-2">사용 가능한 쿠폰: {coupons.length}개</div>
+          <div className="text-xs text-gray-500 mb-2">사용 가능한 쿠폰: 0개</div>
           <div className="flex gap-2 mb-2">
             <input
-              className="flex-1 border rounded px-3 py-2 bg-white cursor-pointer text-gray-500 text-xs"
+              className="flex-1 border rounded px-3 py-2 bg-gray-100 text-gray-400 text-xs"
               placeholder="사용할 쿠폰을 선택해 주세요."
-              value={selectedCoupon ? selectedCoupon.title : ''}
+              value=""
               readOnly
-              onClick={() => setCouponModalOpen(true)}
+              disabled
             />
-            <button className="bg-blue-600 text-white px-4 py-2 rounded font-semibold text-xs" onClick={() => setCouponModalOpen(true)}>쿠폰 선택</button>
+            <button className="bg-gray-100 text-gray-400 px-4 py-2 rounded font-semibold text-xs" disabled>쿠폰 선택</button>
           </div>
         </div>
       </div>
@@ -446,8 +446,8 @@ const Order: React.FC = () => {
           </div>
           <div className="flex justify-between mb-1">
             <span className="text-gray-700 text-xs" >쿠폰 할인</span>
-            <span className={couponDiscount > 0 ? 'text-red-500 text-xs' : 'text-gray-700 text-xs'}>
-              {couponDiscount > 0 ? '-' : ''}{couponDiscount.toLocaleString()} 원
+            <span className="text-gray-400 text-xs">
+              0 원
             </span>
           </div>
           <div className="flex justify-between mb-1">

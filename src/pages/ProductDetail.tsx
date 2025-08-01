@@ -240,13 +240,22 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ setIsChatOpen }) => {
       actualPrice = originalPrice; // 할인 없음
     }
     
-    // 할인율 계산 (1일은 할인 없음)
+    // 할인율 계산 (1일도 포함)
+    const discountRate = ((originalPrice - actualPrice) / originalPrice) * 100;
+    return Math.round(discountRate);
+  };
+
+  // 1일 선택 시에도 할인율을 표시하기 위한 함수 (7일 기준 할인율)
+  const calculateDisplayDiscountRate = (selectedQuantity: number) => {
+    if (!product || !product.price1Day) return 0;
+    
+    // 1일 선택 시 0% 할인율 표시
     if (selectedQuantity === 1) {
       return 0;
     }
     
-    const discountRate = ((originalPrice - actualPrice) / originalPrice) * 100;
-    return Math.round(discountRate);
+    // 기존 로직 사용
+    return calculateDiscountRate(selectedQuantity);
   };
 
   // 드롭다운 외부 클릭 시 닫기
@@ -1897,9 +1906,10 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ setIsChatOpen }) => {
           <div className="flex flex-row items-end justify-end mb-4 w-full" key={`price-section-${quantity}`}>
             {/* 할인율 표시 */}
             {(() => {
-              const discountRate = calculateDiscountRate(quantity);
-              console.log('할인율 체크:', { quantity, discountRate, hasDiscount: discountRate > 0 });
-              return discountRate > 0 ? (
+              const discountRate = calculateDisplayDiscountRate(quantity);
+              const originalPrice = calculateOriginalPrice(quantity);
+              console.log('할인율 체크:', { quantity, discountRate, hasDiscount: discountRate >= 0 });
+              return discountRate >= 0 ? (
                 <div className="flex items-center mb-1">
                   <span className="text-blue-500 font-bold text-sm mr-2">
                     {discountRate}%
@@ -1908,17 +1918,17 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ setIsChatOpen }) => {
               ) : null;
             })()}
             
-            {/* 원가 표시 (할인율이 있을 때만, 선택된 기간 기준) */}
+            {/* 원가 표시 (1일이거나 할인율이 있을 때) */}
             {(() => {
-              const discountRate = calculateDiscountRate(quantity);
+              const discountRate = calculateDisplayDiscountRate(quantity);
               const originalPrice = calculateOriginalPrice(quantity);
               console.log('원가 체크:', { 
                 quantity, 
                 discountRate, 
                 originalPrice,
-                hasOriginalPrice: originalPrice > 0 && discountRate > 0
+                hasOriginalPrice: originalPrice > 0 && (quantity === 1 || discountRate > 0)
               });
-              return discountRate > 0 && originalPrice > 0 ? (
+              return originalPrice > 0 && (quantity === 1 || discountRate > 0) ? (
                 <div className="flex items-center mb-1">
                   <span className="text-gray-400 line-through text-sm mr-2">
                     {originalPrice.toLocaleString()}원

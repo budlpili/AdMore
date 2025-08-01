@@ -4,8 +4,8 @@ import { Product } from '../types/index';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFacebook, faInstagram, faYoutube, faBlogger, faTwitter, faTelegram, IconDefinition } from '@fortawesome/free-brands-svg-icons';
 import { faChevronLeft, faChevronRight, faHeart as faSolidHeart, faHeart as faRegularHeart, faStar as faSolidStar, faStarHalfAlt, faStar as faRegularStar } from '@fortawesome/free-solid-svg-icons';
-import { products } from '../data/products';
 import ProductCard from '../components/ProductCard';
+import { productAPI } from '../services/api';
 
 const categoryIcon: Record<string, { icon: IconDefinition; color: string }> = {
   '페이스북': { icon: faFacebook, color: 'text-blue-600' },
@@ -53,6 +53,8 @@ const Home: React.FC = () => {
   const [slideIndex, setSlideIndex] = useState(0);
   const [favorites, setFavorites] = useState<number[]>([]);
   const [slidesToShow, setSlidesToShow] = useState(getSlidesToShow());
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
   const location = useLocation();
 
   // 슬라이드 트랙 ref 및 컨테이너 width
@@ -61,15 +63,30 @@ const Home: React.FC = () => {
 
   const categories: string[] = ['전체', '페이스북', '인스타그램', '유튜브', '블로그', '트위터', '텔레그램', '기타'];
 
-  // 클릭수 내림차순 정렬 후 상위 10개만 사용
-  const topProducts = [...products].sort((a, b) => (b.clickCount ?? 0) - (a.clickCount ?? 0)).slice(0, 10);
+  // 상품 데이터 로드
+  const loadProducts = async () => {
+    try {
+      setLoading(true);
+      const activeProducts = await productAPI.getActiveProducts();
+      setProducts(activeProducts);
+    } catch (error) {
+      console.error('상품 로드 에러:', error);
+      setProducts([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 별점 내림차순 정렬 후 상위 10개만 사용
+  const topProducts = [...products].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)).slice(0, 10);
 
   const filteredProducts: Product[] = selectedCategory === '전체' 
     ? products 
     : products.filter(product => product.category === selectedCategory);
 
-  // 컴포넌트 마운트 시 즐겨찾기 로드
+  // 컴포넌트 마운트 시 상품 데이터와 즐겨찾기 로드
   useEffect(() => {
+    loadProducts();
     const savedFavorites = getFavorites();
     setFavorites(savedFavorites);
   }, []);
@@ -121,6 +138,19 @@ const Home: React.FC = () => {
   const totalGap = gapPx * (slidesToShow - 1);
   const cardWidthPx = slidesToShow > 0 ? (containerWidth - totalGap) / slidesToShow : 0;
   const moveX = slideIndex * (cardWidthPx + gapPx);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 pb-20">
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">상품을 불러오는 중...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
