@@ -2678,13 +2678,13 @@ const Admin: React.FC = () => {
                         <div className="relative status-dropdown">
                           <button
                             onClick={() => setIsBatchStatusDropdownOpen(!isBatchStatusDropdownOpen)}
-                            className="text-xs px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors flex items-center space-x-1"
+                            className="text-xs px-3 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors flex items-center space-x-1"
                           >
                             <span>상태 변경</span>
                             <FontAwesomeIcon icon={faCaretDown} className="text-xs" />
                           </button>
                           {isBatchStatusDropdownOpen && (
-                            <div className="absolute right-0 mt-1 w-32 bg-white border border-gray-200 rounded-md shadow-lg z-10">
+                            <div className="absolute right-0 mt-1 w-20 bg-white border border-gray-200 rounded-md shadow-lg z-10">
                               <button
                                 onClick={() => { updateSelectedUsersStatus('active'); setIsBatchStatusDropdownOpen(false); }}
                                 className="block w-full text-left px-3 py-2 text-xs text-green-600 hover:bg-green-50"
@@ -2711,13 +2711,13 @@ const Admin: React.FC = () => {
                         <div className="relative role-dropdown">
                           <button
                             onClick={() => setIsBatchRoleDropdownOpen(!isBatchRoleDropdownOpen)}
-                            className="text-xs px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors flex items-center space-x-1"
+                            className="text-xs px-3 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors flex items-center space-x-1"
                           >
                             <span>역할 변경</span>
                             <FontAwesomeIcon icon={faCaretDown} className="text-xs" />
                           </button>
                           {isBatchRoleDropdownOpen && (
-                            <div className="absolute right-0 mt-1 w-32 bg-white border border-gray-200 rounded-md shadow-lg z-10">
+                            <div className="absolute right-0 mt-1 w-20 bg-white border border-gray-200 rounded-md shadow-lg z-10">
                               <button
                                 onClick={() => { updateSelectedUsersRole('admin'); setIsBatchRoleDropdownOpen(false); }}
                                 className="block w-full text-left px-3 py-2 text-xs text-purple-600 hover:bg-purple-50"
@@ -2737,7 +2737,7 @@ const Admin: React.FC = () => {
                         {/* 삭제 버튼 */}
                         <button
                           onClick={deleteSelectedUsers}
-                          className="text-xs px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                          className="text-xs px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
                         >
                           삭제
                         </button>
@@ -2760,7 +2760,7 @@ const Admin: React.FC = () => {
                               className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                             />
                           </th>
-                          <th className="px-6 py-4 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">번호</th>
+                          <th className="min-w-[100px] max-w-[100px] px-6 py-4 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">번호</th>
                           <th className="px-6 py-4 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
                             <button
                               onClick={() => toggleSortOrder('name')}
@@ -2822,7 +2822,6 @@ const Admin: React.FC = () => {
                               />
                             </button>
                           </th>
-                          <th className="px-6 py-4 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">관리</th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
@@ -2857,15 +2856,7 @@ const Admin: React.FC = () => {
                                 {user.status === 'active' ? '활성' : user.status === 'inactive' ? '비활성' : '정지'}
                               </span>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-xs">
-                              <button
-                                onClick={() => deleteUser(user.id)}
-                                className="text-red-600 hover:text-red-900 text-xs px-2 py-1 rounded border border-red-300 hover:bg-red-50"
-                                title="삭제"
-                              >
-                                <FontAwesomeIcon icon={faTrash} />
-                              </button>
-                            </td>
+                            
                           </tr>
                         ))}
                       </tbody>

@@ -46,6 +46,7 @@ const Login: React.FC = () => {
           if (response.token) {
             localStorage.setItem('isLoggedIn', 'true');
             localStorage.setItem('userEmail', response.user.email);
+            localStorage.setItem('userRole', response.user.role || 'user');
             localStorage.setItem('token', response.token);
             // 커스텀 이벤트 발생 (Header 컴포넌트에 로그인 상태 변경 알림)
             window.dispatchEvent(new Event('loginStateChanged'));
@@ -190,8 +191,8 @@ const Login: React.FC = () => {
 
             {/* General Error */}
             {errors.general && (
-              <div className="mt-0 text-xs text-red-600 text-left">
-                <p>{errors.general}</p>
+              <div className="flex flex-row justify-between items-center mt-0 text-xs text-red-600 text-left">
+                <p className="block mr-2">{errors.general}</p>
                 {(errors.general.includes('비활성화된 계정') || errors.general.includes('정지된 계정')) && (
                   <button
                     type="button"
@@ -200,7 +201,7 @@ const Login: React.FC = () => {
                       const body = encodeURIComponent(`안녕하세요,\n\n계정 상태에 대해 문의드립니다.\n\n이메일: ${formData.email}\n\n문의 내용:\n\n감사합니다.`);
                       window.open(`mailto:info@ilmare.com?subject=${subject}&body=${body}`, '_blank');
                     }}
-                    className="mt-2 inline-flex items-center px-3 py-1 bg-blue-600 text-white text-xs rounded-md hover:bg-blue-700 transition-colors duration-200"
+                    className="inline-flex items-center px-3 py-1 underline text-gray-600 hover:text-orange-700 text-xs transition-colors duration-200"
                   >
                     <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />

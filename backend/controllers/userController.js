@@ -69,11 +69,11 @@ const login = (req, res) => {
 
     // 사용자 상태 확인
     if (user.status === 'inactive') {
-      return res.status(403).json({ message: '비활성화된 계정입니다. 관리자에게 문의하세요.' });
+      return res.status(403).json({ message: '비활성화된 계정입니다.' });
     }
 
     if (user.status === 'suspended') {
-      return res.status(403).json({ message: '정지된 계정입니다. 관리자에게 문의하세요.' });
+      return res.status(403).json({ message: '정지된 계정입니다.' });
     }
 
     // 비밀번호 확인

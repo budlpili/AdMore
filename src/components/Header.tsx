@@ -59,6 +59,7 @@ const Header: React.FC<HeaderProps> = ({ setIsChatOpen }) => {
   const [recentDrawerOpen, setRecentDrawerOpen] = useState(false);
   const [recentProducts, setRecentProducts] = useState<any[]>([]);
   const [isLoggedIn, setIsLoggedIn] = useState(() => typeof window !== 'undefined' && localStorage.getItem('isLoggedIn') === 'true');
+  const [userRole, setUserRole] = useState<string>('user');
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   const categories: NavigationCategory[] = [
@@ -90,6 +91,7 @@ const Header: React.FC<HeaderProps> = ({ setIsChatOpen }) => {
   useEffect(() => {
     const handleStorage = () => {
       setIsLoggedIn(localStorage.getItem('isLoggedIn') === 'true');
+      setUserRole(localStorage.getItem('userRole') || 'user');
     };
     
     // localStorage 변경 감지
@@ -97,6 +99,9 @@ const Header: React.FC<HeaderProps> = ({ setIsChatOpen }) => {
     
     // 커스텀 이벤트 리스너 추가 (같은 탭에서의 변경 감지)
     window.addEventListener('loginStateChanged', handleStorage);
+    
+    // 초기 로드 시 사용자 역할 설정
+    setUserRole(localStorage.getItem('userRole') || 'user');
     
     return () => {
       window.removeEventListener('storage', handleStorage);
@@ -119,7 +124,9 @@ const Header: React.FC<HeaderProps> = ({ setIsChatOpen }) => {
   const handleLogout = () => {
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('userEmail');
+    localStorage.removeItem('userRole');
     setIsLoggedIn(false);
+    setUserRole('user');
     
     // 커스텀 이벤트 발생
     window.dispatchEvent(new Event('loginStateChanged'));
@@ -298,13 +305,15 @@ const Header: React.FC<HeaderProps> = ({ setIsChatOpen }) => {
                             환경설정
                           </button>
                         </li>
-                        <li>
-                          <button className="text-sm w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center font-semibold"
-                            onClick={() => { setUserMenuOpen(false); navigate('/admin'); }}>
-                            <FontAwesomeIcon icon={faBuilding} className="mr-2 text-gray-400 w-4 h-4" />
-                            관리자 페이지
-                          </button>
-                        </li>
+                        {userRole === 'admin' && (
+                          <li>
+                            <button className="text-sm w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center font-semibold"
+                              onClick={() => { setUserMenuOpen(false); navigate('/admin'); }}>
+                              <FontAwesomeIcon icon={faBuilding} className="mr-2 text-gray-400 w-4 h-4" />
+                              관리자 페이지
+                            </button>
+                          </li>
+                        )}
                         <li>
                           <button
                             className="text-sm w-full text-left px-4 py-2 text-red-500 hover:bg-gray-50 flex items-center font-semibold"
