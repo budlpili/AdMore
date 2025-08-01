@@ -384,20 +384,34 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
   // 주문 데이터 로드
   const loadOrders = async () => {
     try {
+      // 현재 로그인한 사용자 이메일 가져오기
+      const currentUserEmail = localStorage.getItem('userEmail');
+      console.log('현재 로그인한 사용자:', currentUserEmail);
+      
+      if (!currentUserEmail || currentUserEmail === 'guest@example.com') {
+        console.log('로그인되지 않은 사용자입니다.');
+        setOrderList([]);
+        return;
+      }
+      
       // 백엔드 API에서 주문 데이터 가져오기
       const response = await ordersAPI.getUserOrders();
       console.log('=== 백엔드 주문 데이터 응답 ===');
       console.log('전체 응답:', response);
       
       if (response && response.orders) {
-        console.log('백엔드 주문 목록:', response.orders);
-        console.log('첫 번째 주문 데이터:', response.orders[0]);
-        console.log('첫 번째 주문의 이미지 필드:', response.orders[0]?.image);
-        setOrderList(response.orders);
-        console.log('백엔드에서 주문 데이터 로드 완료:', response.orders);
+        // 현재 사용자의 주문만 필터링
+        const userOrders = response.orders.filter((order: any) => 
+          order.userEmail === currentUserEmail
+        );
+        
+        console.log('현재 사용자 주문 목록:', userOrders);
+        console.log('첫 번째 주문 데이터:', userOrders[0]);
+        setOrderList(userOrders);
+        console.log('백엔드에서 주문 데이터 로드 완료:', userOrders);
         
         // 백엔드 데이터를 localStorage에 동기화 (백업용)
-        localStorage.setItem('orderList', JSON.stringify(response.orders));
+        localStorage.setItem('orderList', JSON.stringify(userOrders));
       } else {
         console.log('백엔드에서 주문 데이터를 가져올 수 없습니다.');
         setOrderList([]);
@@ -406,11 +420,16 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
       console.error('주문 데이터 로드 중 오류:', error);
       // 백엔드 실패 시 localStorage에서 폴백 데이터 로드
       try {
+        const currentUserEmail = localStorage.getItem('userEmail');
         const savedOrderList = localStorage.getItem('orderList');
-        if (savedOrderList) {
+        if (savedOrderList && currentUserEmail) {
           const parsedOrders = JSON.parse(savedOrderList);
-          setOrderList(parsedOrders);
-          console.log('localStorage에서 폴백 데이터 로드:', parsedOrders);
+          // 현재 사용자의 주문만 필터링
+          const userOrders = parsedOrders.filter((order: any) => 
+            order.userEmail === currentUserEmail
+          );
+          setOrderList(userOrders);
+          console.log('localStorage에서 폴백 데이터 로드:', userOrders);
         } else {
           setOrderList([]);
         }
@@ -424,12 +443,25 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
   // 결제내역 데이터 로드 (orderList를 기반으로 처리)
   const loadPayments = async () => {
     try {
+      // 현재 로그인한 사용자 이메일 가져오기
+      const currentUserEmail = localStorage.getItem('userEmail');
+      
+      if (!currentUserEmail || currentUserEmail === 'guest@example.com') {
+        console.log('로그인되지 않은 사용자입니다.');
+        return;
+      }
+      
       // 백엔드 API에서 주문 데이터 가져오기
       const response = await ordersAPI.getUserOrders();
       if (response && response.orders) {
+        // 현재 사용자의 주문만 필터링
+        const userOrders = response.orders.filter((order: any) => 
+          order.userEmail === currentUserEmail
+        );
+        
         // 결제내역은 orderList를 기반으로 처리되므로 orderList 업데이트
-        setOrderList(response.orders);
-        console.log('결제내역 데이터 로드 완료:', response.orders);
+        setOrderList(userOrders);
+        console.log('결제내역 데이터 로드 완료:', userOrders);
       } else {
         console.log('결제내역 데이터는 orderList를 기반으로 처리됩니다.');
       }
@@ -443,6 +475,22 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
     loadOrders();
     loadPayments();
   }, []);
+
+  // 사용자 이메일 상태 추가
+  const [currentUserEmail, setCurrentUserEmail] = useState<string>('');
+
+  // 사용자 이메일 변경 감지
+  useEffect(() => {
+    const userEmail = localStorage.getItem('userEmail');
+    if (userEmail !== currentUserEmail) {
+      setCurrentUserEmail(userEmail || '');
+      if (userEmail && userEmail !== 'guest@example.com') {
+        console.log('사용자 변경 감지, 데이터 새로 로드:', userEmail);
+        loadOrders();
+        loadPayments();
+      }
+    }
+  }, [currentUserEmail]);
 
   // 주문내역 데이터 배열을 변수로 분리
   const [orderList, setOrderList] = useState<Order[]>([]);

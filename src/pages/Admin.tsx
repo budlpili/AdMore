@@ -6,7 +6,7 @@ import {
   faCaretDown, faCaretUp, faEdit, faTrash, faCheck, faTimes, faEye, faPlus, faMinus,
   faChevronLeft, faChevronRight, faBars, faTimes as faTimesIcon, faSync, faHeadset, faFileAlt, faShieldAlt
 } from '@fortawesome/free-solid-svg-icons';
-import { authAPI, productAPI, categoryAPI, tagAPI, reviewsAPI } from '../services/api';
+import { authAPI, productAPI, categoryAPI, tagAPI, reviewsAPI, usersAPI } from '../services/api';
 import ProductManagement from '../components/ProductManagement';
 import ReviewManagement from '../components/ReviewManagement';
 import CustomerServiceManagement from '../components/CustomerServiceManagement';
@@ -468,13 +468,12 @@ const Admin: React.FC = () => {
 
   const loadUsers = async () => {
     try {
-      const response = await fetch('http://localhost:5001/api/users');
-      if (response.ok) {
-        const data = await response.json();
-        setUsers(data.users);
-        // console.log('백엔드에서 회원 데이터 로드 완료:', data.users);
+      const response = await usersAPI.getAll();
+      if (response && response.users) {
+        setUsers(response.users);
+        console.log('백엔드에서 회원 데이터 로드 완료:', response.users);
       } else {
-        console.error('회원 데이터 로드 실패:', response.status);
+        console.error('회원 데이터 로드 실패: 응답 데이터 없음');
         setUsers([]);
       }
     } catch (error) {
@@ -611,30 +610,48 @@ const Admin: React.FC = () => {
   // 채팅 메시지 삭제
 
   // 회원 상태 변경
-  const updateUserStatus = (userId: string, newStatus: 'active' | 'inactive' | 'suspended') => {
-    try {
-      const updatedUsers = users.map(user => {
-        if (user.id === userId) {
-          return { ...user, status: newStatus };
-        }
-        return user;
-      });
-      localStorage.setItem('users', JSON.stringify(updatedUsers));
-      setUsers(updatedUsers);
-    } catch (error) {
-      console.error('회원 상태 업데이트 에러:', error);
+  const updateUserStatus = async (userId: string, newStatus: 'active' | 'inactive' | 'suspended') => {
+    const statusText = {
+      'active': '활성',
+      'inactive': '비활성',
+      'suspended': '정지'
+    };
+    
+    const confirmMessage = `정말로 이 회원의 상태를 "${statusText[newStatus]}"로 변경하시겠습니까?\n\n이 작업은 되돌릴 수 있습니다.`;
+    
+    if (window.confirm(confirmMessage)) {
+      try {
+        // 백엔드 API 호출
+        await usersAPI.updateStatus(userId, newStatus);
+        
+        // 성공 시 회원 목록 다시 로드
+        await loadUsers();
+        alert(`회원 상태가 "${statusText[newStatus]}"로 변경되었습니다.`);
+      } catch (error) {
+        console.error('회원 상태 업데이트 에러:', error);
+        alert('회원 상태 업데이트에 실패했습니다.');
+      }
     }
   };
 
   // 회원 삭제
-  const deleteUser = (userId: string) => {
-    if (window.confirm('정말로 이 회원을 삭제하시겠습니까?')) {
-      try {
-        const updatedUsers = users.filter(user => user.id !== userId);
-        localStorage.setItem('users', JSON.stringify(updatedUsers));
-        setUsers(updatedUsers);
-      } catch (error) {
-        console.error('회원 삭제 에러:', error);
+  const deleteUser = async (userId: string) => {
+    const confirmMessage = `정말로 이 회원을 삭제하시겠습니까?\n\n⚠️ 주의: 이 작업은 되돌릴 수 없습니다.\n회원의 모든 데이터가 영구적으로 삭제됩니다.`;
+    
+    if (window.confirm(confirmMessage)) {
+      // 한 번 더 확인
+      if (window.confirm('정말로 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다.')) {
+        try {
+          // 백엔드 API 호출
+          await usersAPI.delete(userId);
+          
+          // 성공 시 회원 목록 다시 로드
+          await loadUsers();
+          alert('회원이 성공적으로 삭제되었습니다.');
+        } catch (error) {
+          console.error('회원 삭제 에러:', error);
+          alert('회원 삭제에 실패했습니다.');
+        }
       }
     }
   };
@@ -744,18 +761,26 @@ const Admin: React.FC = () => {
   const logoutItem: SidebarItem = { id: 'logout', label: '로그아웃', icon: faSignOutAlt, action: () => navigate('/login'), count: undefined };
 
   // 회원 역할 변경
-  const updateUserRole = (userId: string, newRole: 'admin' | 'user') => {
-    try {
-      const updatedUsers = users.map(user => {
-        if (user.id === userId) {
-          return { ...user, role: newRole };
-        }
-        return user;
-      });
-      localStorage.setItem('users', JSON.stringify(updatedUsers));
-      setUsers(updatedUsers);
-    } catch (error) {
-      console.error('회원 역할 업데이트 에러:', error);
+  const updateUserRole = async (userId: string, newRole: 'admin' | 'user') => {
+    const roleText = {
+      'admin': '관리자',
+      'user': '일반회원'
+    };
+    
+    const confirmMessage = `정말로 이 회원의 역할을 "${roleText[newRole]}"로 변경하시겠습니까?\n\n이 작업은 되돌릴 수 있습니다.`;
+    
+    if (window.confirm(confirmMessage)) {
+      try {
+        // 백엔드 API 호출
+        await usersAPI.updateRole(userId, newRole);
+        
+        // 성공 시 회원 목록 다시 로드
+        await loadUsers();
+        alert(`회원 역할이 "${roleText[newRole]}"로 변경되었습니다.`);
+      } catch (error) {
+        console.error('회원 역할 업데이트 에러:', error);
+        alert('회원 역할 업데이트에 실패했습니다.');
+      }
     }
   };
 
@@ -2436,7 +2461,7 @@ const Admin: React.FC = () => {
                           placeholder="검색어를 입력해주세요."
                           value={userSearchTerm}
                           onChange={(e) => setUserSearchTerm(e.target.value)}
-                          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm max-w-[200px] text-xs
+                          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm max-w-[200px]
                             focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none placeholder:text-gray-400"
                         />
                       </div>
@@ -2447,14 +2472,14 @@ const Admin: React.FC = () => {
                       <div className="relative">
                         <button
                           onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
-                          className="flex items-center justify-between px-3 py-2 pr-4 border border-gray-300 rounded-lg text-xs
+                          className="flex items-center justify-between px-3 py-2 pr-4 border border-gray-300 rounded-lg
                               bg-white focus:ring-2 focus:ring-orange-500 focus:border-transparent cursor-pointer w-[120px]"
                         >
-                          <span className="text-gray-700 text-xs block">
+                          <span className="text-gray-700 block text-sm">
                             {userRoleFilter === 'all' ? '회원구분' : userRoleFilter === 'admin' ? '관리자' : '일반회원'}
                           </span>
                           <FontAwesomeIcon icon={faCaretDown} 
-                              className={`text-gray-400 text-xs transition-transform 
+                              className={`text-gray-400 text-sm transition-transform 
                                           ${isRoleDropdownOpen ? 'rotate-180' : ''}`} />
                         </button>
                         {isRoleDropdownOpen && (
@@ -2484,7 +2509,7 @@ const Admin: React.FC = () => {
                       <div className="relative">
                         <button
                           onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
-                          className="flex items-center justify-between px-3 py-2 pr-4 border border-gray-300 rounded-lg text-xs 
+                          className="flex items-center justify-between px-3 py-2 pr-4 border border-gray-300 rounded-lg text-sm
                               bg-white focus:ring-2 focus:ring-orange-500 focus:border-transparent cursor-pointer w-[120px]"
                         >
                           <span className="text-gray-700">

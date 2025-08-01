@@ -479,6 +479,26 @@ export const reviewsAPI = {
 // 리뷰 관련 API (별칭 추가)
 export const reviewAPI = reviewsAPI;
 
+// 사용자 관리 API
+export const usersAPI = {
+  getAll: () => apiRequest('/users'),
+  getById: (id: string) => apiRequest(`/users/${id}`),
+  updateStatus: (id: string, status: 'active' | 'inactive' | 'suspended') => 
+    apiRequest(`/users/${id}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    }),
+  updateRole: (id: string, role: 'admin' | 'user') => 
+    apiRequest(`/users/${id}/role`, {
+      method: 'PUT',
+      body: JSON.stringify({ role }),
+    }),
+  delete: (id: string) => 
+    apiRequest(`/users/${id}`, {
+      method: 'DELETE',
+    }),
+};
+
 // 고객센터 API
 export const customerServiceAPI = {
   // 공지사항 관련
