@@ -219,12 +219,17 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
   const handleMessageInputKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && e.ctrlKey) {
       e.preventDefault();
-      handleSend();
+      e.stopPropagation();
+      const currentInput = e.currentTarget.value;
+      if (currentInput.trim() || file) {
+        // 입력값을 즉시 초기화
+        setInput('');
+        handleSendWithInput(currentInput);
+      }
     }
   };
 
-  const handleSend = () => {
-    if (!input.trim() && !file) return;
+  const handleSendWithInput = (inputValue: string) => {
     if (isSending) return; // 전송 중이면 중복 전송 방지
     
     // 로그인하지 않은 사용자 체크
@@ -232,24 +237,21 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     
     setIsSending(true);
     
-    if (input.trim()) {
+    if (inputValue.trim()) {
       console.log('메시지 전송 시도:', {
-        message: input,
+        message: inputValue,
         userEmail,
         isConnected
       });
       
       // WebSocket을 통해 메시지 전송
       sendMessage({
-        message: input,
+        message: inputValue,
         type: 'user',
         inquiryType,
         productInfo,
         paymentInfo
       });
-      
-      // 입력 즉시 초기화 (중복 전송 방지)
-      setInput('');
     }
     
     if (file) {
@@ -266,10 +268,17 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
       setFilePreview(null);
     }
     
+    // 입력 초기화는 이미 키보드 이벤트에서 처리됨
+    
     // 전송 완료 후 상태 초기화
     setTimeout(() => {
       setIsSending(false);
     }, 100);
+  };
+
+  const handleSend = () => {
+    if (!input.trim() && !file) return;
+    handleSendWithInput(input);
   };
 
   const handleOpen = () => {
@@ -514,8 +523,8 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                   <form className="relative flex items-center border-t px-3 py-3 gap-2" onSubmit={e => { e.preventDefault(); handleSend(); }}>
                     
                     <textarea
-                      className="flex-1 px-3 py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm resize-none"
-                      placeholder="메시지를 입력하세요. (Enter: 줄바꿈 / Ctrl+Enter: 전송)"
+                      className="flex-1 px-3 py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 text-xs resize-none"
+                      placeholder="메시지를 입력하세요. (Enter:줄바꿈/Ctrl+Enter:전송)"
                       value={input}
                       onChange={e => setInput(e.target.value)}
                       onKeyDown={handleMessageInputKeyDown}
