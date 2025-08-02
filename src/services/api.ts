@@ -483,6 +483,7 @@ export const reviewAPI = reviewsAPI;
 export const usersAPI = {
   getAll: () => apiRequest('/users'),
   getById: (id: string) => apiRequest(`/users/${id}`),
+  getByEmail: (email: string) => apiRequest(`/users/email/${email}`),
   updateStatus: (id: string, status: 'active' | 'inactive' | 'suspended') => 
     apiRequest(`/users/${id}/status`, {
       method: 'PUT',
@@ -552,6 +553,26 @@ export const customerServiceAPI = {
     apiRequest('/customer-service/privacy', {
       method: 'DELETE',
     }),
+};
+
+// 채팅 메시지 API
+export const chatAPI = {
+  exportMessages: () => apiRequest('/chat/messages/export', {
+    method: 'POST',
+  }),
+  exportUserMessages: (userEmail: string) => apiRequest(`/chat/messages/export/user/${encodeURIComponent(userEmail)}`, {
+    method: 'POST',
+  }),
+  getExports: () => apiRequest('/chat/messages/exports'),
+  downloadFile: (filename: string) => {
+    const url = `${API_BASE_URL}/chat/messages/download/${encodeURIComponent(filename)}`;
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  },
 };
 
 export default {

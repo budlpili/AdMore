@@ -5,6 +5,7 @@ const cors = require('cors');
 const path = require('path');
 const http = require('http');
 const socketIo = require('socket.io');
+const fs = require('fs');
 require('dotenv').config();
 
 // 데이터베이스 연결
@@ -245,6 +246,236 @@ app.delete('/api/chat/messages/clear', (req, res) => {
     
     console.log(`모든 메시지 삭제 완료: ${this.changes}개 메시지 삭제됨`);
     res.json({ message: '모든 메시지가 삭제되었습니다.', deletedCount: this.changes });
+  });
+});
+
+// 특정 유저의 채팅 메시지 삭제 API
+app.delete('/api/chat/messages/user/:userEmail', (req, res) => {
+  const { userEmail } = req.params;
+  
+  if (!userEmail) {
+    return res.status(400).json({ error: '유저 이메일이 필요합니다.' });
+  }
+  
+  const query = `DELETE FROM chat_messages WHERE user = ?`;
+  
+  db.run(query, [userEmail], function(err) {
+    if (err) {
+      console.error('유저 메시지 삭제 오류:', err);
+      return res.status(500).json({ error: '유저 메시지 삭제에 실패했습니다.' });
+    }
+    
+    console.log(`유저 ${userEmail}의 메시지 삭제 완료: ${this.changes}개 메시지 삭제됨`);
+    res.json({ 
+      message: `${userEmail}의 모든 채팅 메시지가 삭제되었습니다.`, 
+      deletedCount: this.changes,
+      userEmail: userEmail
+    });
+  });
+});
+
+// 채팅 메시지를 파일로 저장하는 함수
+const saveChatMessagesToFile = () => {
+  const query = `
+    SELECT * FROM chat_messages 
+    ORDER BY timestamp ASC
+  `;
+  
+  db.all(query, [], (err, rows) => {
+    if (err) {
+      console.error('메시지 조회 오류:', err);
+      return;
+    }
+    
+    const messages = rows.map(row => ({
+      id: row.id,
+      user: row.user,
+      message: row.message,
+      timestamp: row.timestamp,
+      type: row.type,
+      status: row.status,
+      file: row.file,
+      fileName: row.file_name,
+      fileType: row.file_type
+    }));
+    
+    // 유저별로 메시지 그룹화
+    const userMessages = {};
+    messages.forEach(msg => {
+      if (msg.user !== '관리자') {
+        if (!userMessages[msg.user]) {
+          userMessages[msg.user] = [];
+        }
+        userMessages[msg.user].push(msg);
+      }
+    });
+    
+    // 전체 메시지와 유저별 메시지를 각각 저장
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    
+    // 전체 메시지 JSON 저장
+    const allMessagesFile = path.join(__dirname, 'chat_exports', `all_messages_${timestamp}.json`);
+    fs.mkdirSync(path.dirname(allMessagesFile), { recursive: true });
+    fs.writeFileSync(allMessagesFile, JSON.stringify(messages, null, 2), 'utf8');
+    
+    // 전체 메시지 TXT 저장
+    const allMessagesTxtFile = path.join(__dirname, 'chat_exports', `all_messages_${timestamp}.txt`);
+    let txtContent = '=== 전체 채팅 메시지 ===\n\n';
+    messages.forEach(msg => {
+      const date = new Date(msg.timestamp).toLocaleString('ko-KR');
+      const type = msg.type === 'admin' ? '[관리자]' : '[사용자]';
+      const fileInfo = msg.file ? ` (첨부파일: ${msg.fileName})` : '';
+      txtContent += `[${date}] ${type} ${msg.user}: ${msg.message}${fileInfo}\n`;
+    });
+    fs.writeFileSync(allMessagesTxtFile, txtContent, 'utf8');
+    
+    // 유저별 메시지 저장
+    Object.keys(userMessages).forEach(userEmail => {
+      const userJsonFile = path.join(__dirname, 'chat_exports', `user_${userEmail.replace(/[@.]/g, '_')}_${timestamp}.json`);
+      fs.writeFileSync(userJsonFile, JSON.stringify(userMessages[userEmail], null, 2), 'utf8');
+      
+      // 유저별 TXT 파일 저장
+      const userTxtFile = path.join(__dirname, 'chat_exports', `user_${userEmail.replace(/[@.]/g, '_')}_${timestamp}.txt`);
+      let userTxtContent = `=== ${userEmail} 채팅 메시지 ===\n\n`;
+      userMessages[userEmail].forEach(msg => {
+        const date = new Date(msg.timestamp).toLocaleString('ko-KR');
+        const type = msg.type === 'admin' ? '[관리자]' : '[사용자]';
+        const fileInfo = msg.file ? ` (첨부파일: ${msg.fileName})` : '';
+        userTxtContent += `[${date}] ${type} ${msg.user}: ${msg.message}${fileInfo}\n`;
+      });
+      fs.writeFileSync(userTxtFile, userTxtContent, 'utf8');
+    });
+    
+    console.log(`채팅 메시지가 JSON과 TXT 파일로 저장되었습니다. 전체: ${allMessagesFile}`);
+  });
+};
+
+// 채팅 메시지를 파일로 저장하는 API
+app.post('/api/chat/messages/export', (req, res) => {
+  try {
+    saveChatMessagesToFile();
+    res.json({ 
+      message: '채팅 메시지가 파일로 저장되었습니다.',
+      location: path.join(__dirname, 'chat_exports')
+    });
+  } catch (error) {
+    console.error('파일 저장 오류:', error);
+    res.status(500).json({ error: '파일 저장에 실패했습니다.' });
+  }
+});
+
+// 특정 유저의 채팅 메시지를 파일로 저장하는 API
+app.post('/api/chat/messages/export/user/:userEmail', (req, res) => {
+  const { userEmail } = req.params;
+  
+  if (!userEmail) {
+    return res.status(400).json({ error: '유저 이메일이 필요합니다.' });
+  }
+  
+  try {
+    const query = `
+      SELECT * FROM chat_messages 
+      WHERE user = ?
+      ORDER BY timestamp ASC
+    `;
+    
+    db.all(query, [userEmail], (err, rows) => {
+      if (err) {
+        console.error('유저 메시지 조회 오류:', err);
+        return res.status(500).json({ error: '유저 메시지 조회에 실패했습니다.' });
+      }
+      
+      const messages = rows.map(row => ({
+        id: row.id,
+        user: row.user,
+        message: row.message,
+        timestamp: row.timestamp,
+        type: row.type,
+        status: row.status,
+        file: row.file,
+        fileName: row.file_name,
+        fileType: row.file_type
+      }));
+      
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const userJsonFile = path.join(__dirname, 'chat_exports', `user_${userEmail.replace(/[@.]/g, '_')}_${timestamp}.json`);
+      const userTxtFile = path.join(__dirname, 'chat_exports', `user_${userEmail.replace(/[@.]/g, '_')}_${timestamp}.txt`);
+      
+      fs.mkdirSync(path.dirname(userJsonFile), { recursive: true });
+      fs.writeFileSync(userJsonFile, JSON.stringify(messages, null, 2), 'utf8');
+      
+      // TXT 파일 생성
+      let txtContent = `=== ${userEmail} 채팅 메시지 ===\n\n`;
+      messages.forEach(msg => {
+        const date = new Date(msg.timestamp).toLocaleString('ko-KR');
+        const type = msg.type === 'admin' ? '[관리자]' : '[사용자]';
+        const fileInfo = msg.file ? ` (첨부파일: ${msg.fileName})` : '';
+        txtContent += `[${date}] ${type} ${msg.user}: ${msg.message}${fileInfo}\n`;
+      });
+      fs.writeFileSync(userTxtFile, txtContent, 'utf8');
+      
+      console.log(`유저 ${userEmail}의 메시지가 JSON과 TXT 파일로 저장되었습니다: ${userJsonFile}`);
+      res.json({ 
+        message: `${userEmail}의 채팅 메시지가 JSON과 TXT 파일로 저장되었습니다.`,
+        location: userJsonFile,
+        txtLocation: userTxtFile,
+        messageCount: messages.length
+      });
+    });
+  } catch (error) {
+    console.error('파일 저장 오류:', error);
+    res.status(500).json({ error: '파일 저장에 실패했습니다.' });
+  }
+});
+
+// 저장된 파일 목록 조회 API
+app.get('/api/chat/messages/exports', (req, res) => {
+  const exportsDir = path.join(__dirname, 'chat_exports');
+  
+  if (!fs.existsSync(exportsDir)) {
+    return res.json({ files: [] });
+  }
+  
+  try {
+    const files = fs.readdirSync(exportsDir)
+      .filter(file => file.endsWith('.json') || file.endsWith('.txt'))
+      .map(file => {
+        const filePath = path.join(exportsDir, file);
+        const stats = fs.statSync(filePath);
+        return {
+          name: file,
+          size: stats.size,
+          created: stats.birthtime,
+          path: filePath,
+          type: file.endsWith('.json') ? 'json' : 'txt'
+        };
+      })
+      .sort((a, b) => b.created - a.created);
+    
+    res.json({ files });
+  } catch (error) {
+    console.error('파일 목록 조회 오류:', error);
+    res.status(500).json({ error: '파일 목록 조회에 실패했습니다.' });
+  }
+});
+
+// 파일 다운로드 API
+app.get('/api/chat/messages/download/:filename', (req, res) => {
+  const { filename } = req.params;
+  const exportsDir = path.join(__dirname, 'chat_exports');
+  const filePath = path.join(exportsDir, filename);
+  
+  // 파일 존재 여부 확인
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: '파일을 찾을 수 없습니다.' });
+  }
+  
+  // 파일 다운로드
+  res.download(filePath, filename, (err) => {
+    if (err) {
+      console.error('파일 다운로드 오류:', err);
+      res.status(500).json({ error: '파일 다운로드에 실패했습니다.' });
+    }
   });
 });
 

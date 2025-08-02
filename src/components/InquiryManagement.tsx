@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faHeadset, faTrash, faClock, faPhone, faEnvelope, faCheckCircle, faHourglassHalf, faExclamationCircle, faSearch, faStar, faShieldAlt, faExclamationTriangle, faUser, faBuilding, faFileInvoice, faChartLine, faCreditCard, faXmark } from '@fortawesome/free-solid-svg-icons';
+import { faHeadset, faTrash, faClock, faPhone, faEnvelope, faCheckCircle, faHourglassHalf, faExclamationCircle, faSearch, faStar, faShieldAlt, faExclamationTriangle, faUser, faBuilding, faFileInvoice, faChartLine, faCreditCard, faXmark, faDownload, faChevronLeft, faChevronRight } from '@fortawesome/free-solid-svg-icons';
+import { usersAPI, chatAPI } from '../services/api';
 
 interface ChatMessage {
   id: string;
@@ -20,11 +21,13 @@ interface ChatMessage {
   file?: string | null;
   fileName?: string;
   fileType?: string;
+  userName?: string; // 유저 이름 필드 추가
 }
 
 interface InquiryManagementProps {
   chatMessages: ChatMessage[];
   onChatMessagesChange: (messages: ChatMessage[]) => void;
+  users?: Array<{ id: string; email: string; name: string; role: string; status: string }>;
   sendMessage?: (messageData: {
     message: string;
     type: 'user' | 'admin';
@@ -41,6 +44,7 @@ interface InquiryManagementProps {
 const InquiryManagement: React.FC<InquiryManagementProps> = ({
   chatMessages,
   onChatMessagesChange,
+  users = [],
   sendMessage
 }) => {
   const [showReplyModal, setShowReplyModal] = useState(false);
@@ -57,101 +61,42 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [userNames, setUserNames] = useState<{[email: string]: string}>({});
+  const [isDeleteMode, setIsDeleteMode] = useState(false);
+  const [selectedUsersForDelete, setSelectedUsersForDelete] = useState<Set<string>>(new Set());
+  const [isExportMode, setIsExportMode] = useState(false);
+  const [selectedUsersForExport, setSelectedUsersForExport] = useState<Set<string>>(new Set());
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportedFiles, setExportedFiles] = useState<Array<{name: string; size: number; created: string; type: string}>>([]);
+  const [showFileList, setShowFileList] = useState(false);
+  const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(false);
 
-  // 샘플 데이터가 없을 경우 기본 데이터 추가 (개발용)
-  React.useEffect(() => {
-    if (chatMessages.length === 0) {
-      const sampleMessages: ChatMessage[] = [
-        // user1@example.com의 문의
-        {
-          id: '1',
-          user: 'user1@example.com',
-          message: '유튜브 구독자 증가 서비스에 대해 문의드립니다.',
-          timestamp: '2025-01-15 14:30',
-          type: 'user'
-        },
-        {
-          id: '2',
-          user: '관리자',
-          message: '안녕하세요. 유튜브 구독자 증가 서비스에 대해 어떤 점이 궁금하신가요?',
-          timestamp: '2025-01-15 14:35',
-          type: 'admin'
-        },
-        {
-          id: '3',
-          user: 'user1@example.com',
-          message: '구독자 수가 제대로 증가하지 않는 것 같아요. 확인해주세요.',
-          timestamp: '2025-01-15 14:40',
-          type: 'user'
-        },
-        
-        // user2@example.com의 문의
-        {
-          id: '4',
-          user: 'user2@example.com',
-          message: '인스타그램 팔로워 증가 서비스 이용 중 문제가 발생했습니다.',
-          timestamp: '2025-01-15 15:20',
-          type: 'user'
-        },
-        
-        // user3@example.com의 문의
-        {
-          id: '5',
-          user: 'user3@example.com',
-          message: '틱톡 뷰 증가 서비스에 대해 문의드립니다.',
-          timestamp: '2025-01-15 16:10',
-          type: 'user'
-        },
-        {
-          id: '6',
-          user: '관리자',
-          message: '안녕하세요. 틱톡 뷰 증가 서비스에 대해 어떤 점이 궁금하신가요?',
-          timestamp: '2025-01-15 16:15',
-          type: 'admin'
-        },
-        
-        // user4@example.com의 결제취소 문의
-        {
-          id: '7',
-          user: 'user4@example.com',
-          message: '결제취소 요청드립니다. 실수로 중복 결제가 되었어요.',
-          timestamp: '2025-01-15 17:00',
-          type: 'user'
-        },
-        {
-          id: '8',
-          user: '관리자',
-          message: '결제취소 요청을 확인했습니다. 취소사유를 입력해주시면 처리해드리겠습니다.',
-          timestamp: '2025-01-15 17:05',
-          type: 'admin'
-        },
-        
-        // user5@example.com의 문의
-        {
-          id: '9',
-          user: 'user5@example.com',
-          message: '페이스북 팔로워 증가 서비스에 대해 문의드립니다.',
-          timestamp: '2025-07-30 08:56',
-          type: 'user'
-        },
-        {
-          id: '10',
-          user: '관리자',
-          message: '안녕하세요. 페이스북 팔로워 증가 서비스에 대해 어떤 점이 궁금하신가요?',
-          timestamp: '2025-07-30 09:00',
-          type: 'admin'
-        },
-        {
-          id: '11',
-          user: 'user5@example.com',
-          message: '팔로워 증가 속도와 안전성에 대해 알고 싶어요.',
-          timestamp: '2025-07-30 09:05',
-          type: 'user'
-        }
-      ];
-      onChatMessagesChange(sampleMessages);
+  // 선택된 메시지가 변경될 때 유저 이름 가져오기
+  useEffect(() => {
+    if (selectedMessage && selectedMessage.user !== '관리자') {
+      getUserName(selectedMessage.user);
     }
-  }, [chatMessages.length, onChatMessagesChange]);
+  }, [selectedMessage, users]);
+
+  // 저장된 파일 목록 가져오기
+  const loadExportedFiles = async () => {
+    try {
+      const result = await chatAPI.getExports();
+      setExportedFiles(result.files || []);
+    } catch (error) {
+      console.error('파일 목록 로드 오류:', error);
+    }
+  };
+
+  // 파일 다운로드 함수
+  const handleDownloadFile = (filename: string) => {
+    try {
+      chatAPI.downloadFile(filename);
+    } catch (error) {
+      console.error('파일 다운로드 오류:', error);
+      alert('파일 다운로드 중 오류가 발생했습니다.');
+    }
+  };
 
   // 사용자별 메시지 그룹화
   const userMessages = chatMessages.reduce((acc, message) => {
@@ -410,6 +355,36 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
     return localPart.charAt(0).toUpperCase();
   };
 
+  // 유저 표시 이름 가져오기 함수
+  const getUserDisplayName = (message: ChatMessage) => {
+    // 유저 이름이 있으면 이름을, 없으면 이메일을 반환
+    if (message.userName) {
+      return message.userName;
+    }
+    return message.user;
+  };
+
+  // 유저 이름 가져오기 함수
+  const getUserName = (email: string) => {
+    if (userNames[email]) return userNames[email];
+    
+    // users 배열에서 해당 이메일의 유저 찾기
+    const user = users.find(u => u.email === email);
+    if (user && user.name) {
+      setUserNames(prev => ({ ...prev, [email]: user.name }));
+      return user.name;
+    }
+    
+    return email;
+  };
+
+  // 선택된 유저의 표시 이름 가져오기 함수
+  const getSelectedUserDisplayName = () => {
+    if (!selectedMessage) return '';
+    
+    return getUserName(selectedMessage.user);
+  };
+
   // 날짜 형식 통일 함수 (KST로 변환)
   const formatTimestamp = (timestamp: string) => {
     try {
@@ -451,53 +426,259 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
     return d1.toDateString() === d2.toDateString();
   };
 
+  // 날짜와 시간을 함께 포맷팅하는 함수
+  const formatDateAndTime = (timestamp: string) => {
+    try {
+      // timestamp가 YYYY-MM-DD HH:MM 형식인 경우
+      if (timestamp.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/)) {
+        return timestamp;
+      }
+      
+      // ISO 형식인 경우
+      const date = new Date(timestamp);
+      if (!isNaN(date.getTime())) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${year}-${month}-${day} ${hours}:${minutes}`;
+      }
+      
+      return timestamp;
+    } catch (error) {
+      console.error('Date formatting error:', error);
+      return timestamp;
+    }
+  };
+
+  // 삭제 모드 토글 함수
+  const toggleDeleteMode = () => {
+    setIsDeleteMode(!isDeleteMode);
+    setIsExportMode(false);
+    setSelectedUsersForDelete(new Set());
+    setSelectedUsersForExport(new Set());
+  };
+
+  // 저장 모드 토글 함수
+  const toggleExportMode = () => {
+    setIsExportMode(!isExportMode);
+    setIsDeleteMode(false);
+    setSelectedUsersForExport(new Set());
+    setSelectedUsersForDelete(new Set());
+  };
+
+  // 유저 삭제 선택 토글 함수
+  const toggleUserForDelete = (userEmail: string) => {
+    const newSelected = new Set(selectedUsersForDelete);
+    if (newSelected.has(userEmail)) {
+      newSelected.delete(userEmail);
+    } else {
+      newSelected.add(userEmail);
+    }
+    setSelectedUsersForDelete(newSelected);
+  };
+
+  // 유저 저장 선택 토글 함수
+  const toggleUserForExport = (userEmail: string) => {
+    const newSelected = new Set(selectedUsersForExport);
+    if (newSelected.has(userEmail)) {
+      newSelected.delete(userEmail);
+    } else {
+      newSelected.add(userEmail);
+    }
+    setSelectedUsersForExport(newSelected);
+  };
+
+  // 선택된 유저들 삭제 함수
+  const handleDeleteSelectedUsers = async () => {
+    if (selectedUsersForDelete.size === 0) {
+      alert('삭제할 유저를 선택해주세요.');
+      return;
+    }
+
+    const userNames = Array.from(selectedUsersForDelete).map(email => getUserName(email));
+    const confirmMessage = `다음 유저들의 모든 채팅 기록을 삭제하시겠습니까?\n\n${userNames.join('\n')}`;
+    
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    try {
+      // 백엔드 API를 통해 각 유저의 메시지 삭제
+      const deletePromises = Array.from(selectedUsersForDelete).map(async (userEmail) => {
+        const response = await fetch(`http://localhost:5001/api/chat/messages/user/${encodeURIComponent(userEmail)}`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to delete messages for ${userEmail}: ${response.statusText}`);
+        }
+
+        const result = await response.json();
+        console.log(`Deleted messages for ${userEmail}:`, result);
+        return result;
+      });
+
+      await Promise.all(deletePromises);
+
+      // 로컬 상태에서 선택된 유저들의 메시지들 제거
+      const updatedMessages = chatMessages.filter(msg => !selectedUsersForDelete.has(msg.user));
+      onChatMessagesChange(updatedMessages);
+
+      // 만약 삭제된 유저 중에 현재 선택된 유저가 있다면 선택 해제
+      if (selectedMessage && selectedUsersForDelete.has(selectedMessage.user)) {
+        setSelectedMessage(null);
+      }
+
+      // 삭제 모드 종료 및 선택 초기화
+      setIsDeleteMode(false);
+      setSelectedUsersForDelete(new Set());
+
+      console.log(`Successfully deleted chat messages for users: ${Array.from(selectedUsersForDelete).join(', ')}`);
+    } catch (error) {
+      console.error('Error deleting user chats:', error);
+      alert('채팅 삭제 중 오류가 발생했습니다.');
+    }
+  };
+
+  // 채팅 메시지를 파일로 저장하는 함수
+  const handleExportMessages = async () => {
+    if (!window.confirm('현재 채팅 메시지를 파일로 저장하시겠습니까?')) {
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      const result = await chatAPI.exportMessages();
+      // 파일 목록 새로고침
+      await loadExportedFiles();
+      setShowFileList(true);
+
+      alert('채팅 메시지가 성공적으로 파일로 저장되었습니다.');
+      console.log('Export result:', result);
+    } catch (error) {
+      console.error('Export error:', error);
+      alert('파일 저장 중 오류가 발생했습니다.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  // 선택된 유저들의 채팅 메시지를 파일로 저장하는 함수
+  const handleExportSelectedUsers = async () => {
+    if (selectedUsersForExport.size === 0) {
+      alert('저장할 유저를 선택해주세요.');
+      return;
+    }
+
+    const userNames = Array.from(selectedUsersForExport).map(email => getUserName(email));
+    const confirmMessage = `다음 유저들의 채팅 메시지를 파일로 저장하시겠습니까?\n\n${userNames.join('\n')}`;
+    
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      const exportPromises = Array.from(selectedUsersForExport).map(async (userEmail) => {
+        const result = await chatAPI.exportUserMessages(userEmail);
+        console.log(`Exported messages for ${userEmail}:`, result);
+        return result;
+      });
+
+      await Promise.all(exportPromises);
+
+      // 저장 모드 종료 및 선택 초기화
+      setIsExportMode(false);
+      setSelectedUsersForExport(new Set());
+
+      // 파일 목록 새로고침
+      await loadExportedFiles();
+      setShowFileList(true);
+
+      alert('선택된 유저들의 채팅 메시지가 성공적으로 파일로 저장되었습니다.');
+    } catch (error) {
+      console.error('Export error:', error);
+      alert('파일 저장 중 오류가 발생했습니다.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  // 특정 유저의 채팅 메시지를 파일로 저장하는 함수
+  const handleExportUserMessages = async (userEmail: string) => {
+    const userName = getUserName(userEmail);
+    if (!window.confirm(`'${userName}'님의 채팅 메시지를 파일로 저장하시겠습니까?`)) {
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      const result = await chatAPI.exportUserMessages(userEmail);
+      alert(`${userName}님의 채팅 메시지가 성공적으로 파일로 저장되었습니다.`);
+      console.log('Export user result:', result);
+    } catch (error) {
+      console.error('Export user error:', error);
+      alert('파일 저장 중 오류가 발생했습니다.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <div className="flex h-[calc(100vh-160px)] w-full bg-gray-50 border border-gray-200 rounded-lg">
       {/* 왼쪽 패널 - 메시지 목록 */}
       <div className="w-80 bg-white border-r border-gray-200 flex flex-col rounded-l-lg">
         {/* 필터 탭 */}
         <div className="p-4 border-b border-gray-200">
-          <div className="flex gap-2 mb-4">
-            <button
-              onClick={() => setStatusFilter('all')}
-              className={`px-4 py-2 rounded-full text-xs font-medium transition-colors ${
-                statusFilter === 'all' 
-                  ? 'bg-gray-800 text-white' 
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              전체 ({totalUserCount})
-            </button>
-            <button
-              onClick={() => setStatusFilter('pending')}
-              className={`px-4 py-2 rounded-full text-xs font-medium transition-colors ${
-                statusFilter === 'pending' 
-                  ? 'bg-yellow-500 text-white' 
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              대기 ({pendingCount})
-            </button>
-            <button
-              onClick={() => setStatusFilter('answered')}
-              className={`px-4 py-2 rounded-full text-xs font-medium transition-colors ${
-                statusFilter === 'answered' 
-                  ? 'bg-blue-500 text-white' 
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              답변중 ({inProgressCount})
-            </button>
-            <button
-              onClick={() => setStatusFilter('closed')}
-              className={`px-4 py-2 rounded-full text-xs font-medium transition-colors ${
-                statusFilter === 'closed' 
-                  ? 'bg-gray-500 text-white' 
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              완료 ({completedCount})
-            </button>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex gap-2">
+              <button
+                onClick={() => setStatusFilter('all')}
+                className={`px-4 py-2 rounded-full text-xs font-medium transition-colors ${
+                  statusFilter === 'all' 
+                    ? 'bg-gray-800 text-white' 
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                전체 ({totalUserCount})
+              </button>
+              <button
+                onClick={() => setStatusFilter('pending')}
+                className={`px-4 py-2 rounded-full text-xs font-medium transition-colors ${
+                  statusFilter === 'pending' 
+                    ? 'bg-yellow-500 text-white' 
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                대기 ({pendingCount})
+              </button>
+              <button
+                onClick={() => setStatusFilter('answered')}
+                className={`px-4 py-2 rounded-full text-xs font-medium transition-colors ${
+                  statusFilter === 'answered' 
+                    ? 'bg-blue-500 text-white' 
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                답변중 ({inProgressCount})
+              </button>
+              <button
+                onClick={() => setStatusFilter('closed')}
+                className={`px-4 py-2 rounded-full text-xs font-medium transition-colors ${
+                  statusFilter === 'closed' 
+                    ? 'bg-gray-500 text-white' 
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                완료 ({completedCount})
+              </button>
+            </div>
+            
           </div>
 
           {/* 검색 */}
@@ -541,14 +722,60 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                       }`}
                       onClick={() => setSelectedMessage(latestMessage)}
                     >
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
+                      <div className="flex items-start gap-2 mb-0">
+
+                        <div className="flex flex-col items-center justify-between min-h-[80px]">
                           <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center">
                             <span className="text-white text-xs font-bold">{getInitials(user)}</span>
                           </div>
-                          <div className="flex-1">
-                            <div className="font-medium text-sm text-gray-900">{user}</div>
-                            <div className="flex items-center gap-2 mt-1">
+                          <div className="flex items-center gap-1">
+                            {isDeleteMode && (
+                              <input
+                                type="checkbox"
+                                checked={selectedUsersForDelete.has(user)}
+                                onChange={(e) => {
+                                  e.stopPropagation();
+                                  toggleUserForDelete(user);
+                                }}
+                                className="w-4 h-4 text-orange-500 bg-gray-100 border-gray-300 rounded focus:ring-orange-500 focus:ring-1"
+                              />
+                            )}
+                            {isExportMode && (
+                              <input
+                                type="checkbox"
+                                checked={selectedUsersForExport.has(user)}
+                                onChange={(e) => {
+                                  e.stopPropagation();
+                                  toggleUserForExport(user);
+                                }}
+                                className="w-4 h-4 text-blue-500 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-1"
+                              />
+                            )}
+                            {!isDeleteMode && !isExportMode && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleExportUserMessages(user);
+                                }}
+                                disabled={isExporting}
+                                className="p-0.5 text-gray-400 hover:text-blue-500 transition-colors disabled:text-gray-300 disabled:cursor-not-allowed"
+                                title="채팅 기록 저장"
+                              >
+                                {/* <FontAwesomeIcon icon={faDownload} className="text-xs" /> */}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex flex-col mb-1">
+                              <div className="font-medium text-sm text-gray-900">{getUserName(user)}</div>
+                              {getUserName(user) !== user && (
+                                <div className="text-xs text-gray-400">{user}</div>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1">
                               {getStatusIcon(latestMessage.status)}
                               <span className="text-xs text-gray-600">{getStatusText(latestMessage.status)}</span>
                               {pendingCount > 0 && (
@@ -558,11 +785,16 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                               )}
                             </div>
                           </div>
+                          <div className="text-sm text-gray-600 truncate mt-1">
+                            {latestMessage.message}
+                          </div>
+                          <div className="flex items-center gap-1 text-xs text-gray-400 justify-end mt-1">
+                            <div className="text-xs text-gray-400 ml-auto">
+                              {formatDateAndTime(latestMessage.timestamp)}
+                            </div>
+
+                          </div>
                         </div>
-                        <span className="text-xs text-gray-500">{formatTimestamp(latestMessage.timestamp)}</span>
-                      </div>
-                      <div className="text-sm text-gray-600 truncate ml-10">
-                        {latestMessage.message}
                       </div>
                     </div>
                   );
@@ -570,36 +802,152 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
             </div>
           )}
         </div>
-      </div>
+                 <div className="flex justify-between gap-2 border-t border-gray-200 p-4">
+           {!isDeleteMode && !isExportMode ? (
+             <>
+               <button
+                 onClick={toggleDeleteMode}
+                 className="px-3 py-1 text-sm font-medium text-gray-500 hover:text-gray-600 hover:underline transition-colors"
+               >
+                 삭제하기
+               </button>
+               <button
+                 onClick={toggleExportMode}
+                 className="px-3 py-1 text-sm font-medium text-blue-500 hover:text-blue-600 hover:underline transition-colors"
+               >
+                 저장하기
+               </button>
+               
+               <button
+                 onClick={() => {
+                   loadExportedFiles();
+                   setShowFileList(!showFileList);
+                 }}
+                 className="px-3 py-1 text-sm font-medium text-purple-500 hover:text-purple-600 hover:underline transition-colors"
+               >
+                 저장된 파일
+               </button>
+             </>
+           ) : isDeleteMode ? (
+             <>
+               <button
+                 onClick={handleDeleteSelectedUsers}
+                 disabled={selectedUsersForDelete.size === 0}
+                 className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+               >
+                 선택 삭제 ({selectedUsersForDelete.size})
+               </button>
+               <button
+                 onClick={toggleDeleteMode}
+                 className="px-3 py-1 text-sm bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
+               >
+                 취소
+               </button>
+             </>
+           ) : isExportMode ? (
+             <>
+               <button
+                 onClick={handleExportSelectedUsers}
+                 disabled={selectedUsersForExport.size === 0}
+                 className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+               >
+                 선택 저장 ({selectedUsersForExport.size})
+               </button>
+               <button
+                 onClick={toggleExportMode}
+                 className="px-3 py-1 text-sm bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
+               >
+                 취소
+               </button>
+             </>
+                      ) : null}
+         </div>
+
+         {/* 저장된 파일 목록 */}
+         {showFileList && (
+           <div className="border-t border-gray-200 p-4 bg-gray-50">
+             <h4 className="text-xs font-medium text-gray-700 mb-2">저장된 파일 목록</h4>
+             {exportedFiles.length === 0 ? (
+               <p className="text-sm text-gray-500">저장된 파일이 없습니다.</p>
+             ) : (
+               <div className="space-y-2 max-h-40 overflow-y-auto">
+                 {exportedFiles.map((file, index) => (
+                   <div key={index} className="flex items-center justify-between p-2 bg-white rounded border">
+                     <div className="flex-1">
+                       <div className="flex items-center gap-2">
+                         <span className="text-xs font-medium text-gray-900">{file.name}</span>
+                       </div>
+                       <div className="text-xs text-gray-500 mt-1">
+                         크기: {(file.size / 1024).toFixed(1)}KB | 
+                         생성: {new Date(file.created).toLocaleString('ko-KR', {
+                           year: 'numeric',
+                           month: '2-digit',
+                           day: '2-digit',
+                           hour: '2-digit',
+                           minute: '2-digit'
+                         })}
+                       </div>
+                     </div>
+                     <button
+                       onClick={() => handleDownloadFile(file.name)}
+                       className="w-8 h-8 ml-2 flex items-center justify-center bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                       title="다운로드"
+                     >
+                       <FontAwesomeIcon icon={faDownload} className="text-xs" />
+                     </button>
+                   </div>
+                 ))}
+               </div>
+             )}
+           </div>
+         )}
+       </div>
 
       {/* 중앙 패널 */}
       <div className="flex-1 bg-white border-r border-gray-200 flex flex-col">
         {/* 채팅 헤더 */}
-        <div className="p-4 border-b border-gray-200">
-          {/* 선택된 유저 정보 */}
-          {selectedMessage && (
-            <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-              <div className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center">
-                <span className="text-white text-sm font-bold">{getInitials(selectedMessage.user)}</span>
+        <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+          <div className="flex-1">
+            {/* 선택된 유저 정보 */}
+            {selectedMessage && (
+              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                <div className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center">
+                  <span className="text-white text-sm font-bold">{getInitials(selectedMessage.user)}</span>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-700 text-sm">{getSelectedUserDisplayName()}</h3>
+                  {getSelectedUserDisplayName() !== selectedMessage.user && (
+                    <p className="text-xs text-gray-500">{selectedMessage.user}</p>
+                  )}
+                </div>
+                <div className="ml-auto">
+                  <button
+                    onClick={() => handleCloseChat(selectedMessage)}
+                    disabled={selectedMessage.status === 'closed'}
+                    className={`px-3 py-1 text-sm rounded-lg ${
+                      selectedMessage.status === 'closed'
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        : 'bg-green-500 text-white hover:bg-green-600'
+                    }`}
+                  >
+                    {selectedMessage.status === 'closed' ? '답변완료됨' : '답변완료'}
+                  </button>
+                </div>
               </div>
-              <div>
-                <h3 className="font-medium text-gray-900">{selectedMessage.user}</h3>
-              </div>
-              <div className="ml-auto">
-                <button
-                  onClick={() => handleCloseChat(selectedMessage)}
-                  disabled={selectedMessage.status === 'closed'}
-                  className={`px-3 py-1 text-sm rounded-lg ${
-                    selectedMessage.status === 'closed'
-                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                      : 'bg-green-500 text-white hover:bg-green-600'
-                  }`}
-                >
-                  {selectedMessage.status === 'closed' ? '답변완료됨' : '답변완료'}
-                </button>
-              </div>
-            </div>
-          )}
+            )}
+          </div>
+          
+          {/* 오른쪽 패널 토글 버튼 */}
+          <button
+            onClick={() => setIsRightPanelCollapsed(!isRightPanelCollapsed)}
+            className="ml-4 p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            title={isRightPanelCollapsed ? "오른쪽 패널 펼치기" : "오른쪽 패널 접기"}
+          >
+            <FontAwesomeIcon 
+              icon={isRightPanelCollapsed ? faChevronLeft : faChevronRight} 
+              className="text-sm" 
+            />
+          </button>
         </div>
 
         {/* 채팅 메시지 영역 */}
@@ -673,12 +1021,24 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                     return (
                       <React.Fragment key={`${message.id}-${idx}`}>
                         {dateDivider}
-                        <div className={`flex ${message.type === 'admin' ? 'justify-end' : 'justify-start'}`}>
-                          <div className={`max-w-[70%] ${message.type === 'admin' ? 'order-2' : 'order-1'}`}>
-                            <div className={`rounded-lg p-3 ${
+                        <div className={`flex flex-col ${message.type === 'admin' ? 'items-end' : 'items-start'}`}>
+                          {message.type === 'user' && (
+                            <div className="relative flex flex-row items-center mb-1 ml-0">
+                              {/* <div className="absolute top-0.5 left-0 w-6 h-6 rounded-full flex items-center justify-center bg-gray-300 mr-2">
+                                <span className="text-xs font-bold text-gray-600">
+                                  {getInitials(message.user)}
+                                </span>
+                              </div> */}
+                              <span className="ml-0 text-xs font-bold text-gray-700">
+                                {getUserName(message.user)}
+                              </span>
+                            </div>
+                          )}
+                          <div className={`max-w-[70%] ${message.type === 'admin' ? 'ml-auto' : 'ml-0'}`}>
+                            <div className={`rounded-lg px-3 py-2 ${
                               message.type === 'admin' 
                                 ? 'bg-orange-500 text-white' 
-                                : 'bg-gray-100 text-gray-900'
+                                : 'bg-gray-200 text-gray-900'
                             }`}>
                               {/* 파일이 있는 경우 파일 표시 */}
                               {message.file && message.fileType && message.fileType.startsWith('image/') ? (
@@ -731,15 +1091,6 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                                 }
                               })()}
                             </div>
-                          </div>
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center mx-2 ${
-                            message.type === 'admin' ? 'order-1 bg-orange-500' : 'order-2 bg-gray-300'
-                          }`}>
-                            <span className={`text-xs font-bold ${
-                              message.type === 'admin' ? 'text-white' : 'text-gray-600'
-                            }`}>
-                              {message.type === 'admin' ? 'A' : getInitials(message.user)}
-                            </span>
                           </div>
                         </div>
                       </React.Fragment>
@@ -850,7 +1201,9 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
       </div>
 
       {/* 오른쪽 패널 - 전문가 정보 */}
-      <div className="w-80 bg-white flex flex-col rounded-r-lg">
+      <div className={`bg-white flex flex-col rounded-r-lg transition-all duration-300 ${
+        isRightPanelCollapsed ? 'w-0 overflow-hidden' : 'w-80'
+      }`}>
         <div className="flex-1 overflow-y-auto p-6">
           {/* 전문가 프로필 */}
           <div className="flex items-center justify-start text-center mb-6 gap-2">

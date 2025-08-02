@@ -2541,6 +2541,7 @@ const Admin: React.FC = () => {
               <InquiryManagement 
                 chatMessages={chatMessages}
                 onChatMessagesChange={updateChatMessages}
+                users={users}
                 sendMessage={sendMessage}
               />
             )}
