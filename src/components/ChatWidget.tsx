@@ -255,15 +255,20 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     }
     
     if (file) {
-      setMessages(msgs => [
-        ...msgs,
-        {
-          from: 'user',
-          file: filePreview,
-          fileName: file.name,
-          fileType: file.type
-        }
-      ]);
+      console.log('파일 전송 시도:', file.name, file.type);
+      
+      // WebSocket을 통해 파일 메시지 전송
+      sendMessage({
+        message: '', // 파일명을 메시지에 포함하지 않음
+        type: 'user',
+        inquiryType,
+        productInfo,
+        paymentInfo,
+        file: filePreview,
+        fileName: file.name,
+        fileType: file.type
+      });
+      
       setFile(null);
       setFilePreview(null);
     }
@@ -436,7 +441,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                               <div className="flex flex-col">
                                 <span className="text-xs font-bold text-gray-700 mb-1 ml-1">애드모어 운영팀</span>
                                 <div className="bg-gray-100 border border-gray-200 rounded-lg px-4 py-2 text-[13px] text-gray-900 
-                                    max-w-[70%] min-w-[120px] break-words whitespace-pre-line">
+                                    max-w-[100%]">
                                   {/* 파일이 있는 경우 파일 표시 */}
                                   {(() => {
                                     console.log('관리자 메시지 파일 정보:', {
@@ -473,7 +478,16 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                                     }
                                     return null;
                                   })()}
-                                  {msg.text && <div className="text-sm leading-relaxed whitespace-pre-line">{msg.text}</div>}
+                                  {msg.text && (
+                                    <div className="text-sm leading-relaxed whitespace-normal">
+                                      {msg.text.split('\n').map((line, index) => (
+                                        <div key={index} style={{ display: 'block', wordBreak: 'normal' }}>
+                                          {line}
+                                          {index < (msg.text?.split('\n').length || 0) - 1 && <br />}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
                                 </div>
                                 <span className="text-[11px] text-gray-400 mt-1 self-start">{time}</span>
                               </div>
@@ -481,39 +495,36 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                           </React.Fragment>
                         );
                       } else {
-                        if (msg.file) {
-                          if (msg.fileType && msg.fileType.startsWith('image/')) {
-                            return (
-                              <React.Fragment key={idx}>
-                                {dateDivider}
-                                <div className="mb-4 flex flex-col items-end">
-                                  <img src={msg.file} alt="첨부된 이미지" className="w-32 h-32 object-cover rounded border mb-1" />
-                                </div>
-                              </React.Fragment>
-                            );
-                          } else {
-                            return (
-                              <React.Fragment key={idx}>
-                                {dateDivider}
-                                <div className="mb-4 flex flex-col items-end">
-                                  <a href={msg.file} download={msg.fileName} className="text-xs text-blue-600 underline">첨부파일</a>
-                                </div>
-                              </React.Fragment>
-                            );
-                          }
-                        } else {
-                          return (
-                            <React.Fragment key={idx}>
-                              {dateDivider}
-                              <div className="mb-4 flex flex-col items-end">
-                                <div className="bg-orange-600 text-white rounded-lg px-4 py-2 text-sm max-w-[70%] min-w-[100px] 
-                                    break-words whitespace-pre-line">
-                                  {msg.text}
-                                </div>
-                                <span className="text-[11px] text-gray-400 mt-1 mr-1">{time}</span>
+                        return (
+                          <React.Fragment key={idx}>
+                            {dateDivider}
+                            <div className="mb-4 flex flex-col items-end">
+                              <div className="bg-orange-600 text-white rounded-lg px-4 py-2 text-sm max-w-[70%] 
+                                  break-words whitespace-pre-line">
+                                {/* 파일이 있는 경우 파일 표시 */}
+                                {msg.file && msg.fileType && msg.fileType.startsWith('image/') ? (
+                                  <div className="mb-2">
+                                    <img 
+                                      src={msg.file} 
+                                      alt="첨부된 이미지" 
+                                      className="max-w-full h-auto rounded-lg"
+                                      style={{ maxHeight: '200px' }}
+                                    />
+                                  </div>
+                                ) : msg.file && msg.fileName ? (
+                                  <div className="mb-2 p-2 bg-orange-500 rounded border">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs">📎</span>
+                                      <span className="text-xs">첨부파일</span>
+                                    </div>
+                                  </div>
+                                ) : null}
+                                {msg.text && <div className="text-sm leading-relaxed whitespace-pre-line">{msg.text}</div>}
                               </div>
-                            </React.Fragment>
-                          );
+                              <span className="text-[11px] text-gray-400 mt-1 mr-1">{time}</span>
+                            </div>
+                          </React.Fragment>
+                        );
                         }
                       }
                     })}

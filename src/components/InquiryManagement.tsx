@@ -699,7 +699,16 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                                 </div>
                               ) : null}
                               
-                              {message.message && <div className="text-sm leading-relaxed whitespace-pre-line">{message.message}</div>}
+                              {message.message && (
+                                <div className="text-sm leading-relaxed whitespace-normal">
+                                  {message.message.split('\n').map((line, index) => (
+                                    <div key={index} style={{ display: 'block', wordBreak: 'normal' }}>
+                                      {line}
+                                      {index < (message.message?.split('\n').length || 0) - 1 && <br />}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                             <div className="text-xs text-gray-500 text-right mt-1">
                               {(() => {
