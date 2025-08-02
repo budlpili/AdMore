@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faHeadset, faTrash, faClock, faPhone, faEnvelope, faCheckCircle, faHourglassHalf, faExclamationCircle, faSearch, faStar, faShieldAlt, faExclamationTriangle, faUser, faBuilding, faFileInvoice, faChartLine, faCreditCard } from '@fortawesome/free-solid-svg-icons';
+import { faHeadset, faTrash, faClock, faPhone, faEnvelope, faCheckCircle, faHourglassHalf, faExclamationCircle, faSearch, faStar, faShieldAlt, faExclamationTriangle, faUser, faBuilding, faFileInvoice, faChartLine, faCreditCard, faXmark } from '@fortawesome/free-solid-svg-icons';
 
 interface ChatMessage {
   id: string;
@@ -17,6 +17,9 @@ interface ChatMessage {
     paymentDate: string;
   };
   status?: 'pending' | 'answered' | 'closed';
+  file?: string | null;
+  fileName?: string;
+  fileType?: string;
 }
 
 interface InquiryManagementProps {
@@ -29,6 +32,9 @@ interface InquiryManagementProps {
     productInfo?: string;
     paymentInfo?: any;
     targetUserEmail?: string;
+    file?: string | null;
+    fileName?: string;
+    fileType?: string;
   }) => void;
 }
 
@@ -48,6 +54,9 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
   const [showCloseConfirmModal, setShowCloseConfirmModal] = useState(false);
   const [closingMessage, setClosingMessage] = useState<ChatMessage | null>(null);
   const [isSending, setIsSending] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [filePreview, setFilePreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 샘플 데이터가 없을 경우 기본 데이터 추가 (개발용)
   React.useEffect(() => {
@@ -271,27 +280,95 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
     }
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      console.log('파일 선택됨:', file.name, file.type, file.size);
+      setSelectedFile(file);
+      
+      // 이미지 파일인 경우 미리보기 생성
+      if (file.type.startsWith('image/')) {
+        console.log('이미지 파일 감지, 미리보기 생성 시작');
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const result = event.target?.result as string;
+          console.log('이미지 미리보기 생성됨, 길이:', result.length);
+          console.log('미리보기 시작 부분:', result.substring(0, 50));
+          setFilePreview(result);
+        };
+        reader.onerror = (error) => {
+          console.error('파일 읽기 오류:', error);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        console.log('이미지가 아닌 파일, 미리보기 없음');
+        setFilePreview(null);
+      }
+    } else {
+      console.log('파일이 선택되지 않음');
+    }
+  };
+
+  const handleFileRemove = () => {
+    setSelectedFile(null);
+    setFilePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const handleSendMessage = () => {
-    if (!messageInput.trim() || !selectedMessage || isSending) return;
+    if ((!messageInput.trim() && !selectedFile) || !selectedMessage || isSending) return;
 
     const messageToSend = messageInput.trim();
     
     setIsSending(true);
 
-    // 입력창 즉시 비우기
-    setMessageInput('');
-
-    // WebSocket을 통해 메시지 전송
-    if (sendMessage) {
+    // 텍스트 메시지가 있는 경우 WebSocket을 통해 전송
+    if (messageToSend && sendMessage) {
       sendMessage({
         message: messageToSend,
         type: 'admin',
         inquiryType: selectedMessage.inquiryType,
         productInfo: selectedMessage.productInfo,
         paymentInfo: selectedMessage.paymentInfo,
-        targetUserEmail: selectedMessage.user // 선택된 사용자의 이메일 추가
+        targetUserEmail: selectedMessage.user
       });
     }
+
+    // 파일이 있는 경우 파일 메시지도 WebSocket을 통해 전송
+    if (selectedFile && sendMessage) {
+      console.log('파일 전송 시도:', selectedFile.name, selectedFile.type);
+      console.log('파일 미리보기 데이터:', filePreview ? '있음' : '없음');
+      console.log('파일 미리보기 길이:', filePreview ? filePreview.length : 0);
+      console.log('파일 미리보기 시작 부분:', filePreview ? filePreview.substring(0, 100) : '없음');
+      
+      // WebSocket을 통해 파일 메시지 전송
+      const fileMessageData = {
+        message: '', // 파일명을 메시지에 포함하지 않음
+        type: 'admin' as const,
+        inquiryType: selectedMessage.inquiryType,
+        productInfo: selectedMessage.productInfo,
+        paymentInfo: selectedMessage.paymentInfo,
+        targetUserEmail: selectedMessage.user,
+        file: filePreview,
+        fileName: selectedFile.name,
+        fileType: selectedFile.type
+      };
+      
+      console.log('전송할 파일 메시지 데이터:', fileMessageData);
+      sendMessage(fileMessageData);
+      
+      // 파일 상태 초기화
+      setSelectedFile(null);
+      setFilePreview(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+
+    // 입력창 비우기
+    setMessageInput('');
 
     // 전송 상태 리셋
     setTimeout(() => {
@@ -550,7 +627,9 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                 {chatMessages
                   .filter(msg => {
                     // 선택된 사용자의 메시지이거나, 관리자 메시지
-                    return msg.user === selectedMessage.user || msg.user === '관리자';
+                    const isRelevantMessage = msg.user === selectedMessage.user || msg.user === '관리자';
+                    console.log('메시지 필터링:', msg.id, msg.user, msg.message, isRelevantMessage);
+                    return isRelevantMessage;
                   })
                   .sort((a, b) => {
                     // timestamp가 YYYY-MM-DD HH:MM 형식인 경우와 ISO 형식인 경우를 모두 처리
@@ -601,7 +680,26 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                                 ? 'bg-orange-500 text-white' 
                                 : 'bg-gray-100 text-gray-900'
                             }`}>
-                              <div className="text-sm leading-relaxed">{message.message}</div>
+                              {/* 파일이 있는 경우 파일 표시 */}
+                              {message.file && message.fileType && message.fileType.startsWith('image/') ? (
+                                <div className="mb-2">
+                                  <img 
+                                    src={message.file} 
+                                    alt="첨부된 이미지" 
+                                    className="max-w-full h-auto rounded-lg"
+                                    style={{ maxHeight: '200px' }}
+                                  />
+                                </div>
+                              ) : message.file && message.fileName ? (
+                                <div className="mb-2 p-2 bg-gray-100 rounded border">
+                                  <div className="flex items-center gap-2">
+                                    <FontAwesomeIcon icon={faFileInvoice} className="text-gray-500" />
+                                    <span className="text-sm">첨부파일</span>
+                                  </div>
+                                </div>
+                              ) : null}
+                              
+                              {message.message && <div className="text-sm leading-relaxed">{message.message}</div>}
                             </div>
                             <div className="text-xs text-gray-500 text-right mt-1">
                               {(() => {
@@ -679,18 +777,57 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                   className="w-full pl-4 pr-4 py-3 border border-gray-300 rounded-lg resize-none
                     focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
                 />
+                
+                {/* 파일 미리보기 */}
+                {selectedFile && (
+                  <div className="mt-2 p-3 bg-gray-50 rounded-lg border">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {filePreview ? (
+                          <img src={filePreview} alt="미리보기" className="w-12 h-12 object-cover rounded" />
+                        ) : (
+                          <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center">
+                            <FontAwesomeIcon icon={faFileInvoice} className="text-gray-500" />
+                          </div>
+                        )}
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">{selectedFile.name}</p>
+                          <p className="text-xs text-gray-500">{(selectedFile.size / 1024).toFixed(1)} KB</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={handleFileRemove}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <FontAwesomeIcon icon={faXmark} />
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="flex justify-between items-center">
                 <div className="flex gap-2">
-                  <button className="px-3 py-2 text-sm font-semibold text-gray-700 hover:text-gray-800 border border-gray-300 rounded-lg">
+                  <button 
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="px-3 py-2 text-sm font-semibold text-gray-700 hover:text-gray-800 
+                      border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors"
+                  >
                     파일첨부
                   </button>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    className="hidden"
+                    accept="image/*,.pdf,.doc,.docx,.txt"
+                  />
                 </div>
                 <button 
                   onClick={handleSendMessage}
-                  disabled={!messageInput.trim() || isSending}
+                  disabled={(!messageInput.trim() && !selectedFile) || isSending}
                   className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
-                    messageInput.trim() && !isSending
+                    (messageInput.trim() || selectedFile) && !isSending
                       ? 'bg-orange-500 text-white hover:bg-orange-600' 
                       : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                   }`}

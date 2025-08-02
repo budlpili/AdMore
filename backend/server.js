@@ -83,7 +83,7 @@ io.on('connection', (socket) => {
   socket.on('send_message', async (messageData) => {
     console.log('서버에서 메시지 수신:', messageData);
     try {
-      const { userEmail, message, type, inquiryType, productInfo, paymentInfo } = messageData;
+      const { userEmail, message, type, inquiryType, productInfo, paymentInfo, file, fileName, fileType } = messageData;
       
       console.log('메시지 데이터 파싱:', {
         userEmail,
@@ -91,13 +91,16 @@ io.on('connection', (socket) => {
         type,
         inquiryType,
         productInfo,
-        paymentInfo
+        paymentInfo,
+        file: file ? '있음' : '없음',
+        fileName,
+        fileType
       });
       
       // 데이터베이스에 메시지 저장
       const insertQuery = `
-        INSERT INTO chat_messages (user, message, type, timestamp)
-        VALUES (?, ?, ?, datetime('now', 'localtime'))
+        INSERT INTO chat_messages (user, message, type, timestamp, file, file_name, file_type)
+        VALUES (?, ?, ?, datetime('now', 'localtime'), ?, ?, ?)
       `;
       
       const paymentInfoJson = paymentInfo ? JSON.stringify(paymentInfo) : null;
@@ -105,13 +108,19 @@ io.on('connection', (socket) => {
       console.log('데이터베이스 저장 시도:', [
         userEmail, 
         message, 
-        type
+        type,
+        file || null,
+        fileName || null,
+        fileType || null
       ]);
       
       db.run(insertQuery, [
         userEmail, 
         message, 
-        type
+        type,
+        file || null,
+        fileName || null,
+        fileType || null
       ], function(err) {
         if (err) {
           console.error('메시지 저장 오류:', err);
@@ -129,7 +138,10 @@ io.on('connection', (socket) => {
           user: userEmail,
           message,
           timestamp: timestamp,
-          type
+          type,
+          file: file || null,
+          fileName: fileName || null,
+          fileType: fileType || null
         };
 
         console.log('저장된 메시지:', savedMessage);

@@ -78,16 +78,31 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
   // onNewMessage 콜백을 useCallback으로 안정화
   const handleNewMessage = useCallback((message: any) => {
     console.log('새 메시지 수신:', message);
+    console.log('파일 데이터 확인:', {
+      file: message.file ? '있음' : '없음',
+      fileName: message.fileName,
+      fileType: message.fileType,
+      fileLength: message.file ? message.file.length : 0,
+      fileStart: message.file ? message.file.substring(0, 50) : '없음'
+    });
     
     // WebSocket 메시지를 UI 메시지로 변환
     const newMessage: Message = {
       id: message.id,
       from: message.type === 'admin' ? 'admin' : 'user',
       text: message.message,
+      file: message.file || null,
+      fileName: message.fileName || undefined,
+      fileType: message.fileType || undefined,
       timestamp: message.timestamp // 메시지 생성 시간 추가
     };
     
     console.log('새 메시지 추가 시도:', newMessage);
+    console.log('파일 정보:', {
+      file: newMessage.file ? '있음' : '없음',
+      fileName: newMessage.fileName,
+      fileType: newMessage.fileType
+    });
     
     // 중복 메시지 방지: 같은 내용의 메시지가 이미 있는지 확인
     setMessages(prev => {
@@ -129,6 +144,9 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
         id: msg.id,
         from: msg.type === 'admin' ? 'admin' : 'user',
         text: msg.message,
+        file: msg.file || null,
+        fileName: msg.fileName || undefined,
+        fileType: msg.fileType || undefined,
         timestamp: msg.timestamp
       }));
       
@@ -402,8 +420,44 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                               <div className="flex flex-col">
                                 <span className="text-xs font-bold text-gray-700 mb-1 ml-1">애드모어 운영팀</span>
                                 <div className="bg-gray-100 border border-gray-200 rounded-lg px-4 py-2 text-[13px] text-gray-900 
-                                    max-w-[70%] min-w-[160px] break-words whitespace-pre-line">
-                                  {msg.text}
+                                    max-w-[70%] min-w-[120px] break-words whitespace-pre-line">
+                                  {/* 파일이 있는 경우 파일 표시 */}
+                                  {(() => {
+                                    console.log('관리자 메시지 파일 정보:', {
+                                      file: msg.file ? '있음' : '없음',
+                                      fileName: msg.fileName,
+                                      fileType: msg.fileType,
+                                      isImage: msg.fileType && msg.fileType.startsWith('image/'),
+                                      fileLength: msg.file ? msg.file.length : 0,
+                                      fileStart: msg.file ? msg.file.substring(0, 50) : '없음'
+                                    });
+                                    
+                                    if (msg.file && msg.fileType && msg.fileType.startsWith('image/')) {
+                                      return (
+                                        <div className="mb-2">
+                                          <img 
+                                            src={msg.file} 
+                                            alt={msg.fileName || '첨부된 이미지'} 
+                                            className="max-w-full h-auto rounded-lg"
+                                            style={{ maxHeight: '200px' }}
+                                            onLoad={() => console.log('이미지 로드 성공:', msg.fileName)}
+                                            onError={(e) => console.error('이미지 로드 실패:', msg.fileName, e)}
+                                          />
+                                        </div>
+                                      );
+                                    } else if (msg.file && msg.fileName) {
+                                      return (
+                                        <div className="mb-2 p-2 bg-gray-200 rounded border">
+                                          <div className="flex items-center gap-2">
+                                            <span className="text-xs">📎</span>
+                                            <span className="text-xs">첨부파일</span>
+                                          </div>
+                                        </div>
+                                      );
+                                    }
+                                    return null;
+                                  })()}
+                                  {msg.text && <div className="text-sm leading-relaxed">{msg.text}</div>}
                                 </div>
                                 <span className="text-[11px] text-gray-400 mt-1 self-start">{time}</span>
                               </div>
@@ -417,8 +471,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                               <React.Fragment key={idx}>
                                 {dateDivider}
                                 <div className="mb-4 flex flex-col items-end">
-                                  <img src={msg.file} alt={msg.fileName} className="w-32 h-32 object-cover rounded border mb-1" />
-                                  <span className="text-[11px] text-gray-400 mr-1">{msg.fileName}</span>
+                                  <img src={msg.file} alt="첨부된 이미지" className="w-32 h-32 object-cover rounded border mb-1" />
                                 </div>
                               </React.Fragment>
                             );
@@ -427,7 +480,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                               <React.Fragment key={idx}>
                                 {dateDivider}
                                 <div className="mb-4 flex flex-col items-end">
-                                  <a href={msg.file} download={msg.fileName} className="text-xs text-blue-600 underline">{msg.fileName}</a>
+                                  <a href={msg.file} download={msg.fileName} className="text-xs text-blue-600 underline">첨부파일</a>
                                 </div>
                               </React.Fragment>
                             );

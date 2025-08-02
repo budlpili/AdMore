@@ -16,6 +16,9 @@ interface ChatMessage {
     paymentDate: string;
   };
   status?: 'pending' | 'answered' | 'closed';
+  file?: string | null;
+  fileName?: string;
+  fileType?: string;
 }
 
 interface UseWebSocketProps {
@@ -94,13 +97,24 @@ export const useWebSocket = ({
     });
 
     socket.on('new_message', (message: any) => {
-      // console.log('새 메시지 수신:', message);
+      console.log('새 메시지 수신:', message);
+      console.log('파일 데이터 확인:', {
+        file: message.file ? '있음' : '없음',
+        fileName: message.fileName,
+        fileType: message.fileType
+      });
+      
       // userEmail 필드를 user로 매핑, id는 문자열로 변환
       const formattedMessage = {
         ...message,
         user: message.userEmail || message.user,
-        id: String(message.id)
+        id: String(message.id),
+        file: message.file || null,
+        fileName: message.fileName || undefined,
+        fileType: message.fileType || undefined
       };
+      
+      console.log('포맷된 메시지:', formattedMessage);
       
       // console.log('formattedMessage:', formattedMessage);
       // console.log('현재 userEmail:', userEmail);
@@ -185,6 +199,9 @@ export const useWebSocket = ({
       paymentDate: string;
     };
     targetUserEmail?: string; // 관리자 메시지의 대상 사용자 이메일
+    file?: string | null;
+    fileName?: string;
+    fileType?: string;
   }) => {
     console.log('=== sendMessage 호출됨 ===');
     console.log('socketConnected:', socketRef.current?.connected);
@@ -213,6 +230,11 @@ export const useWebSocket = ({
 
     console.log('=== WebSocket으로 메시지 전송 ===');
     console.log('전송할 데이터:', data);
+    console.log('파일 데이터 확인:', {
+      file: data.file ? '있음' : '없음',
+      fileName: data.fileName,
+      fileType: data.fileType
+    });
     socketRef.current.emit('send_message', data);
     console.log('메시지 전송 완료');
   }, [userEmail, connect]);
