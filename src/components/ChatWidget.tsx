@@ -216,6 +216,13 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     return true;
   };
 
+  const handleMessageInputKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && e.ctrlKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
   const handleSend = () => {
     if (!input.trim() && !file) return;
     if (isSending) return; // 전송 중이면 중복 전송 방지
@@ -506,12 +513,13 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                   {/* 입력창 */}
                   <form className="relative flex items-center border-t px-3 py-3 gap-2" onSubmit={e => { e.preventDefault(); handleSend(); }}>
                     
-                    <input
-                      type="text"
-                      className="flex-1 px-3 py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
-                      placeholder="메시지를 입력해 주세요."
+                    <textarea
+                      className="flex-1 px-3 py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm resize-none"
+                      placeholder="메시지를 입력하세요. (Enter: 줄바꿈 / Ctrl+Enter: 전송)"
                       value={input}
                       onChange={e => setInput(e.target.value)}
+                      onKeyDown={handleMessageInputKeyDown}
+                      rows={1}
                       autoFocus
                     />
                     <button

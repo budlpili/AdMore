@@ -773,7 +773,7 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                   onChange={(e) => setMessageInput(e.target.value)}
                   onKeyDown={handleMessageInputKeyDown}
                   rows={1}
-                  placeholder={`${selectedMessage.user}에게 메시지를 입력하세요. (Enter: 줄바꿈 / Ctrl+Enter: 전송)`}
+                  placeholder={`메시지를 입력하세요. (Enter: 줄바꿈 / Ctrl+Enter: 전송)`}
                   className="w-full pl-4 pr-4 py-3 border border-gray-300 rounded-lg resize-none
                     focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
                 />
