@@ -473,7 +473,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                                     }
                                     return null;
                                   })()}
-                                  {msg.text && <div className="text-sm leading-relaxed">{msg.text}</div>}
+                                  {msg.text && <div className="text-sm leading-relaxed whitespace-pre-line">{msg.text}</div>}
                                 </div>
                                 <span className="text-[11px] text-gray-400 mt-1 self-start">{time}</span>
                               </div>

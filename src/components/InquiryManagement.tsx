@@ -699,7 +699,7 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                                 </div>
                               ) : null}
                               
-                              {message.message && <div className="text-sm leading-relaxed">{message.message}</div>}
+                              {message.message && <div className="text-sm leading-relaxed whitespace-pre-line">{message.message}</div>}
                             </div>
                             <div className="text-xs text-gray-500 text-right mt-1">
                               {(() => {
