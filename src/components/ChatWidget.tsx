@@ -525,7 +525,6 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                             </div>
                           </React.Fragment>
                         );
-                        }
                       }
                     })}
                     <div ref={chatEndRef} />
