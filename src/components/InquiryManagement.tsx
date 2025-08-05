@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faHeadset, faTrash, faClock, faPhone, faEnvelope, faCheckCircle, faHourglassHalf, faExclamationCircle, faSearch, faStar, faShieldAlt, faExclamationTriangle, faUser, faBuilding, faFileInvoice, faChartLine, faCreditCard, faXmark, faDownload, faChevronLeft, faChevronRight } from '@fortawesome/free-solid-svg-icons';
+import { faHeadset, faTrash, faClock, faPhone, faEnvelope, faCheckCircle, faHourglassHalf, faExclamationCircle, faSearch, faStar, faShieldAlt, faExclamationTriangle, faUser, faBuilding, faFileInvoice, faChartLine, faCreditCard, faXmark, faDownload, faChevronLeft, faChevronRight, faChevronDown, faPaperclip, faPaperPlane } from '@fortawesome/free-solid-svg-icons';
 import { usersAPI, chatAPI } from '../services/api';
 
 interface ChatMessage {
@@ -69,10 +69,51 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
   const [isExporting, setIsExporting] = useState(false);
   const [exportedFiles, setExportedFiles] = useState<Array<{name: string; size: number; created: string; type: string}>>([]);
   const [showFileList, setShowFileList] = useState(false);
+  const [deletedUsers, setDeletedUsers] = useState<Set<string>>(new Set());
   const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(false);
+  const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
+  const [activeUsers, setActiveUsers] = useState<Array<{email: string; lastMessageTime: string; isOnline: boolean}>>([]);
+  const [selectedUserEmail, setSelectedUserEmail] = useState<string | null>(null);
+
+  // 화면 크기에 따른 오른쪽 패널 자동 제어
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 1024) { // lg 사이즈 미만
+        setIsRightPanelCollapsed(true);
+      }
+      // lg 사이즈 이상에서는 자동으로 열지 않음 - 사용자가 수동으로 제어
+    };
+
+    // 초기 실행
+    handleResize();
+
+    // 리사이즈 이벤트 리스너 추가
+    window.addEventListener('resize', handleResize);
+
+    // 클린업
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
+
+  // 드롭다운 외부 클릭 시 닫기
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target.closest('.user-dropdown')) {
+        setIsUserDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   // 선택된 메시지가 변경될 때 유저 이름 가져오기
   useEffect(() => {
+    console.log('InquiryManagement: selectedMessage 변경됨', selectedMessage?.user);
     if (selectedMessage && selectedMessage.user !== '관리자') {
       getUserName(selectedMessage.user);
     }
@@ -115,29 +156,52 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
       new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
     )[0];
     
+    // 해당 사용자의 완료 메시지 확인 (수정된 로직)
+    const hasCompletionMessage = messages.some(msg => 
+      msg.message === '관리자가 답변을 완료하였습니다.' || 
+      msg.message === '유저가 채팅종료를 하였습니다.'
+    );
+    
+    // 상태 계산
+    let status: 'pending' | 'answered' | 'closed' = 'pending';
+    if (hasCompletionMessage) {
+      status = 'closed';
+    } else if (messages.filter(msg => msg.type === 'admin').length > 0) {
+      status = 'answered';
+    }
+    
     return {
       ...latestMessage,
       user,
       // 해당 사용자의 모든 메시지 개수
       messageCount: messages.length,
       // 해당 사용자의 관리자 응답 개수
-      adminResponseCount: messages.filter(msg => msg.type === 'admin').length
+      adminResponseCount: messages.filter(msg => msg.type === 'admin').length,
+      // 완료 상태
+      isCompleted: hasCompletionMessage,
+      // 상태
+      status
     };
   });
 
   // 필터링된 대표 메시지 계산
   const filteredMessages = representativeMessages.filter(message => {
+    // 검색어 필터링
     const matchesSearch = searchTerm === '' || 
       message.user.toLowerCase().includes(searchTerm.toLowerCase()) ||
       message.message.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
+    
+    // 상태 필터링
+    const matchesStatus = statusFilter === 'all' || message.status === statusFilter;
+    
+    return matchesSearch && matchesStatus;
   });
 
   // 통계 계산
   const totalUserCount = Object.keys(userMessages).length;
-  const pendingCount = representativeMessages.filter(msg => msg.adminResponseCount === 0).length;
-  const inProgressCount = representativeMessages.filter(msg => msg.adminResponseCount > 0).length;
-  const completedCount = 0; // 현재는 완료 상태를 추적하지 않음
+  const pendingCount = representativeMessages.filter(msg => msg.status === 'pending').length;
+  const inProgressCount = representativeMessages.filter(msg => msg.status === 'answered').length;
+  const completedCount = representativeMessages.filter(msg => msg.status === 'closed').length;
 
   // 채팅 컨테이너 자동 스크롤
   useEffect(() => {
@@ -192,9 +256,27 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
 
   const confirmCloseChat = () => {
     if (closingMessage) {
-      const updatedMessages = chatMessages.map(msg => 
-        msg.user === closingMessage.user ? { ...msg, status: 'closed' as const } : msg
-      );
+      // 답변완료 메시지 생성
+      const completionMessage: ChatMessage = {
+        id: Date.now().toString(),
+        user: closingMessage.user,
+        message: '관리자가 답변을 완료하였습니다.',
+        timestamp: new Date().toISOString().slice(0, 16).replace('T', ' '),
+        type: 'admin',
+        status: 'closed'
+      };
+      
+      // 유저에게 답변완료 메시지 전송
+      if (sendMessage) {
+        sendMessage({
+          message: '관리자가 답변을 완료하였습니다.',
+          type: 'admin',
+          targetUserEmail: closingMessage.user
+        });
+      }
+      
+      // 답변완료 메시지를 chatMessages에 추가
+      const updatedMessages = [...chatMessages, completionMessage];
       onChatMessagesChange(updatedMessages);
       
       // selectedMessage도 업데이트
@@ -341,17 +423,46 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
       case 'answered':
         return '답변중';
       case 'closed':
-        return '답변완료';
+        return '채팅완료';
       default:
         return '답변대기';
     }
   };
 
+  // 채팅이 완료되었는지 확인하는 함수
+  const isChatCompleted = (userEmail: string) => {
+    // 현재 선택된 유저의 메시지만 확인
+    const userMessages = chatMessages.filter(msg => msg.user === userEmail);
+    
+    if (userMessages.length === 0) return false;
+    
+    // 최신 메시지 확인 (마지막 메시지)
+    const latestMessage = userMessages[userMessages.length - 1];
+    
+    // 최신 메시지가 완료 메시지인지 확인
+    const isLatestMessageCompletion = 
+      latestMessage.message === '유저가 채팅종료를 하였습니다.' || 
+      latestMessage.message === '관리자가 답변을 완료하였습니다.';
+    
+    console.log(`isChatCompleted for ${userEmail}:`, {
+      userMessages: userMessages.map(msg => ({ message: msg.message, type: msg.type, timestamp: msg.timestamp })),
+      latestMessage: latestMessage.message,
+      isLatestMessageCompletion,
+      messageCount: userMessages.length
+    });
+    
+    return isLatestMessageCompletion;
+  };
+
   // 이메일에서 이니셜 추출 함수
   const getInitials = (email: string) => {
     if (!email || typeof email !== 'string') return '?';
-    if (!email.includes('@')) return email.charAt(0).toUpperCase();
-    const localPart = email.split('@')[0];
+    
+    // 세션 ID가 포함된 이메일인 경우 원래 이메일 추출
+    const originalEmail = email.includes('_') ? email.split('_')[0] : email;
+    
+    if (!originalEmail.includes('@')) return originalEmail.charAt(0).toUpperCase();
+    const localPart = originalEmail.split('@')[0];
     return localPart.charAt(0).toUpperCase();
   };
 
@@ -366,16 +477,19 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
 
   // 유저 이름 가져오기 함수
   const getUserName = (email: string) => {
-    if (userNames[email]) return userNames[email];
+    // 세션 ID가 포함된 이메일인 경우 원래 이메일 추출
+    const originalEmail = email.includes('_') ? email.split('_')[0] : email;
+    
+    if (userNames[originalEmail]) return userNames[originalEmail];
     
     // users 배열에서 해당 이메일의 유저 찾기
-    const user = users.find(u => u.email === email);
+    const user = users.find(u => u.email === originalEmail);
     if (user && user.name) {
-      setUserNames(prev => ({ ...prev, [email]: user.name }));
+      setUserNames(prev => ({ ...prev, [originalEmail]: user.name }));
       return user.name;
     }
     
-    return email;
+    return originalEmail;
   };
 
   // 선택된 유저의 표시 이름 가져오기 함수
@@ -534,6 +648,9 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
         setSelectedMessage(null);
       }
 
+      // 삭제된 유저들을 추적 목록에 추가
+      setDeletedUsers(prev => new Set([...Array.from(prev), ...Array.from(selectedUsersForDelete)]));
+
       // 삭제 모드 종료 및 선택 초기화
       setIsDeleteMode(false);
       setSelectedUsersForDelete(new Set());
@@ -630,9 +747,9 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
   };
 
   return (
-    <div className="flex h-[calc(100vh-160px)] w-full bg-gray-50 border border-gray-200 rounded-lg">
+    <div className="flex h-[calc(100vh-160px)] w-full bg-gray-50 border border-gray-200 rounded-lg overflow-hidden">
       {/* 왼쪽 패널 - 메시지 목록 */}
-      <div className="w-80 bg-white border-r border-gray-200 flex flex-col rounded-l-lg">
+      <div className="hidden md:flex md:w-80 bg-white border-r border-gray-200 flex-col rounded-l-lg">
         {/* 필터 탭 */}
         <div className="p-4 border-b border-gray-200">
           <div className="flex items-center justify-between mb-4">
@@ -697,6 +814,29 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
 
         {/* 유저 목록 - 채팅 대상 유저 목록 */}
         <div className="flex-1 overflow-y-auto">
+          {isDeleteMode && deletedUsers.size > 0 && (
+            <div className="p-4 border-b border-gray-200 bg-red-50">
+              <div className="text-sm font-medium text-red-700 mb-2">삭제된 유저 ({deletedUsers.size}명)</div>
+              <div className="space-y-1">
+                {Array.from(deletedUsers).map(user => (
+                  <div key={user} className="flex items-center justify-between text-xs text-red-600">
+                    <span>{getUserName(user)}</span>
+                    <button
+                      onClick={() => setDeletedUsers(prev => {
+                        const newSet = new Set(Array.from(prev));
+                        newSet.delete(user);
+                        return newSet;
+                      })}
+                      className="px-2 py-1 text-xs bg-red-100 hover:bg-red-200 rounded"
+                    >
+                      복원
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
           {filteredMessages.length === 0 ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
@@ -709,18 +849,23 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
               {/* 고유한 유저 목록 생성 */}
               {Array.from(new Set(filteredMessages.map(msg => msg.user)))
                 .filter(user => user !== '관리자') // 관리자 제외
+                .filter(user => !deletedUsers.has(user)) // 삭제된 유저 제외
                 .map((user) => {
                   const userMessages = filteredMessages.filter(msg => msg.user === user);
                   const latestMessage = userMessages[userMessages.length - 1];
                   const pendingCount = userMessages.filter(msg => msg.status === 'pending').length;
+                  const isCompleted = isChatCompleted(user);
                   
                   return (
                     <div 
                       key={user}
                       className={`p-4 cursor-pointer hover:bg-gray-50 transition-colors ${
                         selectedMessage?.user === user ? 'bg-orange-50 border-r-2 border-orange-500' : ''
-                      }`}
-                      onClick={() => setSelectedMessage(latestMessage)}
+                      } ${isCompleted ? 'opacity-60 bg-gray-100' : ''}`}
+                      onClick={() => {
+                        console.log('사용자 클릭으로 채팅창 열기:', user);
+                        setSelectedMessage(latestMessage);
+                      }}
                     >
                       <div className="flex items-start gap-2 mb-0">
 
@@ -772,16 +917,25 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                             <div className="flex flex-col mb-1">
                               <div className="font-medium text-sm text-gray-900">{getUserName(user)}</div>
                               {getUserName(user) !== user && (
-                                <div className="text-xs text-gray-400">{user}</div>
+                                <div className="text-xs text-gray-400">{user.includes('_') ? user.split('_')[0] : user}</div>
                               )}
                             </div>
                             <div className="flex items-center gap-1">
-                              {getStatusIcon(latestMessage.status)}
-                              <span className="text-xs text-gray-600">{getStatusText(latestMessage.status)}</span>
-                              {pendingCount > 0 && (
-                                <span className="bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">
-                                  {pendingCount}
-                                </span>
+                              {isCompleted ? (
+                                <>
+                                  <FontAwesomeIcon icon={faCheckCircle} className="text-green-500 text-xs" />
+                                  <span className="text-xs text-green-600">채팅완료</span>
+                                </>
+                              ) : (
+                                <>
+                                  {getStatusIcon(latestMessage.status)}
+                                  <span className="text-xs text-gray-600">{getStatusText(latestMessage.status)}</span>
+                                  {pendingCount > 0 && (
+                                    <span className="bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">
+                                      {pendingCount}
+                                    </span>
+                                  )}
+                                </>
                               )}
                             </div>
                           </div>
@@ -870,17 +1024,17 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
              {exportedFiles.length === 0 ? (
                <p className="text-sm text-gray-500">저장된 파일이 없습니다.</p>
              ) : (
-               <div className="space-y-2 max-h-40 overflow-y-auto">
-                 {exportedFiles.map((file, index) => (
-                   <div key={index} className="flex items-center justify-between p-2 bg-white rounded border">
-                     <div className="flex-1">
-                       <div className="flex items-center gap-2">
-                         <span className="text-xs font-medium text-gray-900">{file.name}</span>
-                       </div>
-                       <div className="text-xs text-gray-500 mt-1">
-                         크기: {(file.size / 1024).toFixed(1)}KB | 
-                         생성: {new Date(file.created).toLocaleString('ko-KR', {
-                           year: 'numeric',
+                               <div className="space-y-2 max-h-40 overflow-y-auto">
+                  {exportedFiles.map((file, index) => (
+                    <div key={index} className="flex items-center justify-between p-2 bg-white rounded border">
+                      <div className="w-full">
+                        <div className="text-xs font-medium text-gray-900 break-all" title={file.name}>
+                          {file.name}
+                        </div>
+                        <div className="text-[10px] text-gray-500 mt-1">
+                          크기: {(file.size / 1024).toFixed(1)}KB <br />
+                          생성: {new Date(file.created).toLocaleString('ko-KR', {
+                            year: 'numeric',
                            month: '2-digit',
                            day: '2-digit',
                            hour: '2-digit',
@@ -904,34 +1058,187 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
        </div>
 
       {/* 중앙 패널 */}
-      <div className="flex-1 bg-white border-r border-gray-200 flex flex-col">
+      <div className="flex-1 bg-white border-r border-gray-200 flex flex-col relative">
         {/* 채팅 헤더 */}
         <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+
+          {/* 모바일 유저 선택 드롭다운 */}
+          <div className="user-dropdown md:hidden relative ml-4 border w-full">
+            <button
+              onClick={() => setIsUserDropdownOpen(!isUserDropdownOpen)}
+              className="w-full flex items-center justify-between gap-2 px-3 py-3 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+            >
+              <span className="text-sm font-medium text-gray-700">
+                {selectedMessage ? getSelectedUserDisplayName() : '유저 선택'}
+              </span>
+              <FontAwesomeIcon 
+                icon={faChevronDown} 
+                className={`text-xs text-gray-500 transition-transform ${isUserDropdownOpen ? 'rotate-180' : ''}`}
+              />
+            </button>
+            
+            {/* 드롭다운 메뉴 */}
+            {isUserDropdownOpen && (
+              <div className="absolute top-full left-0 mt-1 w-full bg-white border border-gray-200 rounded-lg 
+                    shadow-lg z-10 min-h-[300px] max-h-[600px] overflow-y-auto">
+                {/* 필터 탭 */}
+                <div className="p-3 border-b border-gray-200">
+                  <div className="flex flex-wrap gap-1 mb-3">
+                    <button
+                      onClick={() => setStatusFilter('all')}
+                      className={`px-2 py-1 rounded-full text-xs font-medium transition-colors ${
+                        statusFilter === 'all' 
+                          ? 'bg-gray-800 text-white' 
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      전체 ({totalUserCount})
+                    </button>
+                    <button
+                      onClick={() => setStatusFilter('pending')}
+                      className={`px-2 py-1 rounded-full text-xs font-medium transition-colors ${
+                        statusFilter === 'pending' 
+                          ? 'bg-yellow-500 text-white' 
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      대기 ({pendingCount})
+                    </button>
+                    <button
+                      onClick={() => setStatusFilter('answered')}
+                      className={`px-2 py-1 rounded-full text-xs font-medium transition-colors ${
+                        statusFilter === 'answered' 
+                          ? 'bg-blue-500 text-white' 
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      답변중 ({inProgressCount})
+                    </button>
+                    <button
+                      onClick={() => setStatusFilter('closed')}
+                      className={`px-2 py-1 rounded-full text-xs font-medium transition-colors ${
+                        statusFilter === 'closed' 
+                          ? 'bg-gray-500 text-white' 
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      완료 ({completedCount})
+                    </button>
+                  </div>
+                  
+                  {/* 검색 */}
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="유저를 검색해보세요."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full pl-3 pr-8 py-1.5 border border-gray-300 rounded text-xs
+                        focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    />
+                    <FontAwesomeIcon icon={faSearch} className="absolute right-2 top-2 text-gray-400 text-xs" />
+                  </div>
+                </div>
+                
+                {/* 유저 목록 */}
+                <div className="max-h-[300px] overflow-y-auto">
+                  {filteredMessages.length === 0 ? (
+                    <div className="p-4 text-center">
+                      <FontAwesomeIcon icon={faHeadset} className="text-2xl text-gray-300 mb-2" />
+                      <p className="text-xs text-gray-500">유저가 없어요</p>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-gray-200">
+                      {Array.from(new Set(filteredMessages.map(msg => msg.user)))
+                        .filter(user => user !== '관리자')
+                        .map((user) => {
+                          const userMessages = filteredMessages.filter(msg => msg.user === user);
+                          const latestMessage = userMessages[userMessages.length - 1];
+                          const pendingCount = userMessages.filter(msg => msg.status === 'pending').length;
+                          
+                          return (
+                            <div 
+                              key={user}
+                              className={`p-3 cursor-pointer hover:bg-gray-50 transition-colors ${
+                                selectedMessage?.user === user ? 'bg-orange-50' : ''
+                              }`}
+                              onClick={() => {
+                                setSelectedMessage(latestMessage);
+                                setIsUserDropdownOpen(false);
+                              }}
+                            >
+                              <div className="flex items-center gap-2">
+                                <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center">
+                                  <span className="text-white text-xs font-bold">{getInitials(user)}</span>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <div className="flex flex-col min-w-0">
+                                      <div className="font-medium text-xs text-gray-900 truncate">{getUserName(user)}</div>
+                                      {getUserName(user) !== user && (
+                                        <div className="text-xs text-gray-400 truncate">{user}</div>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center gap-1 flex-shrink-0">
+                                      {getStatusIcon(latestMessage.status)}
+                                      <span className="text-xs text-gray-600">{getStatusText(latestMessage.status)}</span>
+                                      {pendingCount > 0 && (
+                                        <span className="bg-red-500 text-white text-xs px-1 py-0.5 rounded-full">
+                                          {pendingCount}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div className="text-xs text-gray-600 truncate mt-1">
+                                    {latestMessage.message}
+                                  </div>
+                                  <div className="text-xs text-gray-400 mt-1">
+                                    {formatDateAndTime(latestMessage.timestamp)}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
           <div className="flex-1">
             {/* 선택된 유저 정보 */}
             {selectedMessage && (
-              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                <div className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center">
+              <div className="flex items-center gap-3 p-3">
+                <div className="w-10 h-10 bg-orange-500 rounded-full hidden md:flex items-center justify-center">
                   <span className="text-white text-sm font-bold">{getInitials(selectedMessage.user)}</span>
                 </div>
-                <div>
+                <div className="hidden md:block">
                   <h3 className="font-semibold text-gray-700 text-sm">{getSelectedUserDisplayName()}</h3>
                   {getSelectedUserDisplayName() !== selectedMessage.user && (
                     <p className="text-xs text-gray-500">{selectedMessage.user}</p>
                   )}
                 </div>
                 <div className="ml-auto">
-                  <button
-                    onClick={() => handleCloseChat(selectedMessage)}
-                    disabled={selectedMessage.status === 'closed'}
-                    className={`px-3 py-1 text-sm rounded-lg ${
-                      selectedMessage.status === 'closed'
-                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                        : 'bg-green-500 text-white hover:bg-green-600'
-                    }`}
-                  >
-                    {selectedMessage.status === 'closed' ? '답변완료됨' : '답변완료'}
-                  </button>
+                  <div className="relative inline-block group">
+                    <button
+                      onClick={() => handleCloseChat(selectedMessage)}
+                      disabled={selectedMessage.status === 'closed' || isChatCompleted(selectedMessage.user)}
+                      className={`px-3 py-3 text-sm rounded-lg min-w-20 ${
+                        selectedMessage.status === 'closed' || isChatCompleted(selectedMessage.user)
+                          ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                          : 'bg-green-500 text-white hover:bg-green-600'
+                      }`}
+                    >
+                      {selectedMessage.status === 'closed' || isChatCompleted(selectedMessage.user) ? '답변완료됨' : '답변완료'}
+                    </button>
+                    {selectedMessage.status !== 'closed' && !isChatCompleted(selectedMessage.user) && (
+                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-0 pointer-events-none whitespace-nowrap z-10">
+                        답변완료를 누르시면 채팅이 종료됩니다.
+                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
@@ -951,7 +1258,7 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
         </div>
 
         {/* 채팅 메시지 영역 */}
-        <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4">
+        <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 bg-gray-100">
           {!selectedMessage ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
@@ -975,7 +1282,8 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                 {chatMessages
                   .filter(msg => {
                     // 선택된 사용자의 메시지이거나, 관리자 메시지
-                    const isRelevantMessage = msg.user === selectedMessage.user || msg.user === '관리자';
+                    const isRelevantMessage = msg.user === selectedMessage.user || 
+                                            msg.user === '관리자';
                     console.log('메시지 필터링:', msg.id, msg.user, msg.message, isRelevantMessage);
                     return isRelevantMessage;
                   })
@@ -1034,63 +1342,82 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                               </span>
                             </div>
                           )}
-                          <div className={`max-w-[70%] ${message.type === 'admin' ? 'ml-auto' : 'ml-0'}`}>
-                            <div className={`rounded-lg px-3 py-2 ${
-                              message.type === 'admin' 
-                                ? 'bg-orange-500 text-white' 
-                                : 'bg-gray-200 text-gray-900'
-                            }`}>
-                              {/* 파일이 있는 경우 파일 표시 */}
-                              {message.file && message.fileType && message.fileType.startsWith('image/') ? (
-                                <div className="mb-2">
-                                  <img 
-                                    src={message.file} 
-                                    alt="첨부된 이미지" 
-                                    className="max-w-full h-auto rounded-lg"
-                                    style={{ maxHeight: '200px' }}
-                                  />
-                                </div>
-                              ) : message.file && message.fileName ? (
-                                <div className="mb-2 p-2 bg-gray-100 rounded border">
-                                  <div className="flex items-center gap-2">
-                                    <FontAwesomeIcon icon={faFileInvoice} className="text-gray-500" />
-                                    <span className="text-sm">첨부파일</span>
+                          <div className={`${message.message === '유저가 채팅종료를 하였습니다.' ? 'w-full' : 'max-w-[70%]'} ${message.type === 'admin' ? 'ml-auto' : 'ml-0'}`}>
+                            {/* "유저가 채팅종료를 하였습니다." 메시지 특별 스타일링 */}
+                            {message.message === '유저가 채팅종료를 하였습니다.' ? (
+                              <div className="flex justify-center w-full">
+                                <div className="flex items-center justify-center px-4 py-3 rounded-full">
+                                  <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center mr-2">
+                                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                    </svg>
                                   </div>
+                                  <span className="text-sm font-medium text-gray-700">유저가 채팅종료를 하였습니다</span>
                                 </div>
-                              ) : null}
-                              
-                              {message.message && (
-                                <div className="text-sm leading-relaxed whitespace-normal">
-                                  {message.message.split('\n').map((line, index) => (
-                                    <div key={index} style={{ display: 'block', wordBreak: 'normal' }}>
-                                      {line}
-                                      {index < (message.message?.split('\n').length || 0) - 1 && <br />}
+                              </div>
+                            ) : (
+                              <>
+                                <div className={`rounded-lg px-3 py-2 ${
+                                  message.type === 'admin' 
+                                    ? 'bg-orange-500 text-white' 
+                                    : 'bg-gray-200 text-gray-900'
+                                }`}>
+                                  {/* 파일이 있는 경우 파일 표시 */}
+                                  {message.file && message.fileType && message.fileType.startsWith('image/') ? (
+                                    <div className="mb-2">
+                                      <img 
+                                        src={message.file} 
+                                        alt="첨부된 이미지" 
+                                        className="max-w-full h-auto rounded-lg"
+                                        style={{ maxHeight: '200px' }}
+                                      />
                                     </div>
-                                  ))}
+                                  ) : message.file && message.fileName ? (
+                                    <div className="mb-2 p-2 bg-gray-100 rounded border">
+                                      <div className="flex items-center gap-2">
+                                        <FontAwesomeIcon icon={faFileInvoice} className="text-gray-500" />
+                                        <span className="text-sm">첨부파일</span>
+                                      </div>
+                                    </div>
+                                  ) : null}
+                                  
+                                  {message.message && (
+                                    <div className="text-sm leading-relaxed whitespace-normal">
+                                      {message.message.split('\n').map((line, index) => (
+                                        <div key={index} style={{ display: 'block', wordBreak: 'normal' }}>
+                                          {line}
+                                          {index < (message.message?.split('\n').length || 0) - 1 && <br />}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
                                 </div>
-                              )}
-                            </div>
-                            <div className="text-xs text-gray-500 text-right mt-1">
-                              {(() => {
-                                try {
-                                  // timestamp가 YYYY-MM-DD HH:MM 형식인 경우
-                                  if (message.timestamp.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/)) {
-                                    const [datePart, timePart] = message.timestamp.split(' ');
-                                    return timePart;
-                                  }
-                                  
-                                  // ISO 형식인 경우
-                                  const date = new Date(message.timestamp);
-                                  if (!isNaN(date.getTime())) {
-                                    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                                  }
-                                  
-                                  return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                                } catch (error) {
-                                  return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                                }
-                              })()}
-                            </div>
+                                {/* "유저가 채팅종료를 하였습니다." 메시지는 타임스탬프 표시하지 않음 */}
+                                {message.message !== '유저가 채팅종료를 하였습니다.' && (
+                                  <div className="text-xs text-gray-500 text-center mt-1">
+                                    {(() => {
+                                      try {
+                                        // timestamp가 YYYY-MM-DD HH:MM 형식인 경우
+                                        if (message.timestamp.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/)) {
+                                          const [datePart, timePart] = message.timestamp.split(' ');
+                                          return timePart;
+                                        }
+                                        
+                                        // ISO 형식인 경우
+                                        const date = new Date(message.timestamp);
+                                        if (!isNaN(date.getTime())) {
+                                          return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                        }
+                                        
+                                        return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                      } catch (error) {
+                                        return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                      }
+                                    })()}
+                                  </div>
+                                )}
+                              </>
+                            )}
                           </div>
                         </div>
                       </React.Fragment>
@@ -1127,20 +1454,10 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
             </div>
           ) : (
             <>
-              <div className="relative mb-3">
-                <textarea
-                  value={messageInput}
-                  onChange={(e) => setMessageInput(e.target.value)}
-                  onKeyDown={handleMessageInputKeyDown}
-                  rows={1}
-                  placeholder={`메시지를 입력하세요. (Enter: 줄바꿈 / Ctrl+Enter: 전송)`}
-                  className="w-full pl-4 pr-4 py-3 border border-gray-300 rounded-lg resize-none
-                    focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
-                />
-                
+              <div className="relative h-[80px]">
                 {/* 파일 미리보기 */}
                 {selectedFile && (
-                  <div className="mt-2 p-3 bg-gray-50 rounded-lg border">
+                  <div className="mb-2 p-3 bg-gray-50 rounded-lg border">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         {filePreview ? (
@@ -1164,47 +1481,80 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                     </div>
                   </div>
                 )}
-              </div>
-              <div className="flex justify-between items-center">
-                <div className="flex gap-2">
+                {/* 채팅 완료 시 입력창 비활성화 오버레이 */}
+                {selectedMessage && isChatCompleted(selectedMessage.user) && (
+                  <div className="absolute -bottom-1 inset-0 bg-gray-50 bg-opacity-100 flex flex-col items-center justify-center 
+                      rounded-lg z-10 min-h-[80px]">
+                    <FontAwesomeIcon icon={faCheckCircle} className="text-2xl text-gray-400 mb-3" />
+                    <span className="text-gray-500 text-sm font-medium mb-1">채팅이 완료되었습니다</span>
+                    <span className="text-gray-400 text-xs font-medium">더 이상 메시지를 주고받을 수 없습니다</span>
+                  </div>
+                )}
+                
+                <textarea
+                  value={messageInput}
+                  onChange={(e) => setMessageInput(e.target.value)}
+                  onKeyDown={handleMessageInputKeyDown}
+                  rows={2}
+                  placeholder={selectedMessage && isChatCompleted(selectedMessage.user) ? "채팅이 완료되었습니다" : `메시지를 입력하세요. 
+(Enter: 줄바꿈 / Ctrl+Enter: 전송)`}
+                  className="w-full pl-4 pr-4 py-2 border border-gray-300 rounded-lg resize-none
+                    focus:outline-none focus:ring-2 focus:ring-orange-500 text-xs"
+                  disabled={selectedMessage && isChatCompleted(selectedMessage.user)}
+                />
+                <div className="flex items-center justify-end absolute bottom-[7px] right-[7px] gap-2">
+                  <div className="flex gap-2">
+                    <button 
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={selectedMessage && isChatCompleted(selectedMessage.user)}
+                      className="text-base font-semibold text-gray-700 hover:text-gray-800 transition-colors 
+                       flex items-center gap-2 p-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <FontAwesomeIcon icon={faPaperclip} className="text-base text-gray-400 hover:text-gray-700" />
+                      {/* 파일첨부 */}
+                    </button>
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleFileChange}
+                      className="hidden"
+                      accept="image/*,.pdf,.doc,.docx,.txt"
+                      disabled={selectedMessage && isChatCompleted(selectedMessage.user)}
+                    />
+                  </div>
                   <button 
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="px-3 py-2 text-sm font-semibold text-gray-700 hover:text-gray-800 
-                      border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors"
+                    onClick={handleSendMessage}
+                    disabled={(!messageInput.trim() && !selectedFile) || isSending || (selectedMessage && isChatCompleted(selectedMessage.user))}
+                    className={`flex items-center p-2 rounded-lg  ${
+                      (messageInput.trim() || selectedFile) && !isSending && !(selectedMessage && isChatCompleted(selectedMessage.user))
+                        ? ' text-white bg-orange-500 hover:bg-orange-600' 
+                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    }`}
                   >
-                    파일첨부
+                    <FontAwesomeIcon icon={faPaperPlane} className="text-base" />
+                    {/* <span>{isSending ? '전송중...' : '전송'}</span> */}
                   </button>
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleFileChange}
-                    className="hidden"
-                    accept="image/*,.pdf,.doc,.docx,.txt"
-                  />
                 </div>
-                <button 
-                  onClick={handleSendMessage}
-                  disabled={(!messageInput.trim() && !selectedFile) || isSending}
-                  className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
-                    (messageInput.trim() || selectedFile) && !isSending
-                      ? 'bg-orange-500 text-white hover:bg-orange-600' 
-                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  }`}
-                >
-                  <span>{isSending ? '전송중...' : '전송'}</span>
-                </button>
               </div>
+              
             </>
           )}
         </div>
       </div>
 
+            {/* 모바일/태블릿에서 오른쪽 패널 오버레이 */}
+      <div className={`lg:hidden fixed inset-0 bg-black bg-opacity-10 z-30 transition-opacity duration-300 ${
+        isRightPanelCollapsed ? 'opacity-0 pointer-events-none' : 'opacity-100'
+      }`} onClick={() => setIsRightPanelCollapsed(true)} />
+      
       {/* 오른쪽 패널 - 전문가 정보 */}
       <div className={`bg-white flex flex-col rounded-r-lg transition-all duration-300 ${
-        isRightPanelCollapsed ? 'w-0 overflow-hidden' : 'w-80'
-      }`}>
-        <div className="flex-1 overflow-y-auto p-6">
+        isRightPanelCollapsed 
+          ? 'w-0 overflow-hidden' 
+          : 'w-80'
+      } absolute lg:relative right-0 top-0 h-full z-50 lg:z-auto lg:right-auto lg:top-auto lg:h-auto lg:top-0 lg:h-full`}>
+        <div className="h-full overflow-y-auto p-6">
           {/* 전문가 프로필 */}
           <div className="flex items-center justify-start text-center mb-6 gap-2">
             <div className="w-12 h-12 bg-orange-500 rounded-full flex items-center justify-center mr-2">
@@ -1293,6 +1643,7 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
               </div>
             )}
           </div>
+          
         </div> 
       </div>
 

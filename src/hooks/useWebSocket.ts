@@ -60,12 +60,14 @@ export const useWebSocket = ({
     connectionAttemptedRef.current = true;
 
     const socket = io('http://localhost:5001', {
-      transports: ['websocket', 'polling'],
+      transports: ['polling', 'websocket'],
       autoConnect: true,
-      timeout: 10000,
+      timeout: 15000,
       reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000
+      reconnectionAttempts: 10,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      forceNew: true
     });
 
     socketRef.current = socket;
@@ -123,7 +125,11 @@ export const useWebSocket = ({
       // 관리자가 아닌 경우 현재 사용자의 메시지만 추가
       if (!isAdmin && userEmail) {
         // console.log('사용자 모드 - 메시지 필터링 중...');
-        if (formattedMessage.user === userEmail || formattedMessage.type === 'admin') {
+        // 이메일 부분만 비교 (세션 ID 제외)
+        const currentUserEmail = userEmail.split('_')[0];
+        const messageUserEmail = formattedMessage.user.split('_')[0];
+        
+        if (messageUserEmail === currentUserEmail || formattedMessage.type === 'admin') {
           // console.log('메시지 추가 및 onNewMessage 콜백 호출');
           setMessages(prev => {
             // 중복 메시지 체크
@@ -202,6 +208,7 @@ export const useWebSocket = ({
     file?: string | null;
     fileName?: string;
     fileType?: string;
+
   }) => {
     console.log('=== sendMessage 호출됨 ===');
     console.log('socketConnected:', socketRef.current?.connected);
@@ -296,12 +303,13 @@ export const useWebSocket = ({
   }, []);
 
   useEffect(() => {
-    // console.log('useWebSocket useEffect 실행:', { userEmail, isAdmin });
+    console.log('useWebSocket useEffect 실행:', { userEmail, isAdmin });
     
-    // 이미 연결되어 있고 userEmail/isAdmin이 변경되지 않았다면 재연결하지 않음
+    // 기존 연결 해제
     if (socketRef.current?.connected) {
-      // console.log('이미 연결되어 있음, 재연결 건너뜀');
-      return;
+      console.log('기존 연결 해제 후 재연결');
+      socketRef.current.disconnect();
+      socketRef.current = null;
     }
     
     // connectionAttemptedRef 리셋
@@ -310,14 +318,16 @@ export const useWebSocket = ({
     // 새로운 연결
     connect();
     
-    // 기존 메시지 로드
-    loadMessages();
+    // 관리자인 경우에만 기존 메시지 로드
+    if (isAdmin) {
+      loadMessages();
+    }
 
     return () => {
       // 컴포넌트 언마운트 시에만 연결 해제
       // disconnect();
     };
-  }, [userEmail, isAdmin]); // connect, loadMessages 제거하여 무한 루프 방지
+  }, [userEmail, isAdmin]); // userEmail이 변경될 때마다 재연결
 
   return {
     isConnected,
@@ -325,6 +335,7 @@ export const useWebSocket = ({
     sendMessage,
     updateMessageStatus,
     loadMessages,
-    disconnect
+    disconnect,
+    socket: socketRef.current
   };
 }; 

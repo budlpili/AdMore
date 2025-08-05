@@ -15,38 +15,26 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: [
-      'http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002', 
-      'http://localhost:3003', 'http://localhost:3004', 'http://localhost:3005',
-      'http://localhost:3006', 'http://localhost:3007', 'http://localhost:3008',
-      'http://localhost:3009', 'http://localhost:3010',
-      'http://localhost:63469', 'http://127.0.0.1:63469',
-      'http://127.0.0.1:3000', 'http://127.0.0.1:3001', 'http://127.0.0.1:3002', 
-      'http://127.0.0.1:3003', 'http://127.0.0.1:3004', 'http://127.0.0.1:3005',
-      'http://127.0.0.1:3006', 'http://127.0.0.1:3007', 'http://127.0.0.1:3008',
-      'http://127.0.0.1:3009', 'http://127.0.0.1:3010'
-    ],
-    methods: ["GET", "POST"],
-    credentials: true
-  }
+    origin: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  },
+  allowEIO3: true,
+  transports: ['polling', 'websocket'],
+  pingTimeout: 60000,
+  pingInterval: 25000,
+  upgradeTimeout: 10000,
+  maxHttpBufferSize: 1e8,
+  allowUpgrades: true
 });
 
 // CORS 설정
 app.use(cors({
-  origin: [
-    'http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002', 
-    'http://localhost:3003', 'http://localhost:3004', 'http://localhost:3005',
-    'http://localhost:3006', 'http://localhost:3007', 'http://localhost:3008',
-    'http://localhost:3009', 'http://localhost:3010',
-    'http://localhost:63469', 'http://127.0.0.1:63469',
-    'http://127.0.0.1:3000', 'http://127.0.0.1:3001', 'http://127.0.0.1:3002', 
-    'http://127.0.0.1:3003', 'http://127.0.0.1:3004', 'http://127.0.0.1:3005',
-    'http://127.0.0.1:3006', 'http://127.0.0.1:3007', 'http://127.0.0.1:3008',
-    'http://127.0.0.1:3009', 'http://127.0.0.1:3010'
-  ],
+  origin: true,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
 // 미들웨어 설정
@@ -63,6 +51,17 @@ const userSockets = new Map(); // userEmail -> socketId
 // WebSocket 이벤트 핸들러
 io.on('connection', (socket) => {
   console.log('새로운 클라이언트 연결:', socket.id);
+  console.log('현재 연결된 클라이언트 수:', io.engine.clientsCount);
+  
+  // 연결 오류 처리
+  socket.on('error', (error) => {
+    console.error('소켓 오류:', error);
+  });
+  
+  // 연결 시도 실패 처리
+  socket.on('connect_error', (error) => {
+    console.error('연결 오류:', error);
+  });
 
   // 사용자 로그인
   socket.on('user_login', (userEmail) => {
@@ -98,7 +97,53 @@ io.on('connection', (socket) => {
         fileType
       });
       
-      // 데이터베이스에 메시지 저장
+      // userEmail에서 실제 이메일 추출 (세션 ID에서 타임스탬프 제거)
+      const actualEmail = userEmail.includes('_') ? userEmail.split('_')[0] : userEmail;
+      
+      // 프론트엔드에서 보낸 userEmail이 이미 세션 ID인지 확인
+      if (userEmail.includes('_')) {
+        // 이미 세션 ID가 있으면 그대로 사용
+        console.log(`프론트엔드에서 세션 ID 전송됨: ${userEmail}`);
+        processMessage(userEmail);
+      } else {
+        // 일반 이메일이면 기존 활성 세션 확인
+        const checkActiveSessionQuery = `
+          SELECT user FROM chat_messages 
+          WHERE user LIKE ? AND type = 'user'
+          ORDER BY timestamp DESC
+          LIMIT 1
+        `;
+        
+        const emailPattern = `${actualEmail}_%`;
+        console.log(`활성 세션 확인: ${actualEmail}, 패턴: ${emailPattern}`);
+        
+        db.get(checkActiveSessionQuery, [emailPattern], (err, row) => {
+          if (err) {
+            console.error('활성 세션 확인 오류:', err);
+            // 오류 발생 시 새로운 세션 생성
+            const newSessionId = `${actualEmail}_${Date.now()}`;
+            console.log(`오류 발생, 새로운 세션 생성: ${newSessionId}`);
+            socket.emit('new_session_created', { sessionId: newSessionId });
+            processMessage(newSessionId);
+            return;
+          }
+          
+          if (row && row.user) {
+            // 기존 활성 세션이 있으면 그 세션 사용
+            console.log(`기존 활성 세션 발견: ${row.user}`);
+            processMessage(row.user);
+          } else {
+            // 활성 세션이 없으면 새로운 세션 ID 생성
+            const newSessionId = `${actualEmail}_${Date.now()}`;
+            console.log(`활성 세션 없음, 새로운 세션 생성: ${newSessionId}`);
+            // 새로운 세션 ID를 클라이언트에게 알림
+            socket.emit('new_session_created', { sessionId: newSessionId });
+            processMessage(newSessionId);
+          }
+        });
+      }
+      
+      function processMessage(sessionId) {
       const insertQuery = `
         INSERT INTO chat_messages (user, message, type, timestamp, file, file_name, file_type)
         VALUES (?, ?, ?, datetime('now', 'localtime'), ?, ?, ?)
@@ -107,7 +152,7 @@ io.on('connection', (socket) => {
       const paymentInfoJson = paymentInfo ? JSON.stringify(paymentInfo) : null;
       
       console.log('데이터베이스 저장 시도:', [
-        userEmail, 
+        sessionId, 
         message, 
         type,
         file || null,
@@ -116,7 +161,7 @@ io.on('connection', (socket) => {
       ]);
       
       db.run(insertQuery, [
-        userEmail, 
+        sessionId, 
         message, 
         type,
         file || null,
@@ -136,7 +181,7 @@ io.on('connection', (socket) => {
         
         const savedMessage = {
           id: this.lastID,
-          user: userEmail,
+          user: sessionId,
           message,
           timestamp: timestamp,
           type,
@@ -150,9 +195,19 @@ io.on('connection', (socket) => {
         // 모든 클라이언트에게 메시지 브로드캐스트
         io.emit('new_message', savedMessage);
         
+        // 새로운 세션 ID가 생성된 경우, 해당 세션 ID로 메시지를 다시 전송
+        if (sessionId !== userEmail) {
+          console.log(`새로운 세션 ID로 메시지 재전송: ${sessionId}`);
+          socket.emit('message_for_session', { 
+            sessionId: sessionId, 
+            message: savedMessage 
+          });
+        }
+        
         console.log(`메시지 전송: ${userEmail} -> ${message}`);
         console.log(`연결된 클라이언트 수: ${Object.keys(io.sockets.sockets).length}`);
       });
+    }
     } catch (error) {
       console.error('메시지 처리 오류:', error);
       socket.emit('message_error', { error: '메시지 처리에 실패했습니다.' });
@@ -186,16 +241,19 @@ io.on('connection', (socket) => {
   });
 
   // 연결 해제
-  socket.on('disconnect', () => {
+  socket.on('disconnect', (reason) => {
     const userEmail = connectedUsers.get(socket.id);
     if (userEmail) {
       connectedUsers.delete(socket.id);
       userSockets.delete(userEmail);
-      console.log(`사용자 연결 해제: ${userEmail}`);
+      console.log(`사용자 연결 해제: ${userEmail} (이유: ${reason})`);
       
       // 관리자에게 사용자 연결 해제 알림
       socket.broadcast.emit('user_disconnected', userEmail);
+    } else {
+      console.log(`알 수 없는 클라이언트 연결 해제: ${socket.id} (이유: ${reason})`);
     }
+    console.log('현재 연결된 클라이언트 수:', io.engine.clientsCount);
   });
 });
 
@@ -231,6 +289,32 @@ app.get('/api/chat/messages', (req, res) => {
     }));
     
     res.json(messages);
+  });
+});
+
+// 현재 채팅 중인 유저 목록 가져오기
+app.get('/api/chat/active-users', (req, res) => {
+  const query = `
+    SELECT DISTINCT user, MAX(timestamp) as lastMessageTime
+    FROM chat_messages 
+    WHERE user != '관리자'
+    GROUP BY user
+    ORDER BY lastMessageTime DESC
+  `;
+  
+  db.all(query, [], (err, rows) => {
+    if (err) {
+      console.error('활성 유저 조회 오류:', err);
+      return res.status(500).json({ error: '활성 유저 조회에 실패했습니다.' });
+    }
+    
+    const activeUsers = rows.map(row => ({
+      email: row.user,
+      lastMessageTime: row.lastMessageTime,
+      isOnline: connectedUsers.has(row.user) || userSockets.has(row.user)
+    }));
+    
+    res.json(activeUsers);
   });
 });
 
@@ -313,13 +397,9 @@ const saveChatMessagesToFile = () => {
     // 전체 메시지와 유저별 메시지를 각각 저장
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     
-    // 전체 메시지 JSON 저장
-    const allMessagesFile = path.join(__dirname, 'chat_exports', `all_messages_${timestamp}.json`);
-    fs.mkdirSync(path.dirname(allMessagesFile), { recursive: true });
-    fs.writeFileSync(allMessagesFile, JSON.stringify(messages, null, 2), 'utf8');
-    
     // 전체 메시지 TXT 저장
     const allMessagesTxtFile = path.join(__dirname, 'chat_exports', `all_messages_${timestamp}.txt`);
+    fs.mkdirSync(path.dirname(allMessagesTxtFile), { recursive: true });
     let txtContent = '=== 전체 채팅 메시지 ===\n\n';
     messages.forEach(msg => {
       const date = new Date(msg.timestamp).toLocaleString('ko-KR');
@@ -329,11 +409,8 @@ const saveChatMessagesToFile = () => {
     });
     fs.writeFileSync(allMessagesTxtFile, txtContent, 'utf8');
     
-    // 유저별 메시지 저장
+    // 유저별 메시지 저장 (TXT만)
     Object.keys(userMessages).forEach(userEmail => {
-      const userJsonFile = path.join(__dirname, 'chat_exports', `user_${userEmail.replace(/[@.]/g, '_')}_${timestamp}.json`);
-      fs.writeFileSync(userJsonFile, JSON.stringify(userMessages[userEmail], null, 2), 'utf8');
-      
       // 유저별 TXT 파일 저장
       const userTxtFile = path.join(__dirname, 'chat_exports', `user_${userEmail.replace(/[@.]/g, '_')}_${timestamp}.txt`);
       let userTxtContent = `=== ${userEmail} 채팅 메시지 ===\n\n`;
@@ -346,7 +423,7 @@ const saveChatMessagesToFile = () => {
       fs.writeFileSync(userTxtFile, userTxtContent, 'utf8');
     });
     
-    console.log(`채팅 메시지가 JSON과 TXT 파일로 저장되었습니다. 전체: ${allMessagesFile}`);
+    console.log(`채팅 메시지가 TXT 파일로 저장되었습니다. 전체: ${allMessagesTxtFile}`);
   });
 };
 
@@ -398,11 +475,9 @@ app.post('/api/chat/messages/export/user/:userEmail', (req, res) => {
       }));
       
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const userJsonFile = path.join(__dirname, 'chat_exports', `user_${userEmail.replace(/[@.]/g, '_')}_${timestamp}.json`);
       const userTxtFile = path.join(__dirname, 'chat_exports', `user_${userEmail.replace(/[@.]/g, '_')}_${timestamp}.txt`);
       
-      fs.mkdirSync(path.dirname(userJsonFile), { recursive: true });
-      fs.writeFileSync(userJsonFile, JSON.stringify(messages, null, 2), 'utf8');
+      fs.mkdirSync(path.dirname(userTxtFile), { recursive: true });
       
       // TXT 파일 생성
       let txtContent = `=== ${userEmail} 채팅 메시지 ===\n\n`;
@@ -414,11 +489,10 @@ app.post('/api/chat/messages/export/user/:userEmail', (req, res) => {
       });
       fs.writeFileSync(userTxtFile, txtContent, 'utf8');
       
-      console.log(`유저 ${userEmail}의 메시지가 JSON과 TXT 파일로 저장되었습니다: ${userJsonFile}`);
+      console.log(`유저 ${userEmail}의 메시지가 TXT 파일로 저장되었습니다: ${userTxtFile}`);
       res.json({ 
-        message: `${userEmail}의 채팅 메시지가 JSON과 TXT 파일로 저장되었습니다.`,
-        location: userJsonFile,
-        txtLocation: userTxtFile,
+        message: `${userEmail}의 채팅 메시지가 TXT 파일로 저장되었습니다.`,
+        location: userTxtFile,
         messageCount: messages.length
       });
     });
@@ -438,7 +512,7 @@ app.get('/api/chat/messages/exports', (req, res) => {
   
   try {
     const files = fs.readdirSync(exportsDir)
-      .filter(file => file.endsWith('.json') || file.endsWith('.txt'))
+      .filter(file => file.endsWith('.txt'))
       .map(file => {
         const filePath = path.join(exportsDir, file);
         const stats = fs.statSync(filePath);
@@ -447,7 +521,7 @@ app.get('/api/chat/messages/exports', (req, res) => {
           size: stats.size,
           created: stats.birthtime,
           path: filePath,
-          type: file.endsWith('.json') ? 'json' : 'txt'
+          type: 'txt'
         };
       })
       .sort((a, b) => b.created - a.created);

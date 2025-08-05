@@ -72,6 +72,7 @@ interface ChatMessage {
   type: 'user' | 'admin';
   productInfo?: string;
   status?: 'pending' | 'answered' | 'closed';
+  isCompleted?: boolean; // 채팅 완료 상태 추가
 }
 
 interface SidebarItem {
@@ -103,6 +104,7 @@ const Admin: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [completedChats, setCompletedChats] = useState<string[]>([]); // 완료된 채팅 추적
 
   // WebSocket 훅 사용
   const {
@@ -114,12 +116,30 @@ const Admin: React.FC = () => {
   } = useWebSocket({
     isAdmin: true,
     onNewMessage: (message) => {
+      console.log('관리자 페이지: 새로운 메시지 수신', message);
       // 새로운 메시지가 도착하면 chatMessages에 추가
       setChatMessages(prev => {
         const isDuplicate = prev.some(msg => msg.id === message.id);
         if (isDuplicate) {
+          console.log('관리자 페이지: 중복 메시지 무시');
           return prev;
         }
+        
+        // 완료 메시지가 도착하면 해당 사용자의 채팅을 완료 상태로 표시
+        if ((message.message.includes('상담이 완료되었습니다') || message.message.includes('유저가 채팅종료를 하였습니다')) && message.type === 'admin') {
+          console.log('관리자 페이지: 채팅 완료 메시지 감지, 채팅 완료 상태로 표시');
+          // 해당 사용자의 채팅을 완료 상태로 표시
+          setCompletedChats(prev => [...prev, message.user]);
+          return []; // 채팅 내용은 숨김
+        }
+        
+        // 완료된 사용자의 새로운 메시지는 무시
+        if (completedChats.includes(message.user)) {
+          console.log('관리자 페이지: 완료된 사용자의 새로운 메시지 무시');
+          return prev;
+        }
+        
+        console.log('관리자 페이지: 새 메시지 추가됨');
         return [...prev, message];
       });
     },
@@ -135,11 +155,22 @@ const Admin: React.FC = () => {
     }
   });
 
-  // wsMessages를 chatMessages와 동기화
+  // wsMessages를 chatMessages와 동기화 - 완료된 채팅은 목록에 유지하되 상태만 표시
   useEffect(() => {
-    if (wsMessages && wsMessages.length > 0) {
-      setChatMessages(wsMessages);
-      localStorage.setItem('chatMessages', JSON.stringify(wsMessages));
+    if (wsMessages) {
+      console.log('관리자 페이지: wsMessages 업데이트됨', wsMessages.length);
+      
+      if (wsMessages.length > 0) {
+        // 모든 메시지 표시 (완료된 채팅은 InquiryManagement에서 상태로 표시)
+        console.log('관리자 페이지: 모든 메시지 표시', wsMessages.length);
+        setChatMessages(wsMessages);
+        localStorage.setItem('chatMessages', JSON.stringify(wsMessages));
+      } else {
+        // wsMessages가 비어있으면 빈 배열로 설정
+        console.log('관리자 페이지: wsMessages가 비어있음');
+        setChatMessages([]);
+        localStorage.setItem('chatMessages', JSON.stringify([]));
+      }
     }
   }, [wsMessages]);
 

@@ -557,6 +557,50 @@ export const customerServiceAPI = {
 
 // 채팅 메시지 API
 export const chatAPI = {
+  // 채팅 메시지 가져오기
+  getMessages: async (userEmail?: string) => {
+    const params = userEmail ? `?userEmail=${encodeURIComponent(userEmail)}` : '';
+    return apiRequest(`/chat/messages${params}`);
+  },
+
+  // 현재 채팅 중인 유저 목록 가져오기
+  getActiveUsers: async () => {
+    return apiRequest('/chat/active-users');
+  },
+
+  // 메시지 전송
+  sendMessage: async (messageData: {
+    message: string;
+    type: 'user' | 'admin';
+    inquiryType?: 'product' | 'payment_cancellation';
+    productInfo?: string;
+    paymentInfo?: any;
+    targetUserEmail?: string;
+    file?: string | null;
+    fileName?: string;
+    fileType?: string;
+  }) => {
+    return apiRequest('/chat/send', {
+      method: 'POST',
+      body: JSON.stringify(messageData),
+    });
+  },
+
+  // 메시지 삭제
+  deleteMessage: async (messageId: string) => {
+    return apiRequest(`/chat/messages/${messageId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // 메시지 상태 변경
+  updateMessageStatus: async (messageId: string, status: 'pending' | 'answered' | 'closed') => {
+    return apiRequest(`/chat/messages/${messageId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    });
+  },
+
   exportMessages: () => apiRequest('/chat/messages/export', {
     method: 'POST',
   }),

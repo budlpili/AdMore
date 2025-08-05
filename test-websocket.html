@@ -15,8 +15,15 @@
 
     <script>
         const socket = io('http://localhost:5001', {
-            transports: ['websocket', 'polling'],
-            autoConnect: true
+            transports: ['polling', 'websocket'],
+            autoConnect: true,
+            timeout: 15000,
+            reconnection: true,
+            reconnectionAttempts: 10,
+            reconnectionDelay: 1000,
+            reconnectionDelayMax: 5000,
+            maxReconnectionAttempts: 10,
+            forceNew: true
         });
 
         const statusDiv = document.getElementById('status');
@@ -34,6 +41,24 @@
         socket.on('disconnect', () => {
             console.log('WebSocket 연결 해제됨');
             statusDiv.textContent = '연결 상태: 연결 해제됨';
+            statusDiv.style.color = 'red';
+        });
+
+        socket.on('connect_error', (error) => {
+            console.error('WebSocket 연결 오류:', error);
+            statusDiv.textContent = '연결 상태: 연결 오류';
+            statusDiv.style.color = 'orange';
+        });
+
+        socket.on('reconnect', (attemptNumber) => {
+            console.log('WebSocket 재연결 성공:', attemptNumber);
+            statusDiv.textContent = '연결 상태: 재연결됨';
+            statusDiv.style.color = 'green';
+        });
+
+        socket.on('reconnect_error', (error) => {
+            console.error('WebSocket 재연결 오류:', error);
+            statusDiv.textContent = '연결 상태: 재연결 실패';
             statusDiv.style.color = 'red';
         });
 

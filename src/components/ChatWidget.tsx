@@ -68,6 +68,9 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
 
   const [mode, setMode] = useState<'home' | 'chat'>('home');
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [isChatCompleted, setIsChatCompleted] = useState(false);
+  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
+  const [sessionId, setSessionId] = useState<string>(`${userEmail}_${Date.now()}`); // 채팅 세션 ID 초기화
   const [messages, setMessages] = useState<Message[]>([
     { 
       from: 'admin', 
@@ -86,7 +89,29 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
       fileStart: message.file ? message.file.substring(0, 50) : '없음'
     });
     
-    // WebSocket 메시지를 UI 메시지로 변환
+    // 홈페이지에서는 "유저가 채팅종료를 하였습니다." 메시지를 필터링
+    if (message.message === '유저가 채팅종료를 하였습니다.') {
+      console.log('홈페이지에서 채팅종료 메시지 필터링됨:', message.message);
+      return;
+    }
+    
+    // 관리자의 답변완료 메시지 처리
+    if (message.message === '관리자가 답변을 완료하였습니다.') {
+      console.log('관리자 답변완료 메시지 수신:', message.message);
+      setIsChatCompleted(true);
+      
+      // 답변완료 메시지를 채팅에 추가
+      const completionMessage: Message = {
+        from: 'admin',
+        text: '관리자가 답변을 완료하였습니다.\n\n추가 문의사항이 있으시면 언제든 다시 문의해 주세요.\n감사합니다!',
+        timestamp: new Date().toISOString()
+      };
+      
+      setMessages(prev => [...prev, completionMessage]);
+      return;
+    }
+    
+    // 홈페이지 채팅에서는 모든 메시지 표시 (유저가 보낸 메시지도 포함)
     const newMessage: Message = {
       id: message.id,
       from: message.type === 'admin' ? 'admin' : 'user',
@@ -104,15 +129,18 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
       fileType: newMessage.fileType
     });
     
-    // 중복 메시지 방지: 같은 내용의 메시지가 이미 있는지 확인
+    // 중복 메시지 방지 로직 개선: ID 기반으로 확인
     setMessages(prev => {
       console.log('이전 메시지들:', prev);
       
-      const isDuplicate = prev.some(msg => 
-        msg.text === message.message && 
-        msg.from === (message.type === 'admin' ? 'admin' : 'user') &&
-        Math.abs(new Date().getTime() - (msg.timestamp ? new Date(msg.timestamp).getTime() : 0)) < 5000 // 5초 이내
-      );
+      // ID가 있으면 ID로 중복 확인, 없으면 내용과 시간으로 확인
+      const isDuplicate = message.id 
+        ? prev.some(msg => msg.id === message.id)
+        : prev.some(msg => 
+            msg.text === message.message && 
+            msg.from === (message.type === 'admin' ? 'admin' : 'user') &&
+            Math.abs(new Date().getTime() - (msg.timestamp ? new Date(msg.timestamp).getTime() : 0)) < 2000 // 2초 이내
+          );
       
       if (isDuplicate) {
         console.log('중복 메시지 감지, 추가하지 않음:', message.message);
@@ -125,34 +153,62 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     });
   }, []);
 
-  // WebSocket 훅 사용
+  // WebSocket 훅 사용 (세션 ID를 userEmail로 전달)
   const {
     isConnected,
     messages: wsMessages,
     sendMessage,
-    loadMessages
+    loadMessages,
+    socket
   } = useWebSocket({
-    userEmail,
+    userEmail: sessionId || userEmail, // 세션 ID가 있으면 사용, 없으면 원래 이메일 사용
     onNewMessage: handleNewMessage
   });
 
-  // WebSocket에서 받은 메시지를 로컬 상태와 동기화
+  // sessionId가 변경될 때 WebSocket 재연결을 위한 useEffect
+  useEffect(() => {
+    console.log('sessionId 변경됨, WebSocket 재연결 필요:', sessionId);
+  }, [sessionId]);
+
+  // 새로운 세션 ID 수신 처리
+  useEffect(() => {
+    if (socket) {
+      // 기존 이벤트 리스너 제거
+      socket.off('new_session_created');
+      socket.off('message_for_session');
+      
+      socket.on('new_session_created', (data: { sessionId: string }) => {
+        console.log('새로운 세션 ID 수신:', data.sessionId);
+        setSessionId(data.sessionId);
+        // 새로운 세션 ID로 WebSocket 재연결
+        console.log('새로운 세션 ID로 WebSocket 재연결 필요');
+      });
+      
+      socket.on('message_for_session', (data: { sessionId: string; message: any }) => {
+        console.log('세션별 메시지 수신:', data);
+        console.log('현재 sessionId:', sessionId);
+        console.log('수신된 sessionId:', data.sessionId);
+        if (data.sessionId === sessionId) {
+          console.log('현재 세션에 맞는 메시지, 처리 중...');
+          handleNewMessage(data.message);
+        } else {
+          console.log('세션 ID 불일치, 메시지 무시');
+        }
+      });
+    }
+  }, [socket, sessionId, handleNewMessage]);
+
+  // 디버깅: 세션 ID와 userEmail 상태 로깅
+  console.log('ChatWidget - sessionId:', sessionId);
+  console.log('ChatWidget - userEmail:', userEmail);
+  console.log('ChatWidget - useWebSocket에 전달되는 userEmail:', sessionId || userEmail);
+
+  // WebSocket에서 받은 메시지를 로컬 상태와 동기화 - 홈페이지에서는 비활성화
   useEffect(() => {
     console.log('wsMessages 변경됨:', wsMessages);
-    if (wsMessages && wsMessages.length > 0) {
-      const convertedMessages: Message[] = wsMessages.map(msg => ({
-        id: msg.id,
-        from: msg.type === 'admin' ? 'admin' : 'user',
-        text: msg.message,
-        file: msg.file || null,
-        fileName: msg.fileName || undefined,
-        fileType: msg.fileType || undefined,
-        timestamp: msg.timestamp
-      }));
-      
-      console.log('변환된 메시지들:', convertedMessages);
-      setMessages(convertedMessages);
-    }
+    // 홈페이지 채팅에서는 WebSocket 메시지 자동 로드를 비활성화
+    // 대신 수동으로 메시지를 관리
+    console.log('WebSocket 메시지 자동 로드 비활성화됨');
   }, [wsMessages]);
 
   // 디버깅을 위한 메시지 상태 로깅
@@ -292,11 +348,76 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     
     setIsChatOpen(true);
     setMode('home');
+    setIsChatCompleted(false);
+    setShowDeleteConfirmModal(false);
+    
+    // 새로운 세션 ID 생성 (매번 새로운 세션)
+    const newSessionId = `${userEmail}_${Date.now()}`;
+    setSessionId(newSessionId);
+    console.log('새로운 세션 ID 생성:', newSessionId);
+    
+    // 채팅창을 열 때 메시지 초기화
+    setMessages([
+      { 
+        from: 'admin', 
+        text: '고객님 반갑습니다!\n\n상담 운영 시간 안내\n· 평일 10:00 ~ 17:00\n· 주말, 공휴일 휴무\n순차적으로 확인하여 답변드리도록 하겠습니다.' 
+      }
+    ]);
   };
 
   const handleClose = () => {
+    // 답변완료 후 X 버튼을 누른 경우 삭제 확인 모달 표시
+    if (isChatCompleted) {
+      setShowDeleteConfirmModal(true);
+      return;
+    }
+    
+    // 일반적인 닫기
+    closeChat();
+  };
+
+  const closeChat = () => {
     setIsChatOpen(false);
     setMode('home');
+    setIsChatCompleted(false);
+    setShowDeleteConfirmModal(false);
+    
+    // 세션 ID 초기화 (다음 채팅을 위해)
+    setSessionId('');
+    
+    // 홈페이지의 대화 메시지 삭제 (시스템 메시지만 유지)
+    setMessages([
+      { 
+        from: 'admin', 
+        text: '고객님 반갑습니다!\n\n상담 운영 시간 안내\n· 평일 10:00 ~ 17:00\n· 주말, 공휴일 휴무\n순차적으로 확인하여 답변드리도록 하겠습니다.' 
+      }
+    ]);
+  };
+
+  const handleCompleteChat = () => {
+    // 확인 알림창 표시
+    const isConfirmed = window.confirm('정말로 상담을 완료하시겠습니까?\n\n완료 후에는 새로운 문의를 시작할 수 있습니다.');
+    
+    if (isConfirmed) {
+      setIsChatCompleted(true);
+      
+      // 관리자에게 유저가 채팅종료를 하였다는 메시지 전송
+      if (sendMessage && userEmail) {
+        sendMessage({
+          message: '유저가 채팅종료를 하였습니다.',
+          type: 'admin',
+          targetUserEmail: userEmail
+        });
+      }
+      
+      // 로컬에 완료 메시지 추가
+      const completionMessage: Message = {
+        from: 'admin',
+        text: '상담이 완료되었습니다.\n\n추가 문의사항이 있으시면 언제든 다시 문의해 주세요.\n감사합니다!',
+        timestamp: new Date().toISOString()
+      };
+      setMessages(prev => [...prev, completionMessage]);
+    }
   };
 
   return (
@@ -341,9 +462,20 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                   </>
                 )}
               </div>
-              <button onClick={handleClose} className="text-gray-500 hover:text-gray-700 text-base">
-                <FontAwesomeIcon icon={faXmark} />
-              </button>
+              <div className="flex items-center gap-2">
+                {/* 답변완료 버튼 - 채팅 모드에서만 표시 */}
+                {mode === 'chat' && !isChatCompleted && (
+                  <button 
+                    onClick={handleCompleteChat} 
+                    className="text-xs bg-orange-600 text-white px-3 py-1 rounded-md hover:bg-orange-700 transition-colors font-medium"
+                  >
+                    답변완료
+                  </button>
+                )}
+                <button onClick={handleClose} className="text-gray-500 hover:text-gray-700 text-base">
+                  <FontAwesomeIcon icon={faXmark} />
+                </button>
+              </div>
             </div>
             {/* 본문: 안내/문의 or 채팅 */}
             <div className="flex-1 flex flex-col">
@@ -364,9 +496,15 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                         if (!checkLoginStatus()) return;
                         
                         setMode('chat');
+                        // 세션 ID가 없을 때만 새로 생성 (채팅창을 처음 열 때만)
+                        if (!sessionId) {
+                          const newSessionId = `${userEmail}_${Date.now()}`;
+                          setSessionId(newSessionId);
+                          console.log('새로운 채팅 세션 생성:', newSessionId);
+                        }
                         // 채팅 모드 진입 시 기존 메시지 초기화 (시스템 메시지만 유지)
                         setMessages([{ from: 'admin', text: '고객님 반갑습니다!\n\n상담 운영 시간 안내\n· 평일 10:00 ~ 17:00\n· 주말, 공휴일 휴무\n순차적으로 확인하여 답변드리도록 하겠습니다.' }]);
-                        loadMessages();
+                        // loadMessages() 제거 - 홈페이지에서는 기존 메시지를 로드하지 않음
                       }}>문의하기</button>
                     </div>
 
@@ -488,6 +626,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                                       ))}
                                     </div>
                                   )}
+
                                 </div>
                                 <span className="text-[11px] text-gray-400 mt-1 self-start">{time}</span>
                               </div>
@@ -531,21 +670,29 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                   </div>
                   {/* 입력창 */}
                   <form className="relative flex items-center border-t px-3 py-3 gap-2" onSubmit={e => { e.preventDefault(); handleSend(); }}>
+                    {/* 채팅 완료 시 입력창 비활성화 */}
+                    {isChatCompleted && (
+                      <div className="absolute inset-0 bg-gray-100 bg-opacity-50 flex items-center justify-center rounded-md">
+                        <span className="text-gray-500 text-sm font-medium">상담이 완료되었습니다</span>
+                      </div>
+                    )}
                     
                     <textarea
                       className="flex-1 px-3 py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 text-xs resize-none"
-                      placeholder="메시지를 입력하세요. (Enter:줄바꿈/Ctrl+Enter:전송)"
+                      placeholder={isChatCompleted ? "상담이 완료되었습니다" : "메시지를 입력하세요. (Enter:줄바꿈/Ctrl+Enter:전송)"}
                       value={input}
                       onChange={e => setInput(e.target.value)}
                       onKeyDown={handleMessageInputKeyDown}
                       rows={1}
                       autoFocus
+                      disabled={isChatCompleted}
                     />
                     <button
                       type="button"
-                      className="flex items-center justify-center ml-1 text-gray-400 hover:text-orange-500 transition"
+                      className="flex items-center justify-center ml-1 text-gray-400 hover:text-orange-500 transition disabled:opacity-50 disabled:cursor-not-allowed"
                       aria-label="파일 첨부"
                       onClick={() => fileInputRef.current?.click()}
+                      disabled={isChatCompleted}
                     >
                       <FontAwesomeIcon icon={faPaperclip} className="text-xl" />
                       <input
@@ -553,12 +700,14 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                         className="hidden"
                         ref={fileInputRef}
                         onChange={handleFileChange}
+                        disabled={isChatCompleted}
                       />
                     </button>
                     <button
                       type="submit"
-                      className="ml-1 flex items-center justify-center hover:text-orange-500 text-gray-400 transition"
+                      className="ml-1 flex items-center justify-center hover:text-orange-500 text-gray-400 transition disabled:opacity-50 disabled:cursor-not-allowed"
                       aria-label="전송"
+                      disabled={isChatCompleted}
                     >
                       <FontAwesomeIcon icon={faPaperPlane} className="text-lg" />
                     </button>
@@ -618,6 +767,39 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                   className="flex-1 py-3 px-4 bg-orange-600 text-white rounded-lg font-medium hover:bg-orange-700 transition"
                 >
                   로그인
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 상담 메시지 삭제 확인 모달 */}
+      {showDeleteConfirmModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl p-6 mx-4 max-w-sm w-full">
+            <div className="text-center">
+              <div className="w-16 h-16 mx-auto mb-4 bg-orange-100 rounded-full flex items-center justify-center">
+                <FontAwesomeIcon icon={faComments} className="text-2xl text-orange-600" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">상담 메시지 삭제</h3>
+              <p className="text-gray-600 mb-6 text-sm leading-relaxed">
+                상담이 완료되었습니다.<br />
+                상담 내용을 모두 삭제하고<br />
+                새로운 1:1 문의를 시작하시겠습니까?
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowDeleteConfirmModal(false)}
+                  className="flex-1 py-3 px-4 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={closeChat}
+                  className="flex-1 py-3 px-4 bg-orange-600 text-white rounded-lg font-medium hover:bg-orange-700 transition"
+                >
+                  삭제하고 닫기
                 </button>
               </div>
             </div>
