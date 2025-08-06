@@ -40,7 +40,7 @@ const CouponManagement: React.FC = () => {
   const [editingCoupon, setEditingCoupon] = useState<Coupon | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
+  const [isStatusFilterDropdownOpen, setIsStatusFilterDropdownOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   
   // 페이지네이션 상태
@@ -54,6 +54,10 @@ const CouponManagement: React.FC = () => {
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [userSearchTerm, setUserSearchTerm] = useState('');
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
+
+  // 할인 유형 드롭다운 상태
+  const [isDiscountTypeDropdownOpen, setIsDiscountTypeDropdownOpen] = useState(false);
+  const [isFormStatusDropdownOpen, setIsFormStatusDropdownOpen] = useState(false);
 
   // 폼 상태
   const [formData, setFormData] = useState({
@@ -275,6 +279,11 @@ const CouponManagement: React.FC = () => {
     setFormData(prev => ({ ...prev, [field]: numericValue }));
   };
 
+  const handleDiscountTypeChange = (type: 'percentage' | 'fixed') => {
+    setFormData(prev => ({ ...prev, discountType: type }));
+    setIsDiscountTypeDropdownOpen(false);
+  };
+
   // 쿠폰 발송 관련 함수들
   const handleSendCoupon = (coupon: Coupon) => {
     setSelectedCoupon(coupon);
@@ -384,61 +393,61 @@ const CouponManagement: React.FC = () => {
         </div>
         {/* 상태 필터 드롭다운 */}
         <div className="relative">
-          <button
-            onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
-            className="flex items-center justify-between w-48 px-4 py-2 border border-gray-300 rounded-lg text-sm
-            focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-          >
-            <span className="text-gray-700">
-              {statusFilter === 'all' && '전체 상태'}
-              {statusFilter === 'active' && '활성'}
-              {statusFilter === 'inactive' && '비활성'}
-              {statusFilter === 'expired' && '만료'}
-            </span>
-            <FontAwesomeIcon 
-              icon={isStatusDropdownOpen ? faCaretUp : faCaretDown} 
-              className="text-gray-400 ml-2" 
-            />
-          </button>
-          
-          {isStatusDropdownOpen && (
+                      <button
+              onClick={() => setIsStatusFilterDropdownOpen(!isStatusFilterDropdownOpen)}
+              className="flex items-center justify-between w-48 px-4 py-2 border border-gray-300 rounded-lg text-sm
+              focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+            >
+              <span className="text-gray-700">
+                {statusFilter === 'all' && '전체 상태'}
+                {statusFilter === 'active' && '활성'}
+                {statusFilter === 'inactive' && '비활성'}
+                {statusFilter === 'expired' && '만료'}
+              </span>
+              <FontAwesomeIcon 
+                icon={isStatusFilterDropdownOpen ? faCaretUp : faCaretDown} 
+                className="text-gray-400 ml-2" 
+              />
+            </button>
+            
+            {isStatusFilterDropdownOpen && (
             <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10">
-              <div 
-                className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                onClick={() => {
-                  setStatusFilter('all');
-                  setIsStatusDropdownOpen(false);
-                }}
-              >
-                전체 상태
-              </div>
-              <div 
-                className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                onClick={() => {
-                  setStatusFilter('active');
-                  setIsStatusDropdownOpen(false);
-                }}
-              >
-                활성
-              </div>
-              <div 
-                className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                onClick={() => {
-                  setStatusFilter('inactive');
-                  setIsStatusDropdownOpen(false);
-                }}
-              >
-                비활성
-              </div>
-              <div 
-                className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                onClick={() => {
-                  setStatusFilter('expired');
-                  setIsStatusDropdownOpen(false);
-                }}
-              >
-                만료
-              </div>
+                              <div 
+                  className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                  onClick={() => {
+                    setStatusFilter('all');
+                    setIsStatusFilterDropdownOpen(false);
+                  }}
+                >
+                  전체 상태
+                </div>
+                <div 
+                  className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                  onClick={() => {
+                    setStatusFilter('active');
+                    setIsStatusFilterDropdownOpen(false);
+                  }}
+                >
+                  활성
+                </div>
+                <div 
+                  className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                  onClick={() => {
+                    setStatusFilter('inactive');
+                    setIsStatusFilterDropdownOpen(false);
+                  }}
+                >
+                  비활성
+                </div>
+                <div 
+                  className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                  onClick={() => {
+                    setStatusFilter('expired');
+                    setIsStatusFilterDropdownOpen(false);
+                  }}
+                >
+                  만료
+                </div>
             </div>
           )}
         </div>
@@ -632,27 +641,58 @@ const CouponManagement: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     할인 유형 *
                   </label>
-                  <select
-                    value={formData.discountType}
-                    onChange={(e) => setFormData({ ...formData, discountType: e.target.value as 'percentage' | 'fixed' })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="percentage">퍼센트 할인</option>
-                    <option value="fixed">정액 할인</option>
-                  </select>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setIsDiscountTypeDropdownOpen(!isDiscountTypeDropdownOpen)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-left flex items-center justify-between"
+                    >
+                      <span className="text-gray-700">
+                        {formData.discountType === 'percentage' ? '퍼센트 할인' : '정액 할인'}
+                      </span>
+                      <FontAwesomeIcon 
+                        icon={isDiscountTypeDropdownOpen ? faCaretUp : faCaretDown} 
+                        className="text-gray-400" 
+                      />
+                    </button>
+                    
+                    {isDiscountTypeDropdownOpen && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-md shadow-lg z-10">
+                        <div 
+                          className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                          onClick={() => handleDiscountTypeChange('percentage')}
+                        >
+                          퍼센트 할인
+                        </div>
+                        <div 
+                          className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                          onClick={() => handleDiscountTypeChange('fixed')}
+                        >
+                          정액 할인
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     할인 값 *
                   </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.discountValue ? formatNumberDisplay(formData.discountValue) : ''}
-                    onChange={(e) => handleNumberInputChange('discountValue', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder={formData.discountType === 'percentage' ? '10' : '5,000'}
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      required
+                      value={formData.discountValue ? formatNumberDisplay(formData.discountValue) : ''}
+                      onChange={(e) => handleNumberInputChange('discountValue', e.target.value)}
+                      className="w-full px-3 py-2 pr-8 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder={formData.discountType === 'percentage' ? '10' : '5,000'}
+                    />
+                    {formData.discountType === 'percentage' && (
+                      <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">
+                        %
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -727,15 +767,55 @@ const CouponManagement: React.FC = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   상태
                 </label>
-                <select
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value as 'active' | 'inactive' | 'expired' })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="active">활성</option>
-                  <option value="inactive">비활성</option>
-                  <option value="expired">만료</option>
-                </select>
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setIsFormStatusDropdownOpen(!isFormStatusDropdownOpen)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-left flex items-center justify-between"
+                  >
+                    <span className="text-gray-700">
+                      {formData.status === 'active' && '활성'}
+                      {formData.status === 'inactive' && '비활성'}
+                      {formData.status === 'expired' && '만료'}
+                    </span>
+                    <FontAwesomeIcon 
+                      icon={isFormStatusDropdownOpen ? faCaretUp : faCaretDown} 
+                      className="text-gray-400" 
+                    />
+                  </button>
+                  
+                  {isFormStatusDropdownOpen && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-md shadow-lg z-10">
+                      <div 
+                        className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                        onClick={() => {
+                          setFormData({ ...formData, status: 'active' });
+                          setIsFormStatusDropdownOpen(false);
+                        }}
+                      >
+                        활성
+                      </div>
+                      <div 
+                        className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                        onClick={() => {
+                          setFormData({ ...formData, status: 'inactive' });
+                          setIsFormStatusDropdownOpen(false);
+                        }}
+                      >
+                        비활성
+                      </div>
+                      <div 
+                        className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                        onClick={() => {
+                          setFormData({ ...formData, status: 'expired' });
+                          setIsFormStatusDropdownOpen(false);
+                        }}
+                      >
+                        만료
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="flex justify-end gap-3 pt-4">
