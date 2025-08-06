@@ -262,6 +262,12 @@ export const useWebSocket = ({
   // 기존 메시지 로드
   const loadMessages = useCallback(async () => {
     try {
+      // 새로운 세션인 경우 메시지를 로드하지 않음
+      if (userEmail && userEmail.includes('_session_')) {
+        console.log('새로운 세션이므로 기존 메시지를 로드하지 않음:', userEmail);
+        return;
+      }
+      
       // console.log('기존 메시지 로드 중...');
       const response = await fetch('http://localhost:5001/api/chat/messages');
       if (response.ok) {

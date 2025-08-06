@@ -388,6 +388,12 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
         return;
       }
       
+      // 새로운 세션이 시작된 후 WebSocket 메시지가 로드되는 것을 방지
+      if (isChatOpen && mode === 'chat') {
+        console.log('채팅 모드에서 새로운 세션 메시지 로드 방지');
+        return;
+      }
+      
       // ChatMessage를 Message 형식으로 변환
       const convertedMessages: Message[] = wsMessages.map(msg => ({
         id: msg.id,
@@ -401,7 +407,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
       localStorage.setItem(storageKey, JSON.stringify(convertedMessages));
       console.log('메시지를 localStorage에 저장함, 키:', storageKey);
     }
-  }, [wsMessages, sessionId, messages]);
+  }, [wsMessages, sessionId, messages, isChatOpen, mode]);
 
   // 디버깅을 위한 메시지 상태 로깅
   useEffect(() => {
