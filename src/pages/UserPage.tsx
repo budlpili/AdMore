@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faUser as faUserSolid, faCalendar } from '@fortawesome/free-regular-svg-icons';
-import { faRotateLeft, faArrowRight, faCircleExclamation, faStar as faSolidStar, faStarHalfAlt, faStar as faRegularStar, faHeart as faSolidHeart, faPen, faTrash } from '@fortawesome/free-solid-svg-icons';
+import { faRotateLeft, faArrowRight, faCircleExclamation, faStar as faSolidStar, faStarHalfAlt, faStar as faRegularStar, faHeart as faSolidHeart, faPen, faTrash, faChevronUp, faChevronDown } from '@fortawesome/free-solid-svg-icons';
 import { faHeart as faRegularHeart } from '@fortawesome/free-regular-svg-icons';
 import { faFacebook, faInstagram, faYoutube, faBlogger, faTwitter, faTelegram, IconDefinition } from '@fortawesome/free-brands-svg-icons';
 import CouponCard from '../components/CouponCard';
@@ -303,6 +303,7 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
   
   // 공지사항 상태
   const [notices, setNotices] = useState<Notice[]>([]);
+  const [currentNoticeIndex, setCurrentNoticeIndex] = useState(0);
 
   const handleLogout = () => {
     localStorage.removeItem('isLoggedIn');
@@ -426,6 +427,30 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
     // 공지사항 로드
     loadNotices();
   }, []);
+
+  // 공지사항 순환 애니메이션
+  useEffect(() => {
+    if (notices.length === 0) return;
+    
+    const interval = setInterval(() => {
+      setCurrentNoticeIndex((prevIndex) => (prevIndex + 1) % notices.length);
+    }, 4000); // 4초마다 다음 공지사항으로 변경
+
+    return () => clearInterval(interval);
+  }, [notices.length]);
+
+  // 공지사항 수동 변경 함수들
+  const handlePrevNotice = () => {
+    if (notices.length === 0) return;
+    setCurrentNoticeIndex((prevIndex) => 
+      prevIndex === 0 ? notices.length - 1 : prevIndex - 1
+    );
+  };
+
+  const handleNextNotice = () => {
+    if (notices.length === 0) return;
+    setCurrentNoticeIndex((prevIndex) => (prevIndex + 1) % notices.length);
+  };
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     setActiveTab(params.get('tab') || 'mypage');
@@ -1495,17 +1520,43 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
           {activeTab === 'mypage' && (
             <div className="bg-white rounded-lg shadow p-6 mb-6 min-h-[100px]">
               <div className="font-bold text-gray-700 mb-2">애드모어 새소식</div>
-              {/* 마이프로필 공지사항표시 */}
-              <div className="bg-gray-100 rounded p-3 text-xs text-gray-600 mb-4">
+              {/* 마이프로필 공지사항표시 - 순환 애니메이션 */}
+              <div className="bg-gray-100 rounded p-3 text-xs text-gray-600 mb-4 relative" style={{ height: '40px' }}>
+                {/* 위쪽 스크롤 버튼 */}
+                {notices.length > 1 && (
+                  <button
+                    onClick={handlePrevNotice}
+                    className="absolute top-0 left-1/2 transform -translate-x-1/2 z-10 bg-white/80 border border-gray-200 rounded-full w-5 h-5 flex items-center justify-center shadow-sm hover:bg-gray-100 transition-colors"
+                    aria-label="이전 공지사항"
+                  >
+                    <FontAwesomeIcon icon={faChevronUp} className="text-xs text-gray-500" />
+                  </button>
+                )}
+                
+                {/* 아래쪽 스크롤 버튼 */}
+                {notices.length > 1 && (
+                  <button
+                    onClick={handleNextNotice}
+                    className="absolute bottom-0 left-1/2 transform -translate-x-1/2 z-10 bg-white/80 border border-gray-200 rounded-full w-5 h-5 flex items-center justify-center shadow-sm hover:bg-gray-100 transition-colors"
+                    aria-label="다음 공지사항"
+                  >
+                    <FontAwesomeIcon icon={faChevronDown} className="text-xs text-gray-500" />
+                  </button>
+                )}
+                
                 {notices.length > 0 ? (
-                  notices.slice(0, 1).map((notice) => (
-                    <div key={notice.id} className="flex justify-between items-center mb-2 last:mb-0">
-                      <span className="text-gray-600 font-semibold">{notice.title}</span>
-                      <span className="text-orange-500 font-bold">{notice.createdAt}</span>
-                    </div>
-                  ))
+                  <div 
+                    key={`notice-${currentNoticeIndex}`}
+                    className="absolute left-0 right-0 flex justify-between items-center"
+                    style={{
+                      animation: 'fadeInOut 4s ease-in-out'
+                    }}
+                  >
+                    <span className="text-gray-600 font-semibold">{notices[currentNoticeIndex]?.title}</span>
+                    <span className="text-orange-500 font-bold">{notices[currentNoticeIndex]?.createdAt}</span>
+                  </div>
                 ) : (
-                  <div className="flex justify-between items-center">
+                  <div className="absolute left-0 right-0 flex justify-between items-center">
                     <span className="text-gray-600 font-semibold">애드모어 공지사항입니다.</span>
                     <span className="text-orange-500 font-bold"></span>
                   </div>
