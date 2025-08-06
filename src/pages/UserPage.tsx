@@ -8,7 +8,7 @@ import { faFacebook, faInstagram, faYoutube, faBlogger, faTwitter, faTelegram, I
 import CouponCard from '../components/CouponCard';
 import ProductCard from '../components/ProductCard';
 import { useDragScroll } from '../hooks/useDragScroll';
-import { ordersAPI, customerServiceAPI } from '../services/api';
+import { ordersAPI, customerServiceAPI, couponsAPI } from '../services/api';
 import { mockReviews } from '../data/reviews-list';
 import { products } from '../data/products';
 import { DUMMY_COUPONS, Coupon } from '../data/coupons';
@@ -305,6 +305,10 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
   const [notices, setNotices] = useState<Notice[]>([]);
   const [currentNoticeIndex, setCurrentNoticeIndex] = useState(0);
 
+  // 쿠폰함 상태
+  const [userCoupons, setUserCoupons] = useState<any[]>([]);
+  const [couponLoading, setCouponLoading] = useState(false);
+
   const handleLogout = () => {
     // 모든 인증 관련 데이터 제거
     localStorage.removeItem('isLoggedIn');
@@ -440,6 +444,8 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
     loadUserInfo();
     // 공지사항 로드
     loadNotices();
+    // 쿠폰함 로드
+    loadUserCoupons();
   }, []);
 
   // 공지사항 순환 애니메이션
@@ -543,6 +549,8 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
       return;
     }
 
+
+
     if (newName.trim().length < 2) {
       setNameError('이름은 2자 이상 입력해주세요.');
       return;
@@ -597,6 +605,62 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
     } catch (error) {
       console.error('이름 변경 실패:', error);
       setNameError('이름 변경 중 오류가 발생했습니다.');
+    }
+  };
+
+  // 쿠폰함 로드 함수
+  const loadUserCoupons = async () => {
+    try {
+      setCouponLoading(true);
+      
+      // 토큰에서 사용자 ID 추출
+      const token = localStorage.getItem('token');
+      let userId = '1'; // 기본값
+      
+      if (token) {
+        try {
+          const tokenParts = token.split('.');
+          if (tokenParts.length === 3) {
+            const payload = JSON.parse(atob(tokenParts[1]));
+            userId = payload.id.toString();
+            console.log('토큰에서 추출한 사용자 ID:', userId);
+          }
+        } catch (e) {
+          console.log('토큰에서 사용자 ID 추출 실패:', e);
+        }
+      }
+      
+      const response = await couponsAPI.getUserCoupons(userId);
+      
+      if (response.success && response.coupons) {
+        console.log('유저 쿠폰함 데이터:', response.coupons);
+        setUserCoupons(response.coupons);
+      } else {
+        console.log('쿠폰함 데이터가 없습니다.');
+        setUserCoupons([]);
+      }
+    } catch (error) {
+      console.error('쿠폰함 로드 에러:', error);
+      setUserCoupons([]);
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  // 쿠폰 사용 처리 함수
+  const handleUseUserCoupon = async (sendId: string) => {
+    try {
+      const response = await couponsAPI.useCoupon(sendId);
+      if (response.success) {
+        alert('쿠폰이 사용되었습니다.');
+        // 쿠폰함 다시 로드
+        await loadUserCoupons();
+      } else {
+        alert('쿠폰 사용에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('쿠폰 사용 에러:', error);
+      alert('쿠폰 사용에 실패했습니다.');
     }
   };
   const toggleFavorite = (id: number) => {
@@ -1699,14 +1763,14 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                       <div className="flex flex-col items-center justify-center gap-2 bg-white rounded-lg px-2 py-4 w-full border border-gray-100">
                         <div className="font-semibold text-xs sm:text-base">사용 가능</div>
                         <div className="text-[16px] sm:text-xl font-bold text-orange-600">
-                          {availableCouponCount} 
+                          {userCoupons.filter(c => !c.usedAt && new Date(c.endDate) > new Date()).length} 
                           <span className="text-gray-400 font-semibold ml-1 text-sm sm:text-base">개</span>
                         </div>
                       </div>
                       <div className="flex flex-col items-center justify-center gap-2 bg-white rounded-lg px-2 py-4 w-full border border-gray-100">
                         <div className="font-semibold text-xs sm:text-base">전체 쿠폰</div>
                         <div className="text-[16px] sm:text-xl font-bold text-orange-600">
-                          {totalCouponCount} 
+                          {userCoupons.length} 
                           <span className="text-gray-400 font-semibold ml-1 text-sm sm:text-base">개</span>
                         </div>
                       </div>
@@ -1778,89 +1842,67 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                     </button>
                   </div>
                   {/* 쿠폰 카드 리스트 */}
-                  <div className="grid grid-cols-1 xxs:grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-3 
+                  <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 
                       sm:gap-4 mt-4 py-4 rounded-b-lg">
-                    {allCoupons.filter(c => {
-                      // 쿠폰 만료일 확인 함수
-                      const isCouponExpired = (expiry: string) => {
-                        try {
-                          const expireDate = new Date(expiry.replace('년 ', '-').replace('월 ', '-').replace('일 ', ' ').split(' ')[0]);
-                          const today = new Date();
-                          return expireDate < today;
-                        } catch {
-                          return false;
-                        }
-                      };
-                      
-                      if (couponTab === 'all') return true;
-                      if (couponTab === 'available') return !usedCoupons[c.id] && !isCouponExpired(c.expire);
-                      if (couponTab === 'used') return !!usedCoupons[c.id];
-                      if (couponTab === 'expiring') {
-                        // 만료일이 1달 이하인 쿠폰 필터링
-                        const expireDate = new Date(c.expire.replace('년 ', '-').replace('월 ', '-').replace('일 ', ' ').split(' ')[0]);
-                        const today = new Date();
-                        const oneMonthFromNow = new Date();
-                        oneMonthFromNow.setMonth(today.getMonth() + 1);
-                        return !usedCoupons[c.id] && !isCouponExpired(c.expire) && expireDate <= oneMonthFromNow && expireDate >= today;
-                      }
-                      return true;
-                    }).length === 0 ? (
-                      <div className="w-full col-span-full text-center text-gray-400 py-12 min-h-[320px] text-sm flex flex-col items-center justify-center bg-gray-50 rounded-lg h-full">
-                        <div className="text-4xl mb-2">🎫</div>
-                        <div className="text-sm font-medium text-gray-500 mb-1">
-                          {couponTab === 'available' && '사용 가능한 쿠폰이 없습니다.'}
-                          {couponTab === 'used' && '사용한 쿠폰이 없습니다.'}
-                          {couponTab === 'expiring' && '만료 임박 쿠폰이 없습니다.'}
-                          {couponTab === 'all' && '쿠폰이 없습니다.'}
-                        </div>
-                        <div className="text-xs text-gray-400">
-                          {couponTab === 'available' && '새로운 쿠폰을 등록해보세요!'}
-                          {couponTab === 'used' && '쿠폰을 사용해보세요!'}
-                          {couponTab === 'expiring' && '곧 만료되는 쿠폰이 없습니다.'}
-                          {couponTab === 'all' && '쿠폰을 등록해보세요!'}
-                        </div>
+                    {couponLoading ? (
+                      <div className="col-span-full flex items-center justify-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
                       </div>
-                    ) : (
-                      allCoupons.filter(c => {
+                    ) : userCoupons.length > 0 ? (
+                      userCoupons.filter(coupon => {
                         // 쿠폰 만료일 확인 함수
-                        const isCouponExpired = (expiry: string) => {
+                        const isCouponExpired = (endDate: string) => {
                           try {
-                            const expireDate = new Date(expiry.replace('년 ', '-').replace('월 ', '-').replace('일 ', ' ').split(' ')[0]);
+                            const expireDate = new Date(endDate);
                             const today = new Date();
                             return expireDate < today;
                           } catch {
                             return false;
                           }
                         };
-                        
-                        if (couponTab === 'all') return true;
-                        if (couponTab === 'available') return !usedCoupons[c.id] && !isCouponExpired(c.expire);
-                        if (couponTab === 'used') return !!usedCoupons[c.id];
-                        if (couponTab === 'expiring') {
-                          // 만료일이 1달 이하인 쿠폰 필터링
-                          const expireDate = new Date(c.expire.replace('년 ', '-').replace('월 ', '-').replace('일 ', ' ').split(' ')[0]);
-                          const today = new Date();
-                          const oneMonthFromNow = new Date();
-                          oneMonthFromNow.setMonth(today.getMonth() + 1);
-                          return !usedCoupons[c.id] && !isCouponExpired(c.expire) && expireDate <= oneMonthFromNow && expireDate >= today;
+
+                        // 쿠폰 사용 여부 확인
+                        const isUsed = coupon.usedAt !== null;
+
+                        // 탭별 필터링
+                        switch (couponTab) {
+                          case 'available':
+                            return !isCouponExpired(coupon.endDate) && !isUsed && coupon.couponStatus === 'active';
+                          case 'used':
+                            return isUsed;
+                          case 'expiring':
+                            const today = new Date();
+                            const expireDate = new Date(coupon.endDate);
+                            const daysUntilExpire = Math.ceil((expireDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                            return !isUsed && daysUntilExpire <= 7 && daysUntilExpire > 0;
+                          case 'all':
+                          default:
+                            return true;
                         }
-                        return true;
-                      }).map((coupon, idx, arr) => (
+                      }).map(coupon => (
                         <div
-                          key={coupon.id}
+                          key={coupon.sendId}
                           className="relative transition-all duration-200 hover:z-20 hover:scale-105 w-full"
                         >
                           <CouponCard
                             title={coupon.name}
-                            expiry={coupon.expire}
-                            maxDiscount={10000}
-                            discountRate={coupon.percent}
-                            used={!!usedCoupons[coupon.id]}
-                            brand={coupon.brand}
-                            onUse={() => handleUseCoupon(coupon)}
+                            expiry={coupon.endDate}
+                            maxDiscount={coupon.maxDiscount || 10000}
+                            discountRate={coupon.discountType === 'percentage' ? coupon.discountValue : 0}
+                            used={coupon.usedAt !== null}
+                            brand={coupon.brand || 'ADMORE'}
+                            couponCode={coupon.code}
+                            onUse={() => handleUseUserCoupon(coupon.sendId)}
                           />
                         </div>
                       ))
+                    ) : (
+                      <div className="col-span-full text-center py-8 text-gray-500">
+                        {couponTab === 'available' && '사용 가능한 쿠폰이 없습니다.'}
+                        {couponTab === 'used' && '사용한 쿠폰이 없습니다.'}
+                        {couponTab === 'expiring' && '만료 임박 쿠폰이 없습니다.'}
+                        {couponTab === 'all' && '보유한 쿠폰이 없습니다.'}
+                      </div>
                     )}
                   </div>
                 </div>

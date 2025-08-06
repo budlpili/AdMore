@@ -8,6 +8,7 @@ interface CouponCardProps {
   onUse: () => void;
   used?: boolean; // 추가
   brand?: string;
+  couponCode?: string; // 쿠폰 코드 추가
 }
 
 const CouponCard: React.FC<CouponCardProps> = ({
@@ -18,6 +19,7 @@ const CouponCard: React.FC<CouponCardProps> = ({
   onUse,
   used = false,
   brand = 'WELCOME COUPON',
+  couponCode,
 }) => {
   // 쿠폰 만료일 확인
   const isExpired = () => {
@@ -34,7 +36,12 @@ const CouponCard: React.FC<CouponCardProps> = ({
 
   // 카드 전체 클릭 핸들러
   const handleCardClick = () => {
-    if (!used && !expired && onUse) onUse();
+    if (!used && !expired && onUse) {
+      const confirmMessage = `"${title}" 쿠폰을 사용하시겠습니까?\n\n할인율: ${discountRate}%\n최대 할인: ${maxDiscount.toLocaleString()}원`;
+      if (window.confirm(confirmMessage)) {
+        onUse();
+      }
+    }
   };
 
   return (
@@ -50,7 +57,12 @@ const CouponCard: React.FC<CouponCardProps> = ({
       onKeyDown={e => {
         if ((e.key === 'Enter' || e.key === ' ') && !used && !expired) {
           e.preventDefault();
-          onUse && onUse();
+          if (onUse) {
+            const confirmMessage = `"${title}" 쿠폰을 사용하시겠습니까?\n\n할인율: ${discountRate}%\n최대 할인: ${maxDiscount.toLocaleString()}원`;
+            if (window.confirm(confirmMessage)) {
+              onUse();
+            }
+          }
         }
       }}
     >
@@ -111,7 +123,7 @@ const CouponCard: React.FC<CouponCardProps> = ({
         />
         {/* Content */}
         <foreignObject x="0" y="0" width="200" height="240">
-          <div className="flex flex-col items-center w-full h-full">
+          <div className="relative flex flex-col items-center w-full h-full">
             {/* Top text */}
             <div className="pt-5 pb-2 text-white text-[12px] font-semibold flex items-center justify-center gap-1 tracking-wide">
               <span className="text-yellow-400 text-sm">★</span>
@@ -120,6 +132,7 @@ const CouponCard: React.FC<CouponCardProps> = ({
             </div>
             <div className="text-[36px] font-extrabold text-white leading-none">{discountRate}%</div>
             <div className="text-[12px] font-normal text-white tracking-widest mb-1">COUPON</div>
+            
             {/* Bottom text */}
             <div className="mt-[30px] text-[#552d90] text-base font-semibold mb-1">{title}</div>
             <div className="font-semibold text-gray-700 text-[12px]">{expiry}</div>
@@ -128,18 +141,26 @@ const CouponCard: React.FC<CouponCardProps> = ({
             {/* <div className="flex justify-center mb-4">
               <div className="h-10 w-40 bg-[repeating-linear-gradient(90deg,#000,#000_2px,transparent_2px,transparent_6px)]"></div>
             </div> */}
-            <button
-              className={`w-full text-sm font-semibold mt-1 transition
-                ${used || expired
-                  ? "text-gray-500 cursor-not-allowed"
-                  : "text-orange-600 hover:text-orange-700"}
-              `}
-              tabIndex={-1}
-              type="button"
-              disabled={used || expired}
-            >
-              {used ? "사용 완료" : expired ? "쿠폰 만료" : "사용 가능"}
-            </button>
+            
+            {/* 쿠폰 코드 표시 */}
+            {couponCode && (
+              <div className="text-[10px] font-mono text-gray-600 bg-black/20 px-2 py-1 rounded">
+                {couponCode}
+              </div>
+            )}
+            {used && (
+              <button
+                className="absolute top-1/2 -translate-y-1/2 text-sm transition 
+                    w-32 h-8 bg-orange-600/90 p-2 border border-orange-400 shadow-md rounded-full flex items-center justify-center
+                    text-gray-50 font-semibold cursor-not-allowed"
+                tabIndex={-1}
+                type="button"
+                disabled={true}
+              >
+                사용 완료
+              </button>
+            )}
+
           </div>
         </foreignObject>
       </svg>

@@ -4,7 +4,26 @@ const db = require('../config/database');
 
 // 쿠폰 목록 조회
 router.get('/', (req, res) => {
-  const sql = `SELECT * FROM coupon_management ORDER BY createdAt DESC`;
+  const sql = `
+    SELECT 
+      cm.*,
+      COALESCE(sent_stats.sent_count, 0) as sent_count,
+      COALESCE(used_stats.used_count, 0) as used_count
+    FROM coupon_management cm
+    LEFT JOIN (
+      SELECT couponId, COUNT(*) as sent_count
+      FROM coupon_sends
+      GROUP BY couponId
+    ) sent_stats ON cm.id = sent_stats.couponId
+    LEFT JOIN (
+      SELECT couponId, COUNT(*) as used_count
+      FROM coupon_sends
+      WHERE usedAt IS NOT NULL
+      GROUP BY couponId
+    ) used_stats ON cm.id = used_stats.couponId
+    ORDER BY cm.createdAt DESC
+  `;
+  
   db.all(sql, [], (err, rows) => {
     if (err) {
       console.error('쿠폰 목록 조회 오류:', err);
@@ -19,17 +38,17 @@ router.get('/', (req, res) => {
 router.post('/', (req, res) => {
   const {
     code, name, description, discountType, discountValue, minAmount, maxDiscount,
-    startDate, endDate, usageLimit, status
+    startDate, endDate, usageLimit, status, brand
   } = req.body;
 
   const sql = `INSERT INTO coupon_management (
     code, name, description, discountType, discountValue, minAmount, maxDiscount,
-    startDate, endDate, usageLimit, status
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    startDate, endDate, usageLimit, status, brand
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
   const params = [
     code, name, description, discountType, discountValue, minAmount, maxDiscount,
-    startDate, endDate, usageLimit, status || 'active'
+    startDate, endDate, usageLimit, status || 'active', brand || 'ADMORE'
   ];
 
   db.run(sql, params, function(err) {
@@ -47,18 +66,18 @@ router.put('/:id', (req, res) => {
   const { id } = req.params;
   const {
     code, name, description, discountType, discountValue, minAmount, maxDiscount,
-    startDate, endDate, usageLimit, status
+    startDate, endDate, usageLimit, status, brand
   } = req.body;
 
   const sql = `UPDATE coupon_management SET 
     code = ?, name = ?, description = ?, discountType = ?, discountValue = ?, 
     minAmount = ?, maxDiscount = ?, startDate = ?, endDate = ?, usageLimit = ?, 
-    status = ?, updatedAt = datetime('now', 'localtime')
+    status = ?, brand = ?, updatedAt = datetime('now', 'localtime')
     WHERE id = ?`;
 
   const params = [
     code, name, description, discountType, discountValue, minAmount, maxDiscount,
-    startDate, endDate, usageLimit, status, id
+    startDate, endDate, usageLimit, status, brand || 'ADMORE', id
   ];
 
   db.run(sql, params, function(err) {
@@ -160,6 +179,59 @@ router.get('/sends/:couponId', (req, res) => {
       res.status(500).json({ success: false, message: '쿠폰 발송 이력 조회에 실패했습니다.' });
     } else {
       res.json({ success: true, sends: rows });
+    }
+  });
+});
+
+// 유저별 쿠폰함 조회
+router.get('/user/:userId', (req, res) => {
+  const { userId } = req.params;
+
+  const sql = `
+    SELECT 
+      cs.id as sendId,
+      cs.sentAt,
+      cs.usedAt,
+      cm.id as couponId,
+      cm.code,
+      cm.name,
+      cm.description,
+      cm.discountType,
+      cm.discountValue,
+      cm.minAmount,
+      cm.maxDiscount,
+      cm.startDate,
+      cm.endDate,
+      cm.status as couponStatus,
+      cm.brand
+    FROM coupon_sends cs
+    JOIN coupon_management cm ON cs.couponId = cm.id
+    WHERE cs.userId = ?
+    ORDER BY cs.sentAt DESC
+  `;
+
+  db.all(sql, [userId], (err, rows) => {
+    if (err) {
+      console.error('유저 쿠폰함 조회 오류:', err);
+      res.status(500).json({ success: false, message: '쿠폰함 조회에 실패했습니다.' });
+    } else {
+      res.json({ success: true, coupons: rows });
+    }
+  });
+});
+
+// 쿠폰 사용 처리
+router.post('/use/:sendId', (req, res) => {
+  const { sendId } = req.params;
+
+  const sql = `UPDATE coupon_sends SET usedAt = datetime('now', 'localtime') WHERE id = ?`;
+  
+  db.run(sql, [sendId], function(err) {
+    if (err) {
+      console.error('쿠폰 사용 처리 오류:', err);
+      res.status(500).json({ success: false, message: '쿠폰 사용 처리에 실패했습니다.' });
+    } else {
+      res.json({ success: true, message: '쿠폰이 사용되었습니다.' });
     }
   });
 });

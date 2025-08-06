@@ -523,7 +523,12 @@ export const couponsAPI = {
       method: 'POST',
       body: JSON.stringify({ couponId, userIds })
     }),
-  getSends: (couponId: number) => apiRequest(`/coupons/sends/${couponId}`)
+  getSends: (couponId: number) => apiRequest(`/coupons/sends/${couponId}`),
+  getUserCoupons: (userId: string) => apiRequest(`/coupons/user/${userId}`),
+  useCoupon: (sendId: string) => 
+    apiRequest(`/coupons/use/${sendId}`, {
+      method: 'POST'
+    })
 };
 
 // 고객센터 API

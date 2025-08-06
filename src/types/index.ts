@@ -115,4 +115,23 @@ export interface ChatMessage {
   message: string;
   timestamp: string;
   type: 'user' | 'admin';
+}
+
+export interface Coupon {
+  id: number;
+  code: string;
+  name: string;
+  description: string;
+  brand: string;
+  discountType: 'percentage' | 'fixed';
+  discountValue: number;
+  minAmount: number;
+  maxDiscount: number;
+  startDate: string;
+  endDate: string;
+  usageLimit: number;
+  usedCount?: number;
+  status: 'active' | 'inactive' | 'expired';
+  createdAt?: string;
+  updatedAt?: string;
 } 

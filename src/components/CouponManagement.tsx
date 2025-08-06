@@ -13,6 +13,7 @@ interface Coupon {
   code: string;
   name: string;
   description: string;
+  brand: string;
   discountType: 'percentage' | 'fixed';
   discountValue: number;
   minAmount: number;
@@ -21,6 +22,8 @@ interface Coupon {
   endDate: string;
   usageLimit: number;
   usedCount: number;
+  used_count?: number;
+  sent_count?: number;
   status: 'active' | 'inactive' | 'expired';
   createdAt: string;
   updatedAt: string;
@@ -64,6 +67,7 @@ const CouponManagement: React.FC = () => {
     code: '',
     name: '',
     description: '',
+    brand: 'ADMORE',
     discountType: 'percentage' as 'percentage' | 'fixed',
     discountValue: 0,
     minAmount: 0,
@@ -101,6 +105,12 @@ const CouponManagement: React.FC = () => {
     setCurrentPage(1); // 필터 변경 시 첫 페이지로 이동
   }, [coupons, searchTerm, statusFilter]);
 
+  // 유저 목록이 변경될 때 filteredUsers 업데이트
+  useEffect(() => {
+    console.log('유저 목록 변경됨, filteredUsers 업데이트:', users);
+    setFilteredUsers(users);
+  }, [users]);
+
   const loadCoupons = async () => {
     try {
       setLoading(true);
@@ -119,8 +129,13 @@ const CouponManagement: React.FC = () => {
 
   const loadUsers = async () => {
     try {
+      console.log('유저 목록 로드 시작...');
       const response = await usersAPI.getAll();
-      if (response.success && response.users) {
+      console.log('유저 API 응답:', response); // 디버깅용 로그
+      
+      // API 응답 구조에 맞게 수정
+      if (response && response.users) {
+        console.log('원본 유저 데이터:', response.users);
         const activeUsers = response.users
           .filter((user: any) => user.status === 'active')
           .map((user: any) => ({
@@ -129,8 +144,14 @@ const CouponManagement: React.FC = () => {
             name: user.name,
             status: user.status
           }));
+        console.log('활성 유저 목록:', activeUsers); // 디버깅용 로그
+        console.log('활성 유저 수:', activeUsers.length);
         setUsers(activeUsers);
         setFilteredUsers(activeUsers);
+      } else {
+        console.log('유저 데이터가 없습니다:', response);
+        setUsers([]);
+        setFilteredUsers([]);
       }
     } catch (error) {
       console.error('사용자 로드 에러:', error);
@@ -146,6 +167,7 @@ const CouponManagement: React.FC = () => {
       code: '',
       name: '',
       description: '',
+      brand: 'ADMORE',
       discountType: 'percentage',
       discountValue: 0,
       minAmount: 0,
@@ -164,6 +186,7 @@ const CouponManagement: React.FC = () => {
       code: coupon.code,
       name: coupon.name,
       description: coupon.description,
+      brand: (coupon as any).brand || 'ADMORE',
       discountType: coupon.discountType,
       discountValue: coupon.discountValue,
       minAmount: coupon.minAmount,
@@ -297,11 +320,21 @@ const CouponManagement: React.FC = () => {
   };
 
   // 쿠폰 발송 관련 함수들
-  const handleSendCoupon = (coupon: Coupon) => {
+  const handleSendCoupon = async (coupon: Coupon) => {
+    console.log('쿠폰 발송 모달 열기, 현재 유저 목록:', users); // 디버깅용 로그
     setSelectedCoupon(coupon);
     setSelectedUsers([]);
     setUserSearchTerm('');
-    setFilteredUsers(users);
+    
+    // 모달을 열 때 최신 유저 목록을 다시 로드
+    try {
+      console.log('유저 목록 다시 로드 시작...');
+      await loadUsers();
+      console.log('유저 목록 로드 완료');
+    } catch (error) {
+      console.error('유저 목록 로드 실패:', error);
+    }
+    
     setIsSendModalOpen(true);
   };
 
@@ -496,8 +529,9 @@ const CouponManagement: React.FC = () => {
                 <tr key={coupon.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4">
                     <div>
-                      <div className="text-sm font-medium text-gray-900">{coupon.code}</div>
-                      <div className="text-sm text-gray-500">{coupon.name}</div>
+                      <div className="text-sm font-medium text-gray-900">{coupon.brand}</div>
+                      <div className="text-sm font-medium text-gray-700">{coupon.name}</div>
+                      <div className="text-xs text-gray-700">{coupon.code}</div>
                       <div className="text-xs text-gray-400">{coupon.description}</div>
                     </div>
                   </td>
@@ -524,7 +558,7 @@ const CouponManagement: React.FC = () => {
                   <td className="px-6 py-4">
                     <div className="text-sm text-gray-900">
                       <div className="flex items-center gap-1">
-                        <FontAwesomeIcon icon={faCalendarAlt} className="text-gray-400" />
+                        {/* <FontAwesomeIcon icon={faCalendarAlt} className="text-gray-400" /> */}
                         {formatDate(coupon.startDate)}
                       </div>
                       <div className="text-xs text-gray-500">~ {formatDate(coupon.endDate)}</div>
@@ -532,13 +566,18 @@ const CouponManagement: React.FC = () => {
                   </td>
                   <td className="px-6 py-4">
                     <div className="text-sm text-gray-900">
-                      {coupon.usedCount} / {coupon.usageLimit}
+                      {coupon.used_count || 0} / {coupon.usageLimit || '무제한'}
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
                       <div 
                         className="bg-blue-600 h-2 rounded-full" 
-                        style={{ width: `${(coupon.usedCount / coupon.usageLimit) * 100}%` }}
+                        style={{ 
+                          width: `${coupon.usageLimit > 0 ? ((coupon.used_count || 0) / coupon.usageLimit) * 100 : 0}%` 
+                        }}
                       ></div>
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      발송: {coupon.sent_count || 0}개
                     </div>
                   </td>
                   <td className="px-6 py-4">
@@ -609,17 +648,17 @@ const CouponManagement: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    쿠폰 코드 *
+                    브랜드명 *
                   </label>
                   <input
                     type="text"
-                    required
-                    value={formData.code}
-                    onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                    className="text-sm w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="예: WELCOME10"
+                    value={formData.brand}
+                    onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+                    className="text-sm w-full px-3 py-2 border border-gray-300 rounded-md outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    placeholder="예: ADMORE"
                   />
                 </div>
+                
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     쿠폰명 *
@@ -629,12 +668,26 @@ const CouponManagement: React.FC = () => {
                     required
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="text-sm w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="text-sm w-full px-3 py-2 border border-gray-300 rounded-md outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                     placeholder="예: 신규 가입 쿠폰"
                   />
                 </div>
+                
               </div>
-
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  쿠폰 코드 *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.code}
+                  onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                  className="text-sm w-full px-3 py-2 border border-gray-300 rounded-md outline-none 
+                  focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  placeholder="예: WELCOME10"
+                />
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   설명
@@ -642,89 +695,67 @@ const CouponManagement: React.FC = () => {
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="text-sm w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  rows={3}
+                  className="text-sm w-full px-3 py-2 border border-gray-300 rounded-md resize-none
+                    focus:ring-2 focus:ring-orange-500 outline-none  focus:border-transparent"
+                  rows={2}
                   placeholder="쿠폰에 대한 설명을 입력하세요"
                 />
               </div>
 
-                             <div className="grid grid-cols-2 gap-4">
-                 <div>
-                   <label className="block text-sm font-medium text-gray-700 mb-1">
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                      시작일 *
-                   </label>
-                   <input
-                     type="date"
-                     required
-                     value={formData.startDate}
-                     onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                     className="text-sm w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                   />
-                 </div>
-                 <div>
-                   <label className="block text-sm font-medium text-gray-700 mb-1">
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={formData.startDate}
+                    onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                    className="text-sm w-full px-3 py-2 border border-gray-300 rounded-md outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                      종료일 *
-                   </label>
-                   <input
-                     type="date"
-                     required
-                     value={formData.endDate}
-                     onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                     className="text-sm w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                   />
-                 </div>
-               </div>
-
-               {/* 빠른 날짜 설정 */}
-               <div>
-                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                   빠른 설정
-                 </label>
-                 <div className="flex gap-2 flex-wrap">
-                   <button
-                     type="button"
-                     onClick={() => handleQuickDateSet(1)}
-                     className="text-xs px-3 py-1.5 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
-                   >
-                     1개월
-                   </button>
-                   <button
-                     type="button"
-                     onClick={() => handleQuickDateSet(3)}
-                     className="text-xs px-3 py-1.5 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
-                   >
-                     3개월
-                   </button>
-                   <button
-                     type="button"
-                     onClick={() => handleQuickDateSet(6)}
-                     className="text-xs px-3 py-1.5 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
-                   >
-                     6개월
-                   </button>
-                   <button
-                     type="button"
-                     onClick={() => handleQuickDateSet(12)}
-                     className="text-xs px-3 py-1.5 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
-                   >
-                     1년
-                   </button>
-                 </div>
-               </div>
-
-               <div>
-                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                   사용 제한 *
-                 </label>
-                 <input
-                   type="text"
-                   required
-                   value={formData.usageLimit ? formatNumberDisplay(formData.usageLimit) : ''}
-                   onChange={(e) => handleNumberInputChange('usageLimit', e.target.value)}
-                   className="text-sm w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                   placeholder="1,000"
-                 />
-               </div>
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={formData.endDate}
+                    onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                    className="text-sm w-full px-3 py-2 border border-gray-300 rounded-md outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  />
+                </div>
+                {/* 빠른 날짜 설정 */}
+                <div className="pt-6">
+                  
+                  <div className="flex gap-1 justify-between">
+                    
+                    <button
+                      type="button"
+                      onClick={() => handleQuickDateSet(3)}
+                      className="w-[32%] text-sm px-3 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+                    >
+                      3개월
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleQuickDateSet(6)}
+                      className="w-[32%] text-sm px-3 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+                    >
+                      6개월
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleQuickDateSet(12)}
+                      className="w-[32%] text-sm px-3 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+                    >
+                      1년
+                    </button>
+                  </div>
+                </div>
+              </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -734,7 +765,7 @@ const CouponManagement: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setIsFormStatusDropdownOpen(!isFormStatusDropdownOpen)}
-                    className="text-sm w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-left flex items-center justify-between"
+                    className="text-sm w-full px-3 py-2 border border-gray-300 rounded-md outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white text-left flex items-center justify-between"
                   >
                     <span className="text-gray-700">
                       {formData.status === 'active' && '활성'}
@@ -748,7 +779,7 @@ const CouponManagement: React.FC = () => {
                   </button>
                   
                   {isFormStatusDropdownOpen && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-md shadow-lg z-10">
+                    <div className="absolute top-full left-0 right-0 mt-1 text-sm bg-white border border-gray-300 rounded-md shadow-lg z-10">
                       <div 
                         className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
                         onClick={() => {
@@ -790,7 +821,7 @@ const CouponManagement: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setIsDiscountTypeDropdownOpen(!isDiscountTypeDropdownOpen)}
-                      className="text-sm w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-left flex items-center justify-between"
+                      className="text-sm w-full px-3 py-2 border border-gray-300 rounded-md outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white text-left flex items-center justify-between"
                     >
                       <span className="text-gray-700">
                         {formData.discountType === 'percentage' ? '퍼센트 할인' : '정액 할인'}
@@ -802,7 +833,7 @@ const CouponManagement: React.FC = () => {
                     </button>
                     
                     {isDiscountTypeDropdownOpen && (
-                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-md shadow-lg z-10">
+                      <div className="absolute top-full left-0 right-0 mt-1 text-sm bg-white border border-gray-300 rounded-md shadow-lg z-10">
                         <div 
                           className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
                           onClick={() => handleDiscountTypeChange('percentage')}
@@ -829,7 +860,7 @@ const CouponManagement: React.FC = () => {
                       required
                       value={formData.discountValue ? formatNumberDisplay(formData.discountValue) : ''}
                       onChange={(e) => handleNumberInputChange('discountValue', e.target.value)}
-                      className="text-sm w-full px-3 py-2 pr-8 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="text-sm w-full px-3 py-2 pr-8 border border-gray-300 rounded-md outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                       placeholder={formData.discountType === 'percentage' ? '10' : '5,000'}
                     />
                     {formData.discountType === 'percentage' && (
@@ -852,7 +883,7 @@ const CouponManagement: React.FC = () => {
                       type="text"
                       value={formData.minAmount ? formatNumberDisplay(formData.minAmount) : ''}
                       onChange={(e) => handleNumberInputChange('minAmount', e.target.value)}
-                      className="text-sm w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="text-sm w-full px-3 py-2 border border-gray-300 rounded-md outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                       placeholder="0"
                     />
                   </div>
@@ -864,7 +895,7 @@ const CouponManagement: React.FC = () => {
                       type="text"
                       value={formData.maxDiscount ? formatNumberDisplay(formData.maxDiscount) : ''}
                       onChange={(e) => handleNumberInputChange('maxDiscount', e.target.value)}
-                      className="text-sm w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="text-sm w-full px-3 py-2 border border-gray-300 rounded-md outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                       placeholder="0"
                     />
                   </div>
@@ -948,7 +979,7 @@ const CouponManagement: React.FC = () => {
                   placeholder="사용자 이름 또는 이메일로 검색하세요."
                   value={userSearchTerm}
                   onChange={(e) => handleUserSearch(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                 />
               </div>
             </div>
@@ -957,7 +988,7 @@ const CouponManagement: React.FC = () => {
             <div className="mb-4">
               <div className="flex justify-between items-center mb-2">
                 <h4 className="text-sm font-medium text-gray-700">
-                  사용자 선택 ({selectedUsers.length}명 선택됨)
+                  사용자 선택 ({selectedUsers.length}명 선택됨) - 총 {filteredUsers.length}명
                 </h4>
                 <button
                   onClick={toggleSelectAllUsers}
@@ -968,29 +999,38 @@ const CouponManagement: React.FC = () => {
               </div>
               
               <div className="border border-gray-300 rounded-lg max-h-60 overflow-y-auto">
-                {filteredUsers.map((user) => (
-                  <div
-                    key={user.id}
-                    className={`flex items-center p-3 border-b border-gray-200 last:border-b-0 hover:bg-gray-50 cursor-pointer ${
-                      selectedUsers.includes(user.id) ? 'bg-blue-50' : ''
-                    }`}
-                    onClick={() => toggleUserSelection(user.id)}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedUsers.includes(user.id)}
-                      onChange={() => toggleUserSelection(user.id)}
-                      className="mr-3"
-                    />
-                    <div className="flex-1">
-                      <div className="text-sm font-medium text-gray-900">{user.name}</div>
-                      <div className="text-xs text-gray-500">{user.email}</div>
+                {filteredUsers.length > 0 ? (
+                  filteredUsers.map((user) => (
+                    <div
+                      key={user.id}
+                      className={`flex items-center p-3 border-b border-gray-200 last:border-b-0 hover:bg-gray-50 cursor-pointer ${
+                        selectedUsers.includes(user.id) ? 'bg-blue-50' : ''
+                      }`}
+                      onClick={() => toggleUserSelection(user.id)}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedUsers.includes(user.id)}
+                        onChange={() => toggleUserSelection(user.id)}
+                        className="mr-3"
+                      />
+                      <div className="flex-1">
+                        <div className="text-sm font-medium text-gray-900">{user.name}</div>
+                        <div className="text-xs text-gray-500">{user.email}</div>
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        {user.status === 'active' ? '활성' : '비활성'}
+                      </div>
                     </div>
-                    <div className="text-xs text-gray-400">
-                      {user.status === 'active' ? '활성' : '비활성'}
+                  ))
+                ) : (
+                  <div className="p-4 text-center text-gray-500">
+                    {userSearchTerm ? '검색 결과가 없습니다.' : '등록된 사용자가 없습니다.'}
+                    <div className="text-xs mt-2">
+                      (filteredUsers 길이: {filteredUsers.length}, users 길이: {users.length})
                     </div>
                   </div>
-                ))}
+                )}
               </div>
             </div>
 
