@@ -571,12 +571,31 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
       text: '고객님 반갑습니다!\n\n상담 운영 시간 안내\n· 평일 10:00 ~ 17:00\n· 주말, 공휴일 휴무\n순차적으로 확인하여 답변드리도록 하겠습니다.'
     };
     
+    // 상품 정보가 있는 경우 상품 문의 메시지도 포함
+    let initialMessages: Message[] = [welcomeMessage];
+    
+    // productInfo가 있으면 상품 문의 메시지 추가
+    if (productInfo) {
+      try {
+        const product = JSON.parse(productInfo);
+        const productInquiryMessage = {
+          from: 'user' as const,
+          text: `안녕하세요! 상품에 대해 문의드립니다.\n\n상품명: ${product.name}\n카테고리: ${product.category}\n\n빠른 답변 부탁드립니다.`,
+          timestamp: new Date().toISOString()
+        };
+        initialMessages.push(productInquiryMessage);
+        console.log('상품 문의 메시지 추가됨:', productInquiryMessage);
+      } catch (error) {
+        console.error('상품 정보 파싱 오류:', error);
+      }
+    }
+    
     // 메시지 상태를 즉시 초기화 (sessionId 변경 전에 실행)
-    setMessages([welcomeMessage]);
+    setMessages(initialMessages);
     
     // 새로운 세션의 로컬 스토리지 키도 초기화
     const newStorageKey = `chat_messages_${newSessionId}`;
-    localStorage.setItem(newStorageKey, JSON.stringify([welcomeMessage]));
+    localStorage.setItem(newStorageKey, JSON.stringify(initialMessages));
     
     // 기존 세션의 로컬 스토리지 키들 정리
     const keys = Object.keys(localStorage);
