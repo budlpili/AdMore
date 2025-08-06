@@ -215,6 +215,38 @@ const Home: React.FC = () => {
         </div>
       </div>
 
+      {/* 애드모어 새소식 Section */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+        <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-6 text-center">애드모어 새소식</h2>
+        
+        {/* 공지사항 목록 */}
+        <div className="bg-gray-100 rounded-lg p-6 space-y-3">
+          <div className="flex items-center justify-between bg-white rounded-lg px-4 py-3 shadow-sm">
+            <span className="text-gray-600">애드모어 런칭</span>
+            <span className="text-orange-500 font-medium">2023-02-22</span>
+          </div>
+          <div className="flex items-center justify-between bg-white rounded-lg px-4 py-3 shadow-sm">
+            <span className="text-gray-600">신규 상품 출시 안내</span>
+            <span className="text-orange-500 font-medium">2023-03-15</span>
+          </div>
+          <div className="flex items-center justify-between bg-white rounded-lg px-4 py-3 shadow-sm">
+            <span className="text-gray-600">서비스 이용약관 개정</span>
+            <span className="text-orange-500 font-medium">2023-04-10</span>
+          </div>
+          <div className="flex items-center justify-between bg-white rounded-lg px-4 py-3 shadow-sm">
+            <span className="text-gray-600">고객센터 운영시간 변경</span>
+            <span className="text-orange-500 font-medium">2023-05-20</span>
+          </div>
+        </div>
+
+        {/* 할인 프로모션 박스 */}
+        <div className="mt-6 bg-teal-500 rounded-lg p-6 text-center">
+          <p className="text-white text-lg font-semibold">
+            지금 애드모어를 이용하시면, 최대 10프로 할인
+          </p>
+        </div>
+      </div>
+
       {/* Popular Products Section - 슬라이드 */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-4 sm:mb-6 pt-4 text-center sm:text-left">인기 상품</h2>

@@ -1745,9 +1745,7 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
             )}
             <div className="border border-gray-200 rounded-lg p-3">
               <div className="flex flex-col items-center gap-3">
-                <div className="w-full h-40 bg-red-100 rounded-lg flex items-center justify-center overflow-hidden">
-                  <img src="/images/product_02.png" alt="youtube" className="w-full h-full object-cover" />
-                </div>
+                <span className="text-xs text-gray-400">준비중입니다.</span>
               </div>
             </div>
           </div>

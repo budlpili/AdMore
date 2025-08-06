@@ -251,9 +251,15 @@ const Header: React.FC<HeaderProps> = ({ setIsChatOpen }) => {
                           <span className="font-semibold text-gray-800 text-[14px]">{localStorage.getItem('userEmail') || ''}</span>
                       </div>
                       <div className="flex items-center justify-center gap-4 px-4 py-4 rounded-md bg-gray-100 text-xs">
-                        <span className="font-semibold">쿠폰 <span className="text-blue-600 font-bold ml-2">3개</span></span>
+                        <span className="font-semibold">쿠폰 
+                          <span className="hidden text-blue-600 font-bold ml-2">3개</span>
+                          <span className="text-xs text-gray-400 ml-4">준비중</span>
+                          </span>
                         <div className="w-px h-4 bg-gray-300"></div>
-                        <span className="font-semibold">포인트 <span className="text-blue-600 font-bold ml-2">0P</span></span>
+                        <span className="font-semibold">포인트 
+                          <span className="hidden text-blue-600 font-bold ml-2">0P</span>
+                          <span className="text-xs text-gray-400 ml-4">준비중</span>
+                        </span>
                       </div>
                       <ul className="py-2 space-y-1 text-gray-600">
                         <li>
@@ -292,7 +298,7 @@ const Header: React.FC<HeaderProps> = ({ setIsChatOpen }) => {
                           </button>
                         </li>
                         <li>
-                          <button className="text-sm w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center font-semibold"
+                          <button className="hidden text-sm w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center font-semibold"
                             onClick={() => { setUserMenuOpen(false); navigate('/mypage?tab=coupons'); }}>
                             <FontAwesomeIcon icon={faTicketAlt} className="mr-2 text-gray-400 w-4 h-4" />
                             쿠폰함
@@ -375,7 +381,7 @@ const Header: React.FC<HeaderProps> = ({ setIsChatOpen }) => {
                 </button>
               </div>
               <div className="px-2 pt-2 pb-3 space-y-8">
-                <div className="flex flex-col">
+                <div className="hidden flex flex-col">
                   <label className="text-xs text-gray-400 font-semibold px-2 pt-2">About</label>
                   <button 
                     onClick={() => {

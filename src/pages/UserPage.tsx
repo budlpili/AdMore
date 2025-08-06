@@ -1399,7 +1399,7 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
             <div className="flex justify-between text-[13px] mb-1">
               <span className="text-gray-600 font-normal ml-2">쿠폰</span>
               <span 
-                className="font-semibold text-gray-600 hover:underline hover:text-gray-700 cursor-pointer"
+                className="hidden font-semibold text-gray-600 hover:underline hover:text-gray-700 cursor-pointer"
                 onClick={() => {
                   setActiveTab('coupons');
                   setCouponTab('available');
@@ -1408,10 +1408,12 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
               >
                 {availableCouponCount} 개
               </span>
+              <span className="text-xs text-gray-400">준비중</span>
             </div>
             <div className="flex justify-between text-[13px]">
               <span className="text-gray-600 font-normal ml-2">포인트</span>
-              <span className="font-semibold text-gray-600 hover:underline hover:text-gray-700">0 P</span>
+              <span className="hidden font-semibold text-gray-600 hover:underline hover:text-gray-700">0 P</span>
+              <span className="text-xs text-gray-400">준비중</span>
             </div>
           </div>
           <nav className="text-sm mb-6 pb-20">
