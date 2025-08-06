@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faPlus, faMinus, faSearch, faFilter, faCalendarAlt, faCoins,
-  faUser, faGift, faShoppingCart, faTimes, faCheck
+  faUser, faGift, faShoppingCart, faTimes, faCheck, faCaretUp, faCaretDown
 } from '@fortawesome/free-solid-svg-icons';
 
 interface PointTransaction {
@@ -39,6 +39,8 @@ const PointManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [userFilter, setUserFilter] = useState<string>('all');
+  const [isTypeDropdownOpen, setIsTypeDropdownOpen] = useState(false);
+  const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'transactions' | 'users'>('transactions');
 
@@ -289,29 +291,118 @@ const PointManagement: React.FC = () => {
                 />
               </div>
             </div>
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="all">전체 타입</option>
-              <option value="earn">적립</option>
-              <option value="spend">사용</option>
-              <option value="expire">만료</option>
-              <option value="adjust">조정</option>
-            </select>
-            <select
-              value={userFilter}
-              onChange={(e) => setUserFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="all">전체 사용자</option>
-              {userPoints.map(user => (
-                <option key={user.userId} value={user.userId}>
-                  {user.userName} ({user.userEmail})
-                </option>
-              ))}
-            </select>
+            {/* 타입 필터 드롭다운 */}
+            <div className="relative">
+              <button
+                onClick={() => setIsTypeDropdownOpen(!isTypeDropdownOpen)}
+                className="flex items-center justify-between w-40 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+              >
+                <span className="text-gray-700">
+                  {typeFilter === 'all' && '전체 타입'}
+                  {typeFilter === 'earn' && '적립'}
+                  {typeFilter === 'spend' && '사용'}
+                  {typeFilter === 'expire' && '만료'}
+                  {typeFilter === 'adjust' && '조정'}
+                </span>
+                <FontAwesomeIcon 
+                  icon={isTypeDropdownOpen ? faCaretUp : faCaretDown} 
+                  className="text-gray-400 ml-2" 
+                />
+              </button>
+              
+              {isTypeDropdownOpen && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10">
+                  <div 
+                    className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                    onClick={() => {
+                      setTypeFilter('all');
+                      setIsTypeDropdownOpen(false);
+                    }}
+                  >
+                    전체 타입
+                  </div>
+                  <div 
+                    className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                    onClick={() => {
+                      setTypeFilter('earn');
+                      setIsTypeDropdownOpen(false);
+                    }}
+                  >
+                    적립
+                  </div>
+                  <div 
+                    className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                    onClick={() => {
+                      setTypeFilter('spend');
+                      setIsTypeDropdownOpen(false);
+                    }}
+                  >
+                    사용
+                  </div>
+                  <div 
+                    className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                    onClick={() => {
+                      setTypeFilter('expire');
+                      setIsTypeDropdownOpen(false);
+                    }}
+                  >
+                    만료
+                  </div>
+                  <div 
+                    className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                    onClick={() => {
+                      setTypeFilter('adjust');
+                      setIsTypeDropdownOpen(false);
+                    }}
+                  >
+                    조정
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 사용자 필터 드롭다운 */}
+            <div className="relative">
+              <button
+                onClick={() => setIsUserDropdownOpen(!isUserDropdownOpen)}
+                className="flex items-center justify-between w-56 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+              >
+                <span className="text-gray-700">
+                  {userFilter === 'all' && '전체 사용자'}
+                  {userFilter !== 'all' && userPoints.find(user => user.userId === userFilter)?.userName}
+                </span>
+                <FontAwesomeIcon 
+                  icon={isUserDropdownOpen ? faCaretUp : faCaretDown} 
+                  className="text-gray-400 ml-2" 
+                />
+              </button>
+              
+              {isUserDropdownOpen && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10 max-h-60 overflow-y-auto">
+                  <div 
+                    className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                    onClick={() => {
+                      setUserFilter('all');
+                      setIsUserDropdownOpen(false);
+                    }}
+                  >
+                    전체 사용자
+                  </div>
+                  {userPoints.map(user => (
+                    <div 
+                      key={user.userId}
+                      className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                      onClick={() => {
+                        setUserFilter(user.userId);
+                        setIsUserDropdownOpen(false);
+                      }}
+                    >
+                      {user.userName} ({user.userEmail})
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* 포인트 내역 테이블 */}

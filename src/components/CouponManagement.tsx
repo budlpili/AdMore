@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faPlus, faEdit, faTrash, faCheck, faTimes, faSearch, faFilter,
-  faCalendarAlt, faPercentage, faTicketAlt
+  faCalendarAlt, faPercentage, faTicketAlt, faCaretUp, faCaretDown
 } from '@fortawesome/free-solid-svg-icons';
 
 interface Coupon {
@@ -30,6 +30,7 @@ const CouponManagement: React.FC = () => {
   const [editingCoupon, setEditingCoupon] = useState<Coupon | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
   // 폼 상태
@@ -242,29 +243,78 @@ const CouponManagement: React.FC = () => {
       </div>
 
       {/* 검색 및 필터 */}
-      <div className="flex gap-4">
+      <div className="flex gap-4 bg-white rounded-lg shadow p-4 mb-6">
         <div className="flex-1">
           <div className="relative">
             <FontAwesomeIcon icon={faSearch} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             <input
               type="text"
-              placeholder="쿠폰 코드 또는 이름으로 검색..."
+              placeholder="쿠폰 코드 또는 이름으로 검색하세요."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
         </div>
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        >
-          <option value="all">전체 상태</option>
-          <option value="active">활성</option>
-          <option value="inactive">비활성</option>
-          <option value="expired">만료</option>
-        </select>
+        {/* 상태 필터 드롭다운 */}
+        <div className="relative">
+          <button
+            onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
+            className="flex items-center justify-between w-48 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+          >
+            <span className="text-gray-700">
+              {statusFilter === 'all' && '전체 상태'}
+              {statusFilter === 'active' && '활성'}
+              {statusFilter === 'inactive' && '비활성'}
+              {statusFilter === 'expired' && '만료'}
+            </span>
+            <FontAwesomeIcon 
+              icon={isStatusDropdownOpen ? faCaretUp : faCaretDown} 
+              className="text-gray-400 ml-2" 
+            />
+          </button>
+          
+          {isStatusDropdownOpen && (
+            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10">
+              <div 
+                className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                onClick={() => {
+                  setStatusFilter('all');
+                  setIsStatusDropdownOpen(false);
+                }}
+              >
+                전체 상태
+              </div>
+              <div 
+                className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                onClick={() => {
+                  setStatusFilter('active');
+                  setIsStatusDropdownOpen(false);
+                }}
+              >
+                활성
+              </div>
+              <div 
+                className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                onClick={() => {
+                  setStatusFilter('inactive');
+                  setIsStatusDropdownOpen(false);
+                }}
+              >
+                비활성
+              </div>
+              <div 
+                className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                onClick={() => {
+                  setStatusFilter('expired');
+                  setIsStatusDropdownOpen(false);
+                }}
+              >
+                만료
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* 쿠폰 목록 */}
