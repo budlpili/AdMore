@@ -1710,6 +1710,8 @@ const Admin: React.FC = () => {
                           {activeTab === 'products' && '상품 관리'}
                           {activeTab === 'orders' && '주문 관리'}
                           {activeTab === 'reviews' && '리뷰 관리'}
+                          {activeTab === 'coupons' && '쿠폰 관리'}
+                          {activeTab === 'points' && '포인트 관리'}
                           {activeTab === 'customerService' && '고객센터'}
                           {activeTab === 'inquiries' && '1:1문의'}
                           {activeTab === 'users' && '회원 관리'}
