@@ -1,11 +1,11 @@
 import React, { useState, useRef, useLayoutEffect, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Product, Notice } from '../types/index';
+import { Product } from '../types/index';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFacebook, faInstagram, faYoutube, faBlogger, faTwitter, faTelegram, IconDefinition } from '@fortawesome/free-brands-svg-icons';
-import { faChevronLeft, faChevronRight, faHeart as faSolidHeart, faHeart as faRegularHeart, faStar as faSolidStar, faStarHalfAlt, faStar as faRegularStar, faChevronUp, faChevronDown } from '@fortawesome/free-solid-svg-icons';
+import { faChevronLeft, faChevronRight, faHeart as faSolidHeart, faHeart as faRegularHeart, faStar as faSolidStar, faStarHalfAlt, faStar as faRegularStar } from '@fortawesome/free-solid-svg-icons';
 import ProductCard from '../components/ProductCard';
-import { productAPI, customerServiceAPI } from '../services/api';
+import { productAPI } from '../services/api';
 
 const categoryIcon: Record<string, { icon: IconDefinition; color: string }> = {
   '페이스북': { icon: faFacebook, color: 'text-blue-600' },
@@ -71,8 +71,6 @@ const Home: React.FC = () => {
   const [slidesToShow, setSlidesToShow] = useState(getSlidesToShow());
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const [notices, setNotices] = useState<Notice[]>([]);
-  const [currentNoticeIndex, setCurrentNoticeIndex] = useState(0);
   const location = useLocation();
 
   // 슬라이드 트랙 ref 및 컨테이너 width
@@ -95,92 +93,7 @@ const Home: React.FC = () => {
     }
   };
 
-  // 공지사항 데이터 로드
-  const loadNotices = async () => {
-    console.log('=== 공지사항 로드 시작 ===');
-    try {
-      console.log('API 호출 시작...');
-      console.log('API URL:', 'http://localhost:5001/api/customer-service/notices');
-      
-      // 직접 fetch로 테스트
-      const testResponse = await fetch('http://localhost:5001/api/customer-service/notices');
-      console.log('직접 fetch 응답 상태:', testResponse.status);
-      console.log('직접 fetch 응답 OK:', testResponse.ok);
-      
-      if (!testResponse.ok) {
-        throw new Error(`HTTP ${testResponse.status}: ${testResponse.statusText}`);
-      }
-      
-      const testData = await testResponse.json();
-      console.log('직접 fetch 데이터:', testData);
-      
-      // 원래 API 호출
-      const response = await customerServiceAPI.getNotices();
-      console.log('customerServiceAPI 응답 받음:', response);
-      console.log('응답 타입:', typeof response);
-      console.log('응답 길이:', Array.isArray(response) ? response.length : '배열 아님');
-      
-      if (!Array.isArray(response)) {
-        console.error('응답이 배열이 아님:', response);
-        throw new Error('응답이 배열이 아닙니다');
-      }
-      
-      // 백엔드 데이터를 프론트엔드 형식으로 변환
-      const transformedNotices = response.map((notice: any) => {
-        console.log('개별 공지사항 처리:', notice);
-        return {
-          id: notice.id,
-          title: notice.title,
-          content: notice.content,
-          important: notice.important === true || notice.important === 1 || notice.important === '1',
-          createdAt: notice.createdAt,
-          updatedAt: notice.updatedAt,
-          author: notice.author || '관리자'
-        };
-      });
-      
-      console.log('변환된 공지사항:', transformedNotices);
-      console.log('공지사항 개수:', transformedNotices.length);
-      setNotices(transformedNotices);
-      console.log('공지사항 상태 업데이트 완료');
-    } catch (error: any) {
-      console.error('공지사항 로드 에러:', error);
-      console.error('에러 상세:', error?.message || '알 수 없는 에러');
-      console.error('에러 스택:', error?.stack);
-      // 기본 공지사항으로 fallback
-      const defaultNotices: Notice[] = [
-        {
-          id: 1,
-          title: '서비스 이용약관 개정 안내',
-          content: '안녕하세요. 서비스 이용약관이 개정되었습니다. 새로운 약관을 확인해주세요.',
-          important: true,
-          createdAt: '2024-01-15',
-          updatedAt: '2024-01-15',
-          author: '관리자'
-        },
-        {
-          id: 2,
-          title: '개인정보처리방침 개정 안내',
-          content: '개인정보처리방침이 개정되었습니다. 변경사항을 확인해주세요.',
-          important: true,
-          createdAt: '2024-01-10',
-          updatedAt: '2024-01-10',
-          author: '관리자'
-        },
-        {
-          id: 3,
-          title: '시스템 점검 안내 (1월 20일)',
-          content: '1월 20일 오전 2시부터 4시까지 시스템 점검이 예정되어 있습니다.',
-          important: false,
-          createdAt: '2024-01-08',
-          updatedAt: '2024-01-08',
-          author: '관리자'
-        }
-      ];
-      console.log('기본 공지사항으로 fallback:', defaultNotices);
-      setNotices(defaultNotices);
-    }
-  };
+
 
   // 별점 내림차순 정렬 후 상위 10개만 사용
   const topProducts = [...products].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)).slice(0, 10);
@@ -192,36 +105,11 @@ const Home: React.FC = () => {
   // 컴포넌트 마운트 시 상품 데이터와 즐겨찾기 로드
   useEffect(() => {
     loadProducts();
-    loadNotices();
     const savedFavorites = getFavorites();
     setFavorites(savedFavorites);
     // 초기 slidesToShow 설정
     setSlidesToShow(getSlidesToShow());
   }, []);
-
-  // 공지사항 순환 애니메이션
-  useEffect(() => {
-    if (notices.length === 0) return;
-    
-    const interval = setInterval(() => {
-      setCurrentNoticeIndex((prevIndex) => (prevIndex + 1) % notices.length);
-    }, 4000); // 4초마다 다음 공지사항으로 변경
-
-    return () => clearInterval(interval);
-  }, [notices.length]);
-
-  // 공지사항 수동 변경 함수들
-  const handlePrevNotice = () => {
-    if (notices.length === 0) return;
-    setCurrentNoticeIndex((prevIndex) => 
-      prevIndex === 0 ? notices.length - 1 : prevIndex - 1
-    );
-  };
-
-  const handleNextNotice = () => {
-    if (notices.length === 0) return;
-    setCurrentNoticeIndex((prevIndex) => (prevIndex + 1) % notices.length);
-  };
 
   // 상담창 열기 처리
   useEffect(() => {
@@ -329,71 +217,9 @@ const Home: React.FC = () => {
         </div>
       </div>
 
-      {/* 애드모어 새소식 Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
-        <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-6 text-center">애드모어 새소식</h2>
-        
-        {/* 공지사항 목록 - 순환 애니메이션 */}
-        <div className="bg-gray-100 rounded-lg p-6 relative overflow-hidden" style={{ height: '60px' }}>
-          {(() => {
-            console.log('렌더링 - notices 상태:', notices);
-            console.log('렌더링 - notices 길이:', notices.length);
-            console.log('현재 공지사항 인덱스:', currentNoticeIndex);
-            return null;
-          })()}
-          
-          {/* 위쪽 스크롤 버튼 */}
-          {notices.length > 1 && (
-            <button
-              onClick={handlePrevNotice}
-              className="absolute top-1 left-1/2 transform -translate-x-1/2 z-10 bg-white/80 border border-gray-200 rounded-full w-6 h-6 flex items-center justify-center shadow-sm hover:bg-gray-100 transition-colors"
-              aria-label="이전 공지사항"
-            >
-              <FontAwesomeIcon icon={faChevronUp} className="text-xs text-gray-500" />
-            </button>
-          )}
-          
-          {/* 아래쪽 스크롤 버튼 */}
-          {notices.length > 1 && (
-            <button
-              onClick={handleNextNotice}
-              className="absolute bottom-1 left-1/2 transform -translate-x-1/2 z-10 bg-white/80 border border-gray-200 rounded-full w-6 h-6 flex items-center justify-center shadow-sm hover:bg-gray-100 transition-colors"
-              aria-label="다음 공지사항"
-            >
-              <FontAwesomeIcon icon={faChevronDown} className="text-xs text-gray-500" />
-            </button>
-          )}
-          
-          {notices.length > 0 ? (
-            <div 
-              key={`notice-${currentNoticeIndex}`}
-              className="absolute left-0 right-0 flex items-center justify-between bg-white rounded-lg px-4 py-3 shadow-sm"
-              style={{
-                animation: 'fadeInOut 4s ease-in-out'
-              }}
-            >
-              <span className="text-gray-600">{notices[currentNoticeIndex]?.title}</span>
-              <span className="text-orange-500 font-medium">{notices[currentNoticeIndex]?.createdAt}</span>
-            </div>
-          ) : (
-            <div className="absolute left-0 right-0 flex items-center justify-between bg-white rounded-lg px-4 py-3 shadow-sm">
-              <span className="text-gray-600">애드모어 런칭</span>
-              <span className="text-orange-500 font-medium">2023-02-22</span>
-            </div>
-          )}
-        </div>
-
-        {/* 할인 프로모션 박스 */}
-        <div className="mt-6 bg-teal-500 rounded-lg p-6 text-center">
-          <p className="text-white text-lg font-semibold">
-            지금 애드모어를 이용하시면, 최대 10프로 할인
-          </p>
-        </div>
-      </div>
-
       {/* Popular Products Section - 슬라이드 */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
-        <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-4 sm:mb-6 pt-4 text-center sm:text-left">인기 상품</h2>
+        <h2 className="text-xl sm:text-xl lg:text-2xl font-bold text-gray-900 mb-4 sm:mb-6 pt-4 text-center sm:text-left">인기 상품</h2>
         <div className="relative">
           {/* 이전 버튼 - 모바일에서는 숨김, 태블릿 이상에서만 표시 */}
           <button
@@ -462,7 +288,7 @@ const Home: React.FC = () => {
 
       {/* All Products Section */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
-        <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-4 sm:mb-6 text-center sm:text-left">전체 상품</h2>
+        <h2 className="text-xl sm:text-xl lg:text-2xl font-bold text-gray-900 mb-4 sm:mb-6 text-center sm:text-left">전체 상품</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 sm:gap-6">
           {filteredProducts.map((product) => (
             <ProductCard
