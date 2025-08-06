@@ -96,25 +96,40 @@ const Home: React.FC = () => {
 
   // 공지사항 데이터 로드
   const loadNotices = async () => {
+    console.log('=== 공지사항 로드 시작 ===');
     try {
+      console.log('API 호출 시작...');
       const response = await customerServiceAPI.getNotices();
-      console.log('공지사항 데이터:', response);
+      console.log('API 응답 받음:', response);
+      console.log('응답 타입:', typeof response);
+      console.log('응답 길이:', Array.isArray(response) ? response.length : '배열 아님');
+      
+      if (!Array.isArray(response)) {
+        console.error('응답이 배열이 아님:', response);
+        throw new Error('응답이 배열이 아닙니다');
+      }
       
       // 백엔드 데이터를 프론트엔드 형식으로 변환
-      const transformedNotices = response.map((notice: any) => ({
-        id: notice.id,
-        title: notice.title,
-        content: notice.content,
-        important: notice.important === true || notice.important === 1 || notice.important === '1',
-        createdAt: notice.createdAt,
-        updatedAt: notice.updatedAt,
-        author: notice.author || '관리자'
-      }));
+      const transformedNotices = response.map((notice: any) => {
+        console.log('개별 공지사항 처리:', notice);
+        return {
+          id: notice.id,
+          title: notice.title,
+          content: notice.content,
+          important: notice.important === true || notice.important === 1 || notice.important === '1',
+          createdAt: notice.createdAt,
+          updatedAt: notice.updatedAt,
+          author: notice.author || '관리자'
+        };
+      });
       
       console.log('변환된 공지사항:', transformedNotices);
+      console.log('공지사항 개수:', transformedNotices.length);
       setNotices(transformedNotices);
-    } catch (error) {
+      console.log('공지사항 상태 업데이트 완료');
+    } catch (error: any) {
       console.error('공지사항 로드 에러:', error);
+      console.error('에러 상세:', error?.message || '알 수 없는 에러');
       // 기본 공지사항으로 fallback
       const defaultNotices: Notice[] = [
         {
@@ -145,6 +160,7 @@ const Home: React.FC = () => {
           author: '관리자'
         }
       ];
+      console.log('기본 공지사항으로 fallback:', defaultNotices);
       setNotices(defaultNotices);
     }
   };
@@ -278,12 +294,20 @@ const Home: React.FC = () => {
         
         {/* 공지사항 목록 */}
         <div className="bg-gray-100 rounded-lg p-6 space-y-3">
-          {notices.slice(0, 4).map((notice) => (
-            <div key={notice.id} className="flex items-center justify-between bg-white rounded-lg px-4 py-3 shadow-sm">
-              <span className="text-gray-600">{notice.title}</span>
-              <span className="text-orange-500 font-medium">{notice.createdAt}</span>
-            </div>
-          ))}
+          {(() => {
+            console.log('렌더링 - notices 상태:', notices);
+            console.log('렌더링 - notices 길이:', notices.length);
+            return null;
+          })()}
+          {notices.slice(0, 4).map((notice) => {
+            console.log('렌더링 - 개별 공지사항:', notice);
+            return (
+              <div key={notice.id} className="flex items-center justify-between bg-white rounded-lg px-4 py-3 shadow-sm">
+                <span className="text-gray-600">{notice.title}</span>
+                <span className="text-orange-500 font-medium">{notice.createdAt}</span>
+              </div>
+            );
+          })}
           {notices.length === 0 && (
             <div className="flex items-center justify-between bg-white rounded-lg px-4 py-3 shadow-sm">
               <span className="text-gray-600">애드모어 런칭</span>
