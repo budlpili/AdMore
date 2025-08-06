@@ -526,28 +526,6 @@ const ReviewManagement: React.FC<ReviewManagementProps> = ({ reviews, onReviewsC
         </div>
       </div>
 
-      {/* 별점별 분포 */}
-      <div className="bg-white rounded-lg shadow p-4 mb-6">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4">별점별 분포</h3>
-        <div className="grid grid-cols-5 gap-4">
-          {[5, 4, 3, 2, 1].map((rating) => (
-            <div key={rating} className="text-center">
-              <div className="flex items-center justify-center mb-2">
-                <span className="text-sm font-medium text-gray-600 mr-1">{rating}점</span>
-                <FontAwesomeIcon icon={faSolidStar} className="text-yellow-400 text-xs" />
-              </div>
-              <div className="text-2xl font-bold text-gray-900">{stats.ratingCounts[rating as keyof typeof stats.ratingCounts]}</div>
-              <div className="text-xs text-gray-500">
-                {stats.totalReviews > 0 
-                  ? `${((stats.ratingCounts[rating as keyof typeof stats.ratingCounts] / stats.totalReviews) * 100).toFixed(1)}%`
-                  : '0%'
-                }
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
       {/* 검색 및 정렬 */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-6">
         <button

@@ -64,7 +64,7 @@ const CouponManagement: React.FC = () => {
     discountValue: 0,
     minAmount: 0,
     maxDiscount: 0,
-    startDate: '',
+    startDate: new Date().toISOString().split('T')[0], // 오늘 날짜로 자동 설정
     endDate: '',
     usageLimit: 0,
     status: 'active' as 'active' | 'inactive' | 'expired'
@@ -146,7 +146,7 @@ const CouponManagement: React.FC = () => {
       discountValue: 0,
       minAmount: 0,
       maxDiscount: 0,
-      startDate: '',
+      startDate: new Date().toISOString().split('T')[0], // 오늘 날짜로 자동 설정
       endDate: '',
       usageLimit: 0,
       status: 'active'
@@ -257,6 +257,22 @@ const CouponManagement: React.FC = () => {
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
+  };
+
+  // 숫자 입력 처리 함수들
+  const formatNumberInput = (value: string): number => {
+    // 숫자가 아닌 문자 제거하고 앞의 0 제거
+    const cleanValue = value.replace(/[^0-9]/g, '').replace(/^0+/, '');
+    return cleanValue ? parseInt(cleanValue, 10) : 0;
+  };
+
+  const formatNumberDisplay = (value: number): string => {
+    return value.toLocaleString();
+  };
+
+  const handleNumberInputChange = (field: 'discountValue' | 'minAmount' | 'maxDiscount' | 'usageLimit', value: string) => {
+    const numericValue = formatNumberInput(value);
+    setFormData(prev => ({ ...prev, [field]: numericValue }));
   };
 
   // 쿠폰 발송 관련 함수들
@@ -630,13 +646,12 @@ const CouponManagement: React.FC = () => {
                     할인 값 *
                   </label>
                   <input
-                    type="number"
+                    type="text"
                     required
-                    min="0"
-                    value={formData.discountValue}
-                    onChange={(e) => setFormData({ ...formData, discountValue: Number(e.target.value) })}
+                    value={formData.discountValue ? formatNumberDisplay(formData.discountValue) : ''}
+                    onChange={(e) => handleNumberInputChange('discountValue', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder={formData.discountType === 'percentage' ? '10' : '5000'}
+                    placeholder={formData.discountType === 'percentage' ? '10' : '5,000'}
                   />
                 </div>
                 <div>
@@ -644,10 +659,9 @@ const CouponManagement: React.FC = () => {
                     최소 구매 금액
                   </label>
                   <input
-                    type="number"
-                    min="0"
-                    value={formData.minAmount}
-                    onChange={(e) => setFormData({ ...formData, minAmount: Number(e.target.value) })}
+                    type="text"
+                    value={formData.minAmount ? formatNumberDisplay(formData.minAmount) : ''}
+                    onChange={(e) => handleNumberInputChange('minAmount', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="0"
                   />
@@ -660,10 +674,9 @@ const CouponManagement: React.FC = () => {
                     최대 할인 금액
                   </label>
                   <input
-                    type="number"
-                    min="0"
-                    value={formData.maxDiscount}
-                    onChange={(e) => setFormData({ ...formData, maxDiscount: Number(e.target.value) })}
+                    type="text"
+                    value={formData.maxDiscount ? formatNumberDisplay(formData.maxDiscount) : ''}
+                    onChange={(e) => handleNumberInputChange('maxDiscount', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="0"
                   />
@@ -700,13 +713,12 @@ const CouponManagement: React.FC = () => {
                     사용 제한 *
                   </label>
                   <input
-                    type="number"
+                    type="text"
                     required
-                    min="1"
-                    value={formData.usageLimit}
-                    onChange={(e) => setFormData({ ...formData, usageLimit: Number(e.target.value) })}
+                    value={formData.usageLimit ? formatNumberDisplay(formData.usageLimit) : ''}
+                    onChange={(e) => handleNumberInputChange('usageLimit', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="1000"
+                    placeholder="1,000"
                   />
                 </div>
               </div>
