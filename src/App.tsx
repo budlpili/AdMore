@@ -26,6 +26,8 @@ const AppRoutes: React.FC<{ isChatOpen: boolean; setIsChatOpen: (open: boolean) 
   const isOrderPage = location.pathname.startsWith('/order');
   const isProductDetailPage = location.pathname.startsWith('/products/') && location.pathname !== '/products';
   const isReviewsPage = location.pathname === '/reviews';
+  const isCustomerServicePage = location.pathname === '/customer-service';
+  const isUserPage = location.pathname === '/mypage' || location.pathname === '/user';
   const isAdminPage = location.pathname === '/admin';
   const isApiTestPage = location.pathname === '/api-test';
   
@@ -70,7 +72,7 @@ const AppRoutes: React.FC<{ isChatOpen: boolean; setIsChatOpen: (open: boolean) 
         </Routes>
       )}
       
-      {!isAdminPage && !isApiTestPage && <ChatWidget isChatOpen={isChatOpen} setIsChatOpen={setIsChatOpen} userEmail={userEmail} inquiryType="product" hideFloatingButton={isProductDetailPage || isReviewsPage} />}
+      {!isAdminPage && !isApiTestPage && <ChatWidget isChatOpen={isChatOpen} setIsChatOpen={setIsChatOpen} userEmail={userEmail} inquiryType="product" hideFloatingButton={isProductDetailPage || isReviewsPage || isCustomerServicePage || isUserPage} />}
       {!isOrderPage && !isProductDetailPage && !isAdminPage && !isApiTestPage && <MobileNavBar setIsChatOpen={setIsChatOpen} isChatOpen={isChatOpen} type="global" />}
       {isOrderPage && <MobileNavBar setIsChatOpen={setIsChatOpen} isChatOpen={isChatOpen} type="order" />}
     </>

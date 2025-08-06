@@ -1527,10 +1527,10 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                   <button
                     onClick={handlePrevNotice}
                     className="absolute top-1 right-0 transform -translate-x-1/2 z-10
-                      w-4 h-4 flex items-center justify-center hover:bg-gray-100 transition-colors"
+                      w-4 h-4 flex items-center justify-center hover:bg-gray-200 transition-colors rounded-full"
                     aria-label="이전 공지사항"
                   >
-                    <FontAwesomeIcon icon={faChevronUp} className="text-[10px] text-gray-500" />
+                    <FontAwesomeIcon icon={faChevronUp} className="text-[10px] text-gray-500 hover:text-gray-700" />
                   </button>
                 )}
                 
@@ -1539,10 +1539,10 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                   <button
                     onClick={handleNextNotice}
                     className="absolute bottom-1 right-0 transform -translate-x-1/2 z-10 
-                      w-4 h-4 flex items-center justify-center hover:bg-gray-100 transition-colors"
+                      w-4 h-4 flex items-center justify-center hover:bg-gray-200 transition-colors rounded-full"
                     aria-label="다음 공지사항"
                   >
-                    <FontAwesomeIcon icon={faChevronDown} className="text-[10px] text-gray-500" />
+                    <FontAwesomeIcon icon={faChevronDown} className="text-[10px] text-gray-500 hover:text-gray-700" />
                   </button>
                 )}
                 
@@ -1556,7 +1556,7 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                   >
                     <span className="text-gray-600 font-semibold min-w-[200px] mr-4">
                       {notices[currentNoticeIndex]?.important && (
-                        <span className="text-red-500 font-bold mr-1">[중요]</span>
+                        <span className="inline-block w-[38px] bg-red-500/20 px-2 py-0.5 text-center text-red-500 rounded-full font-bold mr-1">중요</span>
                       )}
                       {notices[currentNoticeIndex]?.title}
                     </span>
@@ -1576,7 +1576,7 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
               </div>
               {/* 마이프로필 스몰베너 */}
               <div className="bg-teal-400 w-full h-40 rounded-lg p-8 text-center text-white font-bold text-2xl mb-12 flex items-center justify-center">
-                지금 애드모어를 이용하시면, 최대 10프로 할인
+                지금 애드모어와 함께 나의 소셜미디어를 성장시켜 보세요.
               </div>
               <div className="flex justify-between items-center mb-8">
                 <span className="text-gray-700 font-semibold">주문현황</span>
