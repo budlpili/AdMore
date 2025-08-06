@@ -99,8 +99,23 @@ const Home: React.FC = () => {
     console.log('=== 공지사항 로드 시작 ===');
     try {
       console.log('API 호출 시작...');
+      console.log('API URL:', 'http://localhost:5001/api/customer-service/notices');
+      
+      // 직접 fetch로 테스트
+      const testResponse = await fetch('http://localhost:5001/api/customer-service/notices');
+      console.log('직접 fetch 응답 상태:', testResponse.status);
+      console.log('직접 fetch 응답 OK:', testResponse.ok);
+      
+      if (!testResponse.ok) {
+        throw new Error(`HTTP ${testResponse.status}: ${testResponse.statusText}`);
+      }
+      
+      const testData = await testResponse.json();
+      console.log('직접 fetch 데이터:', testData);
+      
+      // 원래 API 호출
       const response = await customerServiceAPI.getNotices();
-      console.log('API 응답 받음:', response);
+      console.log('customerServiceAPI 응답 받음:', response);
       console.log('응답 타입:', typeof response);
       console.log('응답 길이:', Array.isArray(response) ? response.length : '배열 아님');
       
@@ -130,6 +145,7 @@ const Home: React.FC = () => {
     } catch (error: any) {
       console.error('공지사항 로드 에러:', error);
       console.error('에러 상세:', error?.message || '알 수 없는 에러');
+      console.error('에러 스택:', error?.stack);
       // 기본 공지사항으로 fallback
       const defaultNotices: Notice[] = [
         {
