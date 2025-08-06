@@ -152,22 +152,44 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
 
   // 각 사용자의 최신 메시지로 대표 메시지 생성
   const representativeMessages = Object.entries(userMessages).map(([user, messages]) => {
-    const latestMessage = messages.sort((a, b) => 
-      new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-    )[0];
+    // 타임스탬프를 기준으로 정확하게 정렬하여 최신 메시지 가져오기
+    const sortedMessages = messages.sort((a, b) => {
+      const dateA = new Date(a.timestamp.replace(' ', 'T'));
+      const dateB = new Date(b.timestamp.replace(' ', 'T'));
+      return dateB.getTime() - dateA.getTime();
+    });
+    const latestMessage = sortedMessages[0];
     
     // 해당 사용자의 최신 메시지가 완료 메시지인지 확인
     const isLatestMessageCompletion = 
       latestMessage.message === '유저가 채팅종료를 하였습니다.' || 
       latestMessage.message === '관리자가 답변을 완료하였습니다.';
     
-    // 상태 계산
+    // 상태 계산 - 실제 데이터 기반으로 정확하게 계산
     let status: 'pending' | 'answered' | 'closed' = 'pending';
+    
+    // 완료 메시지가 있으면 완료
     if (isLatestMessageCompletion) {
       status = 'closed';
-    } else if (messages.filter(msg => msg.type === 'admin').length > 0) {
-      status = 'answered';
+    } else {
+      // 관리자 메시지가 있으면 답변 중
+      const adminMessages = messages.filter(msg => msg.type === 'admin');
+      if (adminMessages.length > 0) {
+        status = 'answered';
+      } else {
+        // 관리자 메시지가 없으면 대기 중
+        status = 'pending';
+      }
     }
+    
+    // 디버깅을 위한 로그
+    console.log(`사용자 ${user} 상태 계산:`, {
+      latestMessage: latestMessage.message,
+      isLatestMessageCompletion,
+      adminMessageCount: messages.filter(msg => msg.type === 'admin').length,
+      calculatedStatus: status,
+      allMessages: messages.map(msg => ({ message: msg.message, type: msg.type }))
+    });
     
     return {
       ...latestMessage,
@@ -204,10 +226,23 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
     });
 
   // 통계 계산
-  const totalUserCount = Object.keys(userMessages).length;
+  const totalUserCount = representativeMessages.length;
   const pendingCount = representativeMessages.filter(msg => msg.status === 'pending').length;
   const inProgressCount = representativeMessages.filter(msg => msg.status === 'answered').length;
   const completedCount = representativeMessages.filter(msg => msg.status === 'closed').length;
+  
+  // 디버깅을 위한 로그
+  console.log('=== 채팅 상태 통계 ===');
+  console.log('전체 유저 수:', totalUserCount);
+  console.log('대기 중:', pendingCount);
+  console.log('답변 중:', inProgressCount);
+  console.log('완료:', completedCount);
+  console.log('합계:', pendingCount + inProgressCount + completedCount);
+  console.log('representativeMessages:', representativeMessages.map(msg => ({
+    user: msg.user,
+    status: msg.status,
+    message: msg.message
+  })));
 
   // 채팅 컨테이너 자동 스크롤
   useEffect(() => {
@@ -1548,7 +1583,8 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                 {selectedMessage && isChatCompleted(selectedMessage.user) && (
                   <div className="absolute inset-0 bg-gray-50 bg-opacity-100 flex flex-col items-center justify-center 
                       rounded-lg z-10 min-h-[50px]">
-                    <FontAwesomeIcon icon={faCheckCircle} className="text-2xl text-gray-400 mb-3" />
+                    <FontAwesomeIcon icon={faCheckCircle} className="text-2xl text-gray-400 mb-2" />
+                    <p className="text-sm font-medium">채팅이 종료되었습니다</p>
                     <span className="text-gray-500 text-sm font-medium mb-1">채팅이 완료되었습니다</span>
                     <span className="text-gray-400 text-xs font-medium">더 이상 메시지를 주고받을 수 없습니다</span>
                   </div>
