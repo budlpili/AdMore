@@ -431,13 +431,15 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
       const chatType = localStorage.getItem('chatType');
       
       if (autoMessage && (chatType === 'payment_cancel' || chatType === 'consultation')) {
-        // 채팅 모드로 전환하고 메시지 입력창에 자동으로 텍스트 입력
+        // 채팅 모드로 전환하고 메시지 입력창에 자동으로 텍스트 입력 (자동 전송하지 않음)
         setMode('chat');
         setInput(autoMessage);
         
         // 사용 후 localStorage에서 제거
         localStorage.removeItem('chatAutoMessage');
         localStorage.removeItem('chatType');
+        
+        console.log('상품 문의 메시지가 입력창에 설정되었습니다 (자동 전송되지 않음):', autoMessage);
       }
     }
   }, [isChatOpen]);
