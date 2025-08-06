@@ -4,6 +4,7 @@ import {
   faPlus, faEdit, faTrash, faCheck, faTimes, faSearch, faFilter,
   faCalendarAlt, faPercentage, faTicketAlt, faCaretUp, faCaretDown
 } from '@fortawesome/free-solid-svg-icons';
+import Pagination from './Pagination';
 
 interface Coupon {
   id: number;
@@ -32,6 +33,10 @@ const CouponManagement: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  
+  // 페이지네이션 상태
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
 
   // 폼 상태
   const [formData, setFormData] = useState({
@@ -71,6 +76,7 @@ const CouponManagement: React.FC = () => {
     }
 
     setFilteredCoupons(filtered);
+    setCurrentPage(1); // 필터 변경 시 첫 페이지로 이동
   }, [coupons, searchTerm, statusFilter]);
 
   const loadCoupons = async () => {
@@ -220,6 +226,16 @@ const CouponManagement: React.FC = () => {
     return new Date(dateString).toLocaleDateString('ko-KR');
   };
 
+  // 페이지네이션 계산
+  const totalPages = Math.ceil(filteredCoupons.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentCoupons = filteredCoupons.slice(startIndex, endIndex);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -232,7 +248,7 @@ const CouponManagement: React.FC = () => {
     <div className="space-y-6">
       {/* 헤더 */}
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-gray-900">쿠폰 관리</h2>
+        {/* <h2 className="text-2xl font-bold text-gray-900">쿠폰 관리</h2> */}
         <button
           onClick={handleAddCoupon}
           className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
@@ -252,7 +268,7 @@ const CouponManagement: React.FC = () => {
               placeholder="쿠폰 코드 또는 이름으로 검색하세요."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
         </div>
@@ -260,7 +276,8 @@ const CouponManagement: React.FC = () => {
         <div className="relative">
           <button
             onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
-            className="flex items-center justify-between w-48 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+            className="flex items-center justify-between w-48 px-4 py-2 border border-gray-300 rounded-lg text-sm
+            focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
           >
             <span className="text-gray-700">
               {statusFilter === 'all' && '전체 상태'}
@@ -318,33 +335,33 @@ const CouponManagement: React.FC = () => {
       </div>
 
       {/* 쿠폰 목록 */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="bg-white rounded-lg border overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+            <thead className="border-b border-gray-300">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-3 sm:px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                   쿠폰 정보
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-3 sm:px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                   할인 정보
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-3 sm:px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                   사용 기간
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-3 sm:px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                   사용 현황
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-3 sm:px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                   상태
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-3 sm:px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                   관리
                 </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredCoupons.map((coupon) => (
+              {currentCoupons.map((coupon) => (
                 <tr key={coupon.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4">
                     <div>
@@ -418,6 +435,19 @@ const CouponManagement: React.FC = () => {
           </table>
         </div>
       </div>
+
+      {/* 페이지네이션 */}
+      {filteredCoupons.length > 0 && (
+        <div className="">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+            totalItems={filteredCoupons.length}
+            itemsPerPage={itemsPerPage}
+          />
+        </div>
+      )}
 
       {/* 쿠폰 추가/수정 모달 */}
       {isFormOpen && (

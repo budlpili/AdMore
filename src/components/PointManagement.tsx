@@ -4,6 +4,7 @@ import {
   faPlus, faMinus, faSearch, faFilter, faCalendarAlt, faCoins,
   faUser, faGift, faShoppingCart, faTimes, faCheck, faCaretUp, faCaretDown
 } from '@fortawesome/free-solid-svg-icons';
+import Pagination from './Pagination';
 
 interface PointTransaction {
   id: number;
@@ -43,6 +44,10 @@ const PointManagement: React.FC = () => {
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'transactions' | 'users'>('transactions');
+  
+  // 페이지네이션 상태
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
 
   // 포인트 조정 폼 상태
   const [adjustForm, setAdjustForm] = useState({
@@ -80,6 +85,7 @@ const PointManagement: React.FC = () => {
     }
 
     setFilteredTransactions(filtered);
+    setCurrentPage(1); // 필터 변경 시 첫 페이지로 이동
   }, [transactions, searchTerm, typeFilter, userFilter]);
 
   const loadData = async () => {
@@ -234,6 +240,16 @@ const PointManagement: React.FC = () => {
     return amount > 0 ? `+${amount.toLocaleString()}` : amount.toLocaleString();
   };
 
+  // 페이지네이션 계산
+  const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentTransactions = filteredTransactions.slice(startIndex, endIndex);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -278,13 +294,13 @@ const PointManagement: React.FC = () => {
       {activeTab === 'transactions' ? (
         <>
           {/* 검색 및 필터 */}
-          <div className="flex gap-4">
+          <div className="flex gap-4 bg-white rounded-lg shadow p-4 mb-6">
             <div className="flex-1">
               <div className="relative">
                 <FontAwesomeIcon icon={faSearch} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="사용자 이메일, 이름 또는 설명으로 검색..."
+                  placeholder="사용자 이메일, 이름 또는 설명으로 검색해주세요."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -409,30 +425,30 @@ const PointManagement: React.FC = () => {
           <div className="bg-white rounded-lg shadow overflow-hidden">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+                <thead className="border-b border-gray-300">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-3 sm:px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       사용자
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-3 sm:px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       타입
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-3 sm:px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       포인트
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-3 sm:px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       잔액
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-3 sm:px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       설명
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-3 sm:px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       날짜
                     </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredTransactions.map((transaction) => (
+                  {currentTransactions.map((transaction) => (
                     <tr key={transaction.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4">
                         <div>
@@ -472,6 +488,19 @@ const PointManagement: React.FC = () => {
               </table>
             </div>
           </div>
+
+          {/* 페이지네이션 */}
+          {filteredTransactions.length > 0 && (
+            <div className="">
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+                totalItems={filteredTransactions.length}
+                itemsPerPage={itemsPerPage}
+              />
+            </div>
+          )}
         </>
       ) : (
         <>
