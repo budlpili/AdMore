@@ -306,10 +306,24 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
   const [currentNoticeIndex, setCurrentNoticeIndex] = useState(0);
 
   const handleLogout = () => {
+    // 모든 인증 관련 데이터 제거
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('userEmail');
     localStorage.removeItem('userRole');
-    navigate('/');
+    localStorage.removeItem('token');
+    
+    // 채팅 관련 데이터도 제거
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (key.startsWith('chat_messages_') || key.startsWith('chat_'))) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(key => localStorage.removeItem(key));
+    
+    // 페이지 새로고침하여 상태 초기화
+    window.location.href = '/';
   };
 
   // 공지사항 로드
@@ -1518,7 +1532,7 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
         <section className="flex-1 overflow-x-hidden">
           {/* 마이페이지 대시보드(새소식, 주문현황 등): 마이페이지 탭일 때만 보임 */}
           {activeTab === 'mypage' && (
-            <div className="bg-white rounded-lg shadow p-6 mb-6 min-h-[100px]">
+            <div className="bg-white rounded-lg shadow p-6 mb-6 min-h-[600px]">
               <div className="font-bold text-gray-700 mb-2">애드모어 새소식</div>
               {/* 마이프로필 공지사항표시 - 순환 애니메이션 */}
               <div className="bg-gray-100 rounded p-3 text-xs text-gray-600 mb-4 relative" style={{ height: '40px' }}>
