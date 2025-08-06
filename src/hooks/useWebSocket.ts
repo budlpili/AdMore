@@ -276,10 +276,11 @@ export const useWebSocket = ({
         
         // 관리자가 아닌 경우 현재 사용자의 메시지만 필터링
         if (!isAdmin && userEmail) {
-          const userMessages = formattedData.filter((message: any) => 
-            message.user === userEmail || 
-            (message.user === 'admin' && message.inquiryType && message.productInfo)
-          );
+          const currentUserEmail = userEmail.split('_')[0];
+          const userMessages = formattedData.filter((message: any) => {
+            const messageUserEmail = message.user.split('_')[0];
+            return messageUserEmail === currentUserEmail || message.type === 'admin';
+          });
           setMessages(userMessages);
         } else {
           setMessages(formattedData);

@@ -156,15 +156,14 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
       new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
     )[0];
     
-    // 해당 사용자의 완료 메시지 확인 (수정된 로직)
-    const hasCompletionMessage = messages.some(msg => 
-      msg.message === '관리자가 답변을 완료하였습니다.' || 
-      msg.message === '유저가 채팅종료를 하였습니다.'
-    );
+    // 해당 사용자의 최신 메시지가 완료 메시지인지 확인
+    const isLatestMessageCompletion = 
+      latestMessage.message === '유저가 채팅종료를 하였습니다.' || 
+      latestMessage.message === '관리자가 답변을 완료하였습니다.';
     
     // 상태 계산
     let status: 'pending' | 'answered' | 'closed' = 'pending';
-    if (hasCompletionMessage) {
+    if (isLatestMessageCompletion) {
       status = 'closed';
     } else if (messages.filter(msg => msg.type === 'admin').length > 0) {
       status = 'answered';
@@ -178,24 +177,31 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
       // 해당 사용자의 관리자 응답 개수
       adminResponseCount: messages.filter(msg => msg.type === 'admin').length,
       // 완료 상태
-      isCompleted: hasCompletionMessage,
+      isCompleted: isLatestMessageCompletion,
       // 상태
       status
     };
   });
 
   // 필터링된 대표 메시지 계산
-  const filteredMessages = representativeMessages.filter(message => {
-    // 검색어 필터링
-    const matchesSearch = searchTerm === '' || 
-      message.user.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      message.message.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    // 상태 필터링
-    const matchesStatus = statusFilter === 'all' || message.status === statusFilter;
-    
-    return matchesSearch && matchesStatus;
-  });
+  const filteredMessages = representativeMessages
+    .filter(message => {
+      // 검색어 필터링
+      const matchesSearch = searchTerm === '' || 
+        message.user.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        message.message.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      // 상태 필터링
+      const matchesStatus = statusFilter === 'all' || message.status === statusFilter;
+      
+      return matchesSearch && matchesStatus;
+    })
+    .sort((a, b) => {
+      // 최신 메시지 순으로 정렬 (내림차순)
+      const dateA = new Date(a.timestamp.replace(' ', 'T'));
+      const dateB = new Date(b.timestamp.replace(' ', 'T'));
+      return dateB.getTime() - dateA.getTime();
+    });
 
   // 통계 계산
   const totalUserCount = Object.keys(userMessages).length;
@@ -304,6 +310,15 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
     if (e.key === 'Enter' && e.ctrlKey) {
       e.preventDefault();
       handleSendMessage();
+      
+      // Ctrl+Enter 후 입력창 즉시 초기화
+      setTimeout(() => {
+        setMessageInput('');
+        const textareaElement = e.target as HTMLTextAreaElement;
+        if (textareaElement) {
+          textareaElement.value = '';
+        }
+      }, 0);
     }
   };
 
@@ -394,8 +409,14 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
       }
     }
 
-    // 입력창 비우기
+    // 입력창 즉시 비우기 (메시지 전송 후 바로 실행)
     setMessageInput('');
+    
+    // DOM에서도 입력창 값 초기화 (추가 보장)
+    const textareaElements = document.querySelectorAll('textarea[placeholder*="메시지를 입력하세요"]');
+    textareaElements.forEach((element) => {
+      (element as HTMLTextAreaElement).value = '';
+    });
 
     // 전송 상태 리셋
     setTimeout(() => {
@@ -431,7 +452,7 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
 
   // 채팅이 완료되었는지 확인하는 함수
   const isChatCompleted = (userEmail: string) => {
-    // 현재 선택된 유저의 메시지만 확인
+    // 해당 유저의 메시지만 확인
     const userMessages = chatMessages.filter(msg => msg.user === userEmail);
     
     if (userMessages.length === 0) return false;
@@ -444,14 +465,26 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
       latestMessage.message === '유저가 채팅종료를 하였습니다.' || 
       latestMessage.message === '관리자가 답변을 완료하였습니다.';
     
+    // 채팅 종료 메시지가 있으면 완료된 것으로 간주
+    const hasCompletionMessage = userMessages.some(msg => 
+      msg.message === '유저가 채팅종료를 하였습니다.' || 
+      msg.message === '관리자가 답변을 완료하였습니다.'
+    );
+    
+    // 새로운 세션인지 확인 (타임스탬프가 포함된 세션 ID)
+    const isNewSession = userEmail.includes('_session_');
+    
     console.log(`isChatCompleted for ${userEmail}:`, {
       userMessages: userMessages.map(msg => ({ message: msg.message, type: msg.type, timestamp: msg.timestamp })),
       latestMessage: latestMessage.message,
       isLatestMessageCompletion,
-      messageCount: userMessages.length
+      hasCompletionMessage,
+      messageCount: userMessages.length,
+      isNewSession
     });
     
-    return isLatestMessageCompletion;
+    // 새로운 세션이어도 채팅 종료 메시지가 있으면 완료된 것으로 간주
+    return isLatestMessageCompletion || hasCompletionMessage;
   };
 
   // 이메일에서 이니셜 추출 함수
@@ -853,7 +886,7 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                 .map((user) => {
                   const userMessages = filteredMessages.filter(msg => msg.user === user);
                   const latestMessage = userMessages[userMessages.length - 1];
-                  const pendingCount = userMessages.filter(msg => msg.status === 'pending').length;
+                  // const pendingCount = userMessages.filter(msg => msg.status === 'pending').length;
                   const isCompleted = isChatCompleted(user);
                   
                   return (
@@ -869,7 +902,7 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                     >
                       <div className="flex items-start gap-2 mb-0">
 
-                        <div className="flex flex-col items-center justify-between min-h-[80px]">
+                        <div className="flex flex-col items-center justify-between">
                           <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center">
                             <span className="text-white text-xs font-bold">{getInitials(user)}</span>
                           </div>
@@ -930,17 +963,14 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                                 <>
                                   {getStatusIcon(latestMessage.status)}
                                   <span className="text-xs text-gray-600">{getStatusText(latestMessage.status)}</span>
-                                  {pendingCount > 0 && (
-                                    <span className="bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">
-                                      {pendingCount}
-                                    </span>
-                                  )}
                                 </>
                               )}
                             </div>
                           </div>
-                          <div className="text-sm text-gray-600 truncate mt-1">
-                            {latestMessage.message}
+                          <div className="text-sm text-gray-600 mt-1 overflow-hidden" title={latestMessage.message}>
+                            <div className="line-clamp-1 text-ellipsis overflow-hidden">
+                              {latestMessage.message}
+                            </div>
                           </div>
                           <div className="flex items-center gap-1 text-xs text-gray-400 justify-end mt-1">
                             <div className="text-xs text-gray-400 ml-auto">
@@ -1154,7 +1184,7 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                         .map((user) => {
                           const userMessages = filteredMessages.filter(msg => msg.user === user);
                           const latestMessage = userMessages[userMessages.length - 1];
-                          const pendingCount = userMessages.filter(msg => msg.status === 'pending').length;
+                          // const pendingCount = userMessages.filter(msg => msg.status === 'pending').length;
                           
                           return (
                             <div 
@@ -1182,15 +1212,12 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                                     <div className="flex items-center gap-1 flex-shrink-0">
                                       {getStatusIcon(latestMessage.status)}
                                       <span className="text-xs text-gray-600">{getStatusText(latestMessage.status)}</span>
-                                      {pendingCount > 0 && (
-                                        <span className="bg-red-500 text-white text-xs px-1 py-0.5 rounded-full">
-                                          {pendingCount}
-                                        </span>
-                                      )}
                                     </div>
                                   </div>
-                                  <div className="text-xs text-gray-600 truncate mt-1">
-                                    {latestMessage.message}
+                                  <div className="text-xs text-gray-600 mt-1 overflow-hidden" title={latestMessage.message}>
+                                    <div className="line-clamp-2 text-ellipsis overflow-hidden">
+                                      {latestMessage.message}
+                                    </div>
                                   </div>
                                   <div className="text-xs text-gray-400 mt-1">
                                     {formatDateAndTime(latestMessage.timestamp)}
@@ -1329,8 +1356,12 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                     return (
                       <React.Fragment key={`${message.id}-${idx}`}>
                         {dateDivider}
-                        <div className={`flex flex-col ${message.type === 'admin' ? 'items-end' : 'items-start'}`}>
-                          {message.type === 'user' && (
+                        <div className={`flex flex-col ${
+                          (message.message === '유저가 채팅종료를 하였습니다.' || message.message === '관리자가 답변을 완료하였습니다.') 
+                            ? 'items-center' 
+                            : (message.type === 'admin' ? 'items-end' : 'items-start')
+                        }`}>
+                          {message.type === 'user' && message.message !== '유저가 채팅종료를 하였습니다.' && (
                             <div className="relative flex flex-row items-center mb-1 ml-0">
                               {/* <div className="absolute top-0.5 left-0 w-6 h-6 rounded-full flex items-center justify-center bg-gray-300 mr-2">
                                 <span className="text-xs font-bold text-gray-600">
@@ -1342,17 +1373,51 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                               </span>
                             </div>
                           )}
-                          <div className={`${message.message === '유저가 채팅종료를 하였습니다.' ? 'w-full' : 'max-w-[70%]'} ${message.type === 'admin' ? 'ml-auto' : 'ml-0'}`}>
-                            {/* "유저가 채팅종료를 하였습니다." 메시지 특별 스타일링 */}
-                            {message.message === '유저가 채팅종료를 하였습니다.' ? (
-                              <div className="flex justify-center w-full">
-                                <div className="flex items-center justify-center px-4 py-3 rounded-full">
+                          <div className={`${
+                            (message.message === '유저가 채팅종료를 하였습니다.' || message.message === '관리자가 답변을 완료하였습니다.') 
+                              ? 'w-full' 
+                              : 'max-w-[60%]'
+                          } ${
+                            (message.message === '유저가 채팅종료를 하였습니다.' || message.message === '관리자가 답변을 완료하였습니다.') 
+                              ? 'mx-auto' 
+                              : (message.type === 'admin' ? 'ml-auto' : 'ml-0')
+                          }`}>
+                            {/* "유저가 채팅종료를 하였습니다." 또는 "관리자가 답변을 완료하였습니다." 메시지 특별 스타일링 */}
+                            {(message.message === '유저가 채팅종료를 하였습니다.' || message.message === '관리자가 답변을 완료하였습니다.') ? (
+                              <div className="flex flex-col justify-center items-center">
+                                <div className="flex items-center justify-center px-4 pt-3 pb-1 rounded-full w-full">
                                   <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center mr-2">
                                     <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
                                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                                     </svg>
                                   </div>
-                                  <span className="text-sm font-medium text-gray-700">유저가 채팅종료를 하였습니다</span>
+                                  <span className="text-sm font-medium text-gray-700">
+                                    {message.message === '유저가 채팅종료를 하였습니다.' 
+                                      ? '유저가 채팅종료를 하였습니다' 
+                                      : '관리자가 답변을 완료하였습니다'}
+                                  </span>
+                                </div>
+                                {/* 채팅 종료/답변완료 메시지의 시간 표시 */}
+                                <div className="text-xs text-gray-500 text-center mt-1 w-full">
+                                  {(() => {
+                                    try {
+                                      // timestamp가 YYYY-MM-DD HH:MM 형식인 경우
+                                      if (message.timestamp.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/)) {
+                                        const [datePart, timePart] = message.timestamp.split(' ');
+                                        return timePart;
+                                      }
+                                      
+                                      // ISO 형식인 경우
+                                      const date = new Date(message.timestamp);
+                                      if (!isNaN(date.getTime())) {
+                                        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                      }
+                                      
+                                      return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                    } catch (error) {
+                                      return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                    }
+                                  })()}
                                 </div>
                               </div>
                             ) : (
@@ -1382,9 +1447,9 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                                   ) : null}
                                   
                                   {message.message && (
-                                    <div className="text-sm leading-relaxed whitespace-normal">
+                                    <div className="text-sm leading-relaxed whitespace-normal break-words">
                                       {message.message.split('\n').map((line, index) => (
-                                        <div key={index} style={{ display: 'block', wordBreak: 'normal' }}>
+                                        <div key={index} style={{ display: 'block', wordBreak: 'break-word' }}>
                                           {line}
                                           {index < (message.message?.split('\n').length || 0) - 1 && <br />}
                                         </div>
@@ -1392,9 +1457,11 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                                     </div>
                                   )}
                                 </div>
-                                {/* "유저가 채팅종료를 하였습니다." 메시지는 타임스탬프 표시하지 않음 */}
-                                {message.message !== '유저가 채팅종료를 하였습니다.' && (
-                                  <div className="text-xs text-gray-500 text-center mt-1">
+                                {/* "유저가 채팅종료를 하였습니다." 또는 "관리자가 답변을 완료하였습니다." 메시지는 타임스탬프 표시하지 않음 */}
+                                {message.message !== '유저가 채팅종료를 하였습니다.' && message.message !== '관리자가 답변을 완료하였습니다.' && (
+                                  <div className={`text-xs text-gray-500 mt-1 ${
+                                    message.type === 'admin' ? 'text-right' : 'text-left'
+                                  }`}>
                                     {(() => {
                                       try {
                                         // timestamp가 YYYY-MM-DD HH:MM 형식인 경우
@@ -1424,28 +1491,20 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                     );
                   })}
               
-                {/* 답변완료 상태일 때 채팅 내용 맨 마지막에 안내 메시지 표시 */}
-                {selectedMessage.status === 'closed' && (
-                  <div className="flex justify-center pt-4 relative">
-                    <div className="px-4 py-3 text-center bg-gray-100 rounded-full w-full">
-                      <FontAwesomeIcon icon={faCheckCircle} className="text-green-500 mr-2" />
-                      <span className="text-sm font-medium text-gray-700">채팅이 종료되었습니다</span>
-                    </div>
-                  </div>
-                )}
+
               </div>
             </>
           )}
         </div>
 
         {/* 하단 메시지 입력 */}
-        <div className="border-t border-gray-200 p-4">
+        <div className="border-t border-gray-200 p-4 bg-white">
           {!selectedMessage ? (
             <div className="flex items-center justify-center h-20 text-gray-500">
               <p>유저를 선택하여 메시지를 보내세요</p>
             </div>
           ) : selectedMessage.status === 'closed' ? (
-            <div className="flex items-center justify-center h-20 text-gray-500 bg-gray-50 rounded-lg">
+            <div className="flex items-center justify-center h-24 text-gray-500 bg-gray-50 rounded-lg">
               <div className="text-center">
                 <FontAwesomeIcon icon={faCheckCircle} className="text-2xl text-gray-400 mb-2" />
                 <p className="text-sm font-medium">채팅이 종료되었습니다</p>
@@ -1454,10 +1513,14 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
             </div>
           ) : (
             <>
-              <div className="relative h-[80px]">
+              <div 
+                className="inquiry-message-input-container relative min-h-[18px] !h-auto bg-white rounded-lg 
+                border border-gray-300 shadow-xs"
+                style={{ height: 'auto', minHeight: '18px' }}
+              >
                 {/* 파일 미리보기 */}
                 {selectedFile && (
-                  <div className="mb-2 p-3 bg-gray-50 rounded-lg border">
+                  <div className="mb-3 p-3 bg-gray-50 rounded-lg border">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         {filePreview ? (
@@ -1483,32 +1546,33 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                 )}
                 {/* 채팅 완료 시 입력창 비활성화 오버레이 */}
                 {selectedMessage && isChatCompleted(selectedMessage.user) && (
-                  <div className="absolute -bottom-1 inset-0 bg-gray-50 bg-opacity-100 flex flex-col items-center justify-center 
-                      rounded-lg z-10 min-h-[80px]">
+                  <div className="absolute inset-0 bg-gray-50 bg-opacity-100 flex flex-col items-center justify-center 
+                      rounded-lg z-10 min-h-[50px]">
                     <FontAwesomeIcon icon={faCheckCircle} className="text-2xl text-gray-400 mb-3" />
                     <span className="text-gray-500 text-sm font-medium mb-1">채팅이 완료되었습니다</span>
                     <span className="text-gray-400 text-xs font-medium">더 이상 메시지를 주고받을 수 없습니다</span>
                   </div>
                 )}
                 
-                <textarea
-                  value={messageInput}
-                  onChange={(e) => setMessageInput(e.target.value)}
-                  onKeyDown={handleMessageInputKeyDown}
-                  rows={2}
-                  placeholder={selectedMessage && isChatCompleted(selectedMessage.user) ? "채팅이 완료되었습니다" : `메시지를 입력하세요. 
+                <div className="relative pr-20 py-1 flex items-center">
+                  <textarea
+                    value={messageInput}
+                    onChange={(e) => setMessageInput(e.target.value)}
+                    onKeyDown={handleMessageInputKeyDown}
+                    rows={1}
+                    placeholder={selectedMessage && isChatCompleted(selectedMessage.user) ? "채팅이 완료되었습니다" : `메시지를 입력하세요. 
 (Enter: 줄바꿈 / Ctrl+Enter: 전송)`}
-                  className="w-full pl-4 pr-4 py-2 border border-gray-300 rounded-lg resize-none
-                    focus:outline-none focus:ring-2 focus:ring-orange-500 text-xs"
-                  disabled={selectedMessage && isChatCompleted(selectedMessage.user)}
-                />
-                <div className="flex items-center justify-end absolute bottom-[7px] right-[7px] gap-2">
+                    className="w-full pl-4 pr-4 py-0.5 bg-transparent border-none resize-none
+                      focus:outline-none focus:ring-0 text-xs placeholder-gray-400 h-[36px]"
+                    disabled={selectedMessage && isChatCompleted(selectedMessage.user)}
+                  />
+                  <div className="flex items-center justify-end absolute bottom-[6px] right-[6px] gap-2">
                   <div className="flex gap-2">
                     <button 
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={selectedMessage && isChatCompleted(selectedMessage.user)}
-                      className="text-base font-semibold text-gray-700 hover:text-gray-800 transition-colors 
+                      className="text-gray-500 hover:text-gray-700 transition-colors 
                        flex items-center gap-2 p-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <FontAwesomeIcon icon={faPaperclip} className="text-base text-gray-400 hover:text-gray-700" />
@@ -1526,9 +1590,9 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                   <button 
                     onClick={handleSendMessage}
                     disabled={(!messageInput.trim() && !selectedFile) || isSending || (selectedMessage && isChatCompleted(selectedMessage.user))}
-                    className={`flex items-center p-2 rounded-lg  ${
+                    className={`flex items-center p-2 rounded-lg transition-colors ${
                       (messageInput.trim() || selectedFile) && !isSending && !(selectedMessage && isChatCompleted(selectedMessage.user))
-                        ? ' text-white bg-orange-500 hover:bg-orange-600' 
+                        ? 'text-white bg-orange-500 hover:bg-orange-600' 
                         : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                     }`}
                   >
@@ -1537,6 +1601,7 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                   </button>
                 </div>
               </div>
+            </div>
               
             </>
           )}
