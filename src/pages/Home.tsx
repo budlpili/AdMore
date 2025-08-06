@@ -205,7 +205,7 @@ const Home: React.FC = () => {
     
     const interval = setInterval(() => {
       setCurrentNoticeIndex((prevIndex) => (prevIndex + 1) % notices.length);
-    }, 3000); // 3초마다 다음 공지사항으로 변경
+    }, 4000); // 4초마다 다음 공지사항으로 변경
 
     return () => clearInterval(interval);
   }, [notices.length]);
@@ -330,10 +330,10 @@ const Home: React.FC = () => {
           })()}
           {notices.length > 0 ? (
             <div 
-              key={notices[currentNoticeIndex]?.id || 'default'}
-              className="absolute left-0 right-0 flex items-center justify-between bg-white rounded-lg px-4 py-3 shadow-sm transition-all duration-500 ease-in-out"
+              key={`notice-${currentNoticeIndex}`}
+              className="absolute left-0 right-0 flex items-center justify-between bg-white rounded-lg px-4 py-3 shadow-sm"
               style={{
-                animation: 'slideInFromBottom 0.5s ease-in-out'
+                animation: 'fadeInOut 4s ease-in-out'
               }}
             >
               <span className="text-gray-600">{notices[currentNoticeIndex]?.title}</span>

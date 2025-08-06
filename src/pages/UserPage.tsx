@@ -1493,7 +1493,7 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
         <section className="flex-1 overflow-x-hidden">
           {/* 마이페이지 대시보드(새소식, 주문현황 등): 마이페이지 탭일 때만 보임 */}
           {activeTab === 'mypage' && (
-            <div className="bg-white rounded-lg shadow p-6 mb-6 min-h-[600px]">
+            <div className="bg-white rounded-lg shadow p-6 mb-6 min-h-[100px]">
               <div className="font-bold text-gray-700 mb-2">애드모어 새소식</div>
               {/* 마이프로필 공지사항표시 */}
               <div className="bg-gray-100 rounded p-3 text-xs text-gray-600 mb-4">
@@ -1506,8 +1506,8 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                   ))
                 ) : (
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-600 font-semibold">애드모어 런칭</span>
-                    <span className="text-orange-500 font-bold">2023-02-22</span>
+                    <span className="text-gray-600 font-semibold">애드모어 공지사항입니다.</span>
+                    <span className="text-orange-500 font-bold"></span>
                   </div>
                 )}
               </div>

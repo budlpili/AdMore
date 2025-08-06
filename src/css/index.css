@@ -68,7 +68,7 @@ code {
 /* 공지사항 슬라이드 애니메이션 */
 @keyframes slideInFromBottom {
   0% {
-    transform: translateY(100px);
+    transform: translateY(60px);
     opacity: 0;
   }
   100% {
@@ -86,5 +86,25 @@ code {
   100% {
     transform: translateY(-60px);
     opacity: 0;
+  }
+}
+
+/* 공지사항 페이드 애니메이션 */
+@keyframes fadeInOut {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  80% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-20px);
   }
 } 
