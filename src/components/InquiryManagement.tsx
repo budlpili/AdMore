@@ -1692,7 +1692,7 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
             <h4 className="text-sm font-semibold text-gray-900 mb-3">거래 정보</h4>
             {selectedMessage && selectedMessage.inquiryType === 'payment_cancellation' && selectedMessage.paymentInfo ? (
               // 결제취소 요청 정보
-              <div className="border border-gray-200 rounded-lg p-3">
+              <div className="hidden border border-gray-200 rounded-lg p-3">
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 mb-2">
                     <FontAwesomeIcon icon={faCreditCard} className="text-red-500" />
@@ -1720,7 +1720,7 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
               </div>
             ) : (
               // 상품 정보
-              <div className="border border-gray-200 rounded-lg p-3">
+              <div className="hidden border border-gray-200 rounded-lg p-3">
                 <div className="flex flex-col items-center gap-3">
                   <div className="w-full h-40 bg-red-100 rounded-lg flex items-center justify-center overflow-hidden">
                     <img src="/images/product_02.png" alt="youtube" className="w-full h-full object-cover" />
@@ -1743,6 +1743,13 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                 </div>
               </div>
             )}
+            <div className="border border-gray-200 rounded-lg p-3">
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-full h-40 bg-red-100 rounded-lg flex items-center justify-center overflow-hidden">
+                  <img src="/images/product_02.png" alt="youtube" className="w-full h-full object-cover" />
+                </div>
+              </div>
+            </div>
           </div>
           
         </div> 
