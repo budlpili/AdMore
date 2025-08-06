@@ -4,13 +4,16 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faHome, faCog, faBox, faStar, faComments, faUser, faSignOutAlt, faBell, faSearch, 
   faCaretDown, faCaretUp, faEdit, faTrash, faCheck, faTimes, faEye, faPlus, faMinus,
-  faChevronLeft, faChevronRight, faBars, faTimes as faTimesIcon, faSync, faHeadset, faFileAlt, faShieldAlt
+  faChevronLeft, faChevronRight, faBars, faTimes as faTimesIcon, faSync, faHeadset, faFileAlt, faShieldAlt,
+  faTicketAlt, faCoins
 } from '@fortawesome/free-solid-svg-icons';
 import { authAPI, productAPI, categoryAPI, tagAPI, reviewsAPI, usersAPI } from '../services/api';
 import ProductManagement from '../components/ProductManagement';
 import ReviewManagement from '../components/ReviewManagement';
 import CustomerServiceManagement from '../components/CustomerServiceManagement';
 import InquiryManagement from '../components/InquiryManagement';
+import CouponManagement from '../components/CouponManagement';
+import PointManagement from '../components/PointManagement';
 import Pagination from '../components/Pagination';
 import { products as initialProducts, getProducts, saveProducts, resetProducts } from '../data/products';
 import { mockReviews } from '../data/reviews-list';
@@ -98,7 +101,7 @@ const maskEmail = (email: string): string => {
 const Admin: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'orders' | 'reviews' | 'customerService' | 'inquiries' | 'users'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'orders' | 'reviews' | 'coupons' | 'points' | 'customerService' | 'inquiries' | 'users'>('dashboard');
   const [customerServiceTab, setCustomerServiceTab] = useState<'notices' | 'terms' | 'privacy'>('notices');
   const [isCustomerServiceExpanded, setIsCustomerServiceExpanded] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -803,6 +806,8 @@ const Admin: React.FC = () => {
     { id: 'products', label: '상품관리', icon: faCog, count: products.length, action: undefined },
     { id: 'orders', label: '주문관리', icon: faBox, count: totalOrders, action: undefined },
     { id: 'reviews', label: '리뷰관리', icon: faStar, count: reviews.length, action: undefined },
+    { id: 'coupons', label: '쿠폰관리', icon: faTicketAlt, count: undefined, action: undefined },
+    { id: 'points', label: '포인트관리', icon: faCoins, count: undefined, action: undefined },
     { id: 'customerService', label: '고객센터', icon: faComments, count: undefined, action: undefined, subItems: [
       { id: 'notices', label: '공지사항', icon: faBell, count: undefined, action: undefined },
       { id: 'terms', label: '이용약관', icon: faFileAlt, count: undefined, action: undefined },
@@ -2547,6 +2552,16 @@ const Admin: React.FC = () => {
                 reviews={reviews} 
                 onReviewsChange={setReviews}
               />
+            )}
+
+            {/* 쿠폰 관리 탭 */}
+            {activeTab === 'coupons' && (
+              <CouponManagement />
+            )}
+
+            {/* 포인트 관리 탭 */}
+            {activeTab === 'points' && (
+              <PointManagement />
             )}
 
             {/* 상품 관리 탭 */}
