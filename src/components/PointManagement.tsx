@@ -260,10 +260,6 @@ const PointManagement: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* 헤더 */}
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-gray-900">포인트 관리</h2>
-      </div>
 
       {/* 탭 */}
       <div className="border-b border-gray-200">

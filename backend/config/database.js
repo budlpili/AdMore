@@ -134,6 +134,37 @@ const initializeTables = () => {
     FOREIGN KEY (usedBy) REFERENCES users (id)
   )`);
 
+  // 새로운 쿠폰 관리 테이블
+  db.run(`CREATE TABLE IF NOT EXISTS coupon_management (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    code TEXT UNIQUE NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT,
+    discountType TEXT CHECK(discountType IN ('percentage', 'fixed')) NOT NULL,
+    discountValue INTEGER NOT NULL,
+    minAmount INTEGER DEFAULT 0,
+    maxDiscount INTEGER DEFAULT 0,
+    startDate TEXT NOT NULL,
+    endDate TEXT NOT NULL,
+    usageLimit INTEGER NOT NULL,
+    usedCount INTEGER DEFAULT 0,
+    status TEXT CHECK(status IN ('active', 'inactive', 'expired')) DEFAULT 'active',
+    createdAt TEXT DEFAULT (datetime('now', 'localtime')),
+    updatedAt TEXT DEFAULT (datetime('now', 'localtime'))
+  )`);
+
+  // 쿠폰 발송 이력 테이블
+  db.run(`CREATE TABLE IF NOT EXISTS coupon_sends (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    couponId INTEGER NOT NULL,
+    userId INTEGER NOT NULL,
+    sentAt TEXT DEFAULT (datetime('now', 'localtime')),
+    isUsed BOOLEAN DEFAULT 0,
+    usedAt TEXT,
+    FOREIGN KEY (couponId) REFERENCES coupon_management (id),
+    FOREIGN KEY (userId) REFERENCES users (id)
+  )`);
+
   // 채팅 메시지 테이블
   const createChatMessagesTable = `
     CREATE TABLE IF NOT EXISTS chat_messages (

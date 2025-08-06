@@ -500,6 +500,32 @@ export const usersAPI = {
     }),
 };
 
+// 쿠폰 관리 API
+export const couponsAPI = {
+  getAll: () => apiRequest('/coupons'),
+  getById: (id: number) => apiRequest(`/coupons/${id}`),
+  create: (data: any) => 
+    apiRequest('/coupons', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+  update: (id: number, data: any) => 
+    apiRequest(`/coupons/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    }),
+  delete: (id: number) => 
+    apiRequest(`/coupons/${id}`, {
+      method: 'DELETE'
+    }),
+  send: (couponId: number, userIds: string[]) => 
+    apiRequest('/coupons/send', {
+      method: 'POST',
+      body: JSON.stringify({ couponId, userIds })
+    }),
+  getSends: (couponId: number) => apiRequest(`/coupons/sends/${couponId}`)
+};
+
 // 고객센터 API
 export const customerServiceAPI = {
   // 공지사항 관련

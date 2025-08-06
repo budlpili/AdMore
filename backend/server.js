@@ -266,6 +266,7 @@ app.use('/api/tags', require('./routes/tags'));
 app.use('/api/reviews', require('./routes/reviews'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/customer-service', require('./routes/customerService'));
+app.use('/api/coupons', require('./routes/coupons'));
 
 // 채팅 관련 API
 app.get('/api/chat/messages', (req, res) => {

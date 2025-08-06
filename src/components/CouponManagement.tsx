@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faPlus, faEdit, faTrash, faCheck, faTimes, faSearch, faFilter,
-  faCalendarAlt, faPercentage, faTicketAlt, faCaretUp, faCaretDown
+  faCalendarAlt, faPercentage, faTicketAlt, faCaretUp, faCaretDown,
+  faGift, faUser
 } from '@fortawesome/free-solid-svg-icons';
 import Pagination from './Pagination';
+import { usersAPI, couponsAPI } from '../services/api';
 
 interface Coupon {
   id: number;
@@ -24,6 +26,13 @@ interface Coupon {
   updatedAt: string;
 }
 
+interface User {
+  id: string;
+  email: string;
+  name: string;
+  status: string;
+}
+
 const CouponManagement: React.FC = () => {
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [filteredCoupons, setFilteredCoupons] = useState<Coupon[]>([]);
@@ -37,6 +46,14 @@ const CouponManagement: React.FC = () => {
   // 페이지네이션 상태
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
+
+  // 쿠폰 발송 관련 상태
+  const [users, setUsers] = useState<User[]>([]);
+  const [isSendModalOpen, setIsSendModalOpen] = useState(false);
+  const [selectedCoupon, setSelectedCoupon] = useState<Coupon | null>(null);
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  const [userSearchTerm, setUserSearchTerm] = useState('');
+  const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
 
   // 폼 상태
   const [formData, setFormData] = useState({
@@ -56,6 +73,7 @@ const CouponManagement: React.FC = () => {
   // 초기 데이터 로드
   useEffect(() => {
     loadCoupons();
+    loadUsers();
   }, []);
 
   // 필터링 적용
@@ -82,47 +100,39 @@ const CouponManagement: React.FC = () => {
   const loadCoupons = async () => {
     try {
       setLoading(true);
-      // TODO: API 호출로 변경
-      const mockCoupons: Coupon[] = [
-        {
-          id: 1,
-          code: 'WELCOME10',
-          name: '신규 가입 쿠폰',
-          description: '신규 회원 가입 시 사용 가능한 10% 할인 쿠폰',
-          discountType: 'percentage',
-          discountValue: 10,
-          minAmount: 10000,
-          maxDiscount: 5000,
-          startDate: '2024-01-01',
-          endDate: '2024-12-31',
-          usageLimit: 1000,
-          usedCount: 150,
-          status: 'active',
-          createdAt: '2024-01-01',
-          updatedAt: '2024-01-01'
-        },
-        {
-          id: 2,
-          code: 'SAVE5000',
-          name: '5,000원 할인 쿠폰',
-          description: '5만원 이상 구매 시 5,000원 할인',
-          discountType: 'fixed',
-          discountValue: 5000,
-          minAmount: 50000,
-          startDate: '2024-01-01',
-          endDate: '2024-06-30',
-          usageLimit: 500,
-          usedCount: 89,
-          status: 'active',
-          createdAt: '2024-01-01',
-          updatedAt: '2024-01-01'
-        }
-      ];
-      setCoupons(mockCoupons);
+      const response = await couponsAPI.getAll();
+      if (response.success && response.coupons) {
+        setCoupons(response.coupons);
+      }
     } catch (error) {
       console.error('쿠폰 로드 에러:', error);
+      // 에러 발생 시 빈 배열로 설정
+      setCoupons([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadUsers = async () => {
+    try {
+      const response = await usersAPI.getAll();
+      if (response.success && response.users) {
+        const activeUsers = response.users
+          .filter((user: any) => user.status === 'active')
+          .map((user: any) => ({
+            id: user.id.toString(),
+            email: user.email,
+            name: user.name,
+            status: user.status
+          }));
+        setUsers(activeUsers);
+        setFilteredUsers(activeUsers);
+      }
+    } catch (error) {
+      console.error('사용자 로드 에러:', error);
+      // 에러 발생 시 빈 배열로 설정
+      setUsers([]);
+      setFilteredUsers([]);
     }
   };
 
@@ -165,9 +175,13 @@ const CouponManagement: React.FC = () => {
   const handleDeleteCoupon = async (couponId: number) => {
     if (window.confirm('정말로 이 쿠폰을 삭제하시겠습니까?')) {
       try {
-        // TODO: API 호출로 변경
-        setCoupons(prev => prev.filter(coupon => coupon.id !== couponId));
-        alert('쿠폰이 삭제되었습니다.');
+        const response = await couponsAPI.delete(couponId);
+        if (response.success) {
+          setCoupons(prev => prev.filter(coupon => coupon.id !== couponId));
+          alert('쿠폰이 삭제되었습니다.');
+        } else {
+          alert('쿠폰 삭제에 실패했습니다.');
+        }
       } catch (error) {
         console.error('쿠폰 삭제 에러:', error);
         alert('쿠폰 삭제에 실패했습니다.');
@@ -181,22 +195,31 @@ const CouponManagement: React.FC = () => {
     try {
       if (editingCoupon) {
         // 수정
-        const updatedCoupon = { ...editingCoupon, ...formData };
-        setCoupons(prev => prev.map(coupon => 
-          coupon.id === editingCoupon.id ? updatedCoupon : coupon
-        ));
-        alert('쿠폰이 수정되었습니다.');
+        const response = await couponsAPI.update(editingCoupon.id, formData);
+        if (response.success) {
+          setCoupons(prev => prev.map(coupon => 
+            coupon.id === editingCoupon.id ? { ...coupon, ...formData } : coupon
+          ));
+          alert('쿠폰이 수정되었습니다.');
+        } else {
+          alert('쿠폰 수정에 실패했습니다.');
+        }
       } else {
         // 추가
-        const newCoupon: Coupon = {
-          id: Date.now(),
-          ...formData,
-          usedCount: 0,
-          createdAt: new Date().toISOString().split('T')[0],
-          updatedAt: new Date().toISOString().split('T')[0]
-        };
-        setCoupons(prev => [...prev, newCoupon]);
-        alert('쿠폰이 추가되었습니다.');
+        const response = await couponsAPI.create(formData);
+        if (response.success) {
+          const newCoupon: Coupon = {
+            id: response.id,
+            ...formData,
+            usedCount: 0,
+            createdAt: new Date().toISOString().split('T')[0],
+            updatedAt: new Date().toISOString().split('T')[0]
+          };
+          setCoupons(prev => [newCoupon, ...prev]);
+          alert('쿠폰이 추가되었습니다.');
+        } else {
+          alert('쿠폰 추가에 실패했습니다.');
+        }
       }
       
       setIsFormOpen(false);
@@ -236,6 +259,77 @@ const CouponManagement: React.FC = () => {
     setCurrentPage(page);
   };
 
+  // 쿠폰 발송 관련 함수들
+  const handleSendCoupon = (coupon: Coupon) => {
+    setSelectedCoupon(coupon);
+    setSelectedUsers([]);
+    setUserSearchTerm('');
+    setFilteredUsers(users);
+    setIsSendModalOpen(true);
+  };
+
+  const handleUserSearch = (searchTerm: string) => {
+    setUserSearchTerm(searchTerm);
+    if (searchTerm) {
+      const filtered = users.filter(user =>
+        user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      setFilteredUsers(filtered);
+    } else {
+      setFilteredUsers(users);
+    }
+  };
+
+  const toggleUserSelection = (userId: string) => {
+    setSelectedUsers(prev => 
+      prev.includes(userId) 
+        ? prev.filter(id => id !== userId)
+        : [...prev, userId]
+    );
+  };
+
+  const toggleSelectAllUsers = () => {
+    if (selectedUsers.length === filteredUsers.length) {
+      setSelectedUsers([]);
+    } else {
+      setSelectedUsers(filteredUsers.map(user => user.id));
+    }
+  };
+
+  const handleSendCouponsToUsers = async () => {
+    if (selectedUsers.length === 0) {
+      alert('선택된 사용자가 없습니다.');
+      return;
+    }
+
+    if (!selectedCoupon) {
+      alert('선택된 쿠폰이 없습니다.');
+      return;
+    }
+
+    try {
+      const response = await couponsAPI.send(selectedCoupon.id, selectedUsers);
+      if (response.success) {
+        const selectedUserNames = users
+          .filter(user => selectedUsers.includes(user.id))
+          .map(user => user.name)
+          .join(', ');
+
+        alert(`"${selectedCoupon.name}" 쿠폰을 ${selectedUsers.length}명의 사용자에게 발송했습니다.\n\n선택된 사용자: ${selectedUserNames}`);
+        
+        setIsSendModalOpen(false);
+        setSelectedCoupon(null);
+        setSelectedUsers([]);
+      } else {
+        alert('쿠폰 발송에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('쿠폰 발송 에러:', error);
+      alert('쿠폰 발송에 실패했습니다.');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -251,7 +345,7 @@ const CouponManagement: React.FC = () => {
         {/* <h2 className="text-2xl font-bold text-gray-900">쿠폰 관리</h2> */}
         <button
           onClick={handleAddCoupon}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
+          className="bg-blue-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
         >
           <FontAwesomeIcon icon={faPlus} />
           쿠폰 추가
@@ -416,14 +510,23 @@ const CouponManagement: React.FC = () => {
                   <td className="px-6 py-4">
                     <div className="flex gap-2">
                       <button
+                        onClick={() => handleSendCoupon(coupon)}
+                        className="text-green-600 hover:text-green-900"
+                        title="쿠폰 발송"
+                      >
+                        <FontAwesomeIcon icon={faGift} />
+                      </button>
+                      <button
                         onClick={() => handleEditCoupon(coupon)}
                         className="text-blue-600 hover:text-blue-900"
+                        title="수정"
                       >
                         <FontAwesomeIcon icon={faEdit} />
                       </button>
                       <button
                         onClick={() => handleDeleteCoupon(coupon.id)}
                         className="text-red-600 hover:text-red-900"
+                        title="삭제"
                       >
                         <FontAwesomeIcon icon={faTrash} />
                       </button>
@@ -639,6 +742,128 @@ const CouponManagement: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 쿠폰 발송 모달 */}
+      {isSendModalOpen && selectedCoupon && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-medium">
+                쿠폰 발송 - {selectedCoupon.name}
+              </h3>
+              <button
+                onClick={() => setIsSendModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <FontAwesomeIcon icon={faTimes} />
+              </button>
+            </div>
+
+            {/* 선택된 쿠폰 정보 */}
+            <div className="bg-gray-50 rounded-lg p-4 mb-4">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="font-medium text-gray-700">쿠폰 코드:</span>
+                  <span className="ml-2 text-gray-900">{selectedCoupon.code}</span>
+                </div>
+                <div>
+                  <span className="font-medium text-gray-700">할인:</span>
+                  <span className="ml-2 text-gray-900">
+                    {selectedCoupon.discountType === 'percentage' 
+                      ? `${selectedCoupon.discountValue}%` 
+                      : `${selectedCoupon.discountValue.toLocaleString()}원`}
+                  </span>
+                </div>
+                <div>
+                  <span className="font-medium text-gray-700">사용 기간:</span>
+                  <span className="ml-2 text-gray-900">
+                    {formatDate(selectedCoupon.startDate)} ~ {formatDate(selectedCoupon.endDate)}
+                  </span>
+                </div>
+                <div>
+                  <span className="font-medium text-gray-700">사용 제한:</span>
+                  <span className="ml-2 text-gray-900">
+                    {selectedCoupon.usedCount} / {selectedCoupon.usageLimit}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* 사용자 검색 */}
+            <div className="mb-4">
+              <div className="relative">
+                <FontAwesomeIcon icon={faSearch} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="사용자 이름 또는 이메일로 검색하세요."
+                  value={userSearchTerm}
+                  onChange={(e) => handleUserSearch(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+
+            {/* 사용자 선택 */}
+            <div className="mb-4">
+              <div className="flex justify-between items-center mb-2">
+                <h4 className="text-sm font-medium text-gray-700">
+                  사용자 선택 ({selectedUsers.length}명 선택됨)
+                </h4>
+                <button
+                  onClick={toggleSelectAllUsers}
+                  className="text-sm text-blue-600 hover:text-blue-800"
+                >
+                  {selectedUsers.length === filteredUsers.length ? '전체 해제' : '전체 선택'}
+                </button>
+              </div>
+              
+              <div className="border border-gray-300 rounded-lg max-h-60 overflow-y-auto">
+                {filteredUsers.map((user) => (
+                  <div
+                    key={user.id}
+                    className={`flex items-center p-3 border-b border-gray-200 last:border-b-0 hover:bg-gray-50 cursor-pointer ${
+                      selectedUsers.includes(user.id) ? 'bg-blue-50' : ''
+                    }`}
+                    onClick={() => toggleUserSelection(user.id)}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedUsers.includes(user.id)}
+                      onChange={() => toggleUserSelection(user.id)}
+                      className="mr-3"
+                    />
+                    <div className="flex-1">
+                      <div className="text-sm font-medium text-gray-900">{user.name}</div>
+                      <div className="text-xs text-gray-500">{user.email}</div>
+                    </div>
+                    <div className="text-xs text-gray-400">
+                      {user.status === 'active' ? '활성' : '비활성'}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 발송 버튼 */}
+            <div className="flex justify-end gap-3 pt-4 border-t">
+              <button
+                type="button"
+                onClick={() => setIsSendModalOpen(false)}
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleSendCouponsToUsers}
+                disabled={selectedUsers.length === 0}
+                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {selectedUsers.length}명에게 쿠폰 발송
+              </button>
+            </div>
           </div>
         </div>
       )}
