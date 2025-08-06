@@ -1554,7 +1554,12 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                       animation: 'fadeInOut 4s ease-in-out'
                     }}
                   >
-                    <span className="text-gray-600 font-semibold min-w-[200px] mr-4">{notices[currentNoticeIndex]?.title}</span>
+                    <span className="text-gray-600 font-semibold min-w-[200px] mr-4">
+                      {notices[currentNoticeIndex]?.important && (
+                        <span className="text-red-500 font-bold mr-1">[중요]</span>
+                      )}
+                      {notices[currentNoticeIndex]?.title}
+                    </span>
                     <span className="text-orange-500 font-bold">
                       {notices[currentNoticeIndex]?.createdAt ? 
                         new Date(notices[currentNoticeIndex].createdAt).toISOString().split('T')[0] 
