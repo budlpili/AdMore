@@ -25,6 +25,7 @@ type ChatWidgetProps = {
     amount: string;
     paymentDate: string;
   };
+  hideFloatingButton?: boolean; // 상품 상세 페이지에서 플로팅 버튼 숨김
 };
 
 const ChatWidget: React.FC<ChatWidgetProps> = ({ 
@@ -33,7 +34,8 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
   userEmail = 'guest@example.com',
   inquiryType = 'product',
   productInfo,
-  paymentInfo
+  paymentInfo,
+  hideFloatingButton = false
 }) => {
   // 실제 로그인된 유저의 이메일 가져오기
   const actualUserEmail = localStorage.getItem('userEmail') || userEmail;
@@ -697,15 +699,17 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
 
   return (
     <>
-      {/* 문의하기 플로팅 버튼 (데스크탑만) */}
-      <button
-        className="hidden md:flex fixed bottom-6 right-6 z-50 bg-blue-600 text-white rounded-full shadow-lg w-16 h-16 items-center justify-center text-3xl hover:bg-blue-700 transition"
-        onClick={handleOpen}
-        aria-label="문의하기"
-        style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.15)' }}
-      >
-        <span>💬</span>
-      </button>
+      {/* 문의하기 플로팅 버튼 (데스크탑만, 상품 상세 페이지에서는 숨김) */}
+      {!hideFloatingButton && (
+        <button
+          className="hidden md:flex fixed bottom-6 right-6 z-50 bg-blue-600 text-white rounded-full shadow-lg w-16 h-16 items-center justify-center text-3xl hover:bg-blue-700 transition"
+          onClick={handleOpen}
+          aria-label="문의하기"
+          style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.15)' }}
+        >
+          <span>💬</span>
+        </button>
+      )}
       {/* 문의하기 채팅 위젯 모달 */}
       {isChatOpen && (
         <div className="fixed bottom-12 md:bottom-0 inset-0 z-50 flex items-end justify-end bg-black/10">
