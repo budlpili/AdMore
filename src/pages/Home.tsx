@@ -1,11 +1,11 @@
 import React, { useState, useRef, useLayoutEffect, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Product } from '../types/index';
+import { Product, Notice } from '../types/index';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFacebook, faInstagram, faYoutube, faBlogger, faTwitter, faTelegram, IconDefinition } from '@fortawesome/free-brands-svg-icons';
 import { faChevronLeft, faChevronRight, faHeart as faSolidHeart, faHeart as faRegularHeart, faStar as faSolidStar, faStarHalfAlt, faStar as faRegularStar } from '@fortawesome/free-solid-svg-icons';
 import ProductCard from '../components/ProductCard';
-import { productAPI } from '../services/api';
+import { productAPI, customerServiceAPI } from '../services/api';
 
 const categoryIcon: Record<string, { icon: IconDefinition; color: string }> = {
   '페이스북': { icon: faFacebook, color: 'text-blue-600' },
@@ -71,6 +71,7 @@ const Home: React.FC = () => {
   const [slidesToShow, setSlidesToShow] = useState(getSlidesToShow());
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [notices, setNotices] = useState<Notice[]>([]);
   const location = useLocation();
 
   // 슬라이드 트랙 ref 및 컨테이너 width
@@ -93,6 +94,61 @@ const Home: React.FC = () => {
     }
   };
 
+  // 공지사항 데이터 로드
+  const loadNotices = async () => {
+    try {
+      const response = await customerServiceAPI.getNotices();
+      console.log('공지사항 데이터:', response);
+      
+      // 백엔드 데이터를 프론트엔드 형식으로 변환
+      const transformedNotices = response.map((notice: any) => ({
+        id: notice.id,
+        title: notice.title,
+        content: notice.content,
+        important: notice.important === true || notice.important === 1 || notice.important === '1',
+        createdAt: notice.createdAt,
+        updatedAt: notice.updatedAt,
+        author: notice.author || '관리자'
+      }));
+      
+      console.log('변환된 공지사항:', transformedNotices);
+      setNotices(transformedNotices);
+    } catch (error) {
+      console.error('공지사항 로드 에러:', error);
+      // 기본 공지사항으로 fallback
+      const defaultNotices: Notice[] = [
+        {
+          id: 1,
+          title: '서비스 이용약관 개정 안내',
+          content: '안녕하세요. 서비스 이용약관이 개정되었습니다. 새로운 약관을 확인해주세요.',
+          important: true,
+          createdAt: '2024-01-15',
+          updatedAt: '2024-01-15',
+          author: '관리자'
+        },
+        {
+          id: 2,
+          title: '개인정보처리방침 개정 안내',
+          content: '개인정보처리방침이 개정되었습니다. 변경사항을 확인해주세요.',
+          important: true,
+          createdAt: '2024-01-10',
+          updatedAt: '2024-01-10',
+          author: '관리자'
+        },
+        {
+          id: 3,
+          title: '시스템 점검 안내 (1월 20일)',
+          content: '1월 20일 오전 2시부터 4시까지 시스템 점검이 예정되어 있습니다.',
+          important: false,
+          createdAt: '2024-01-08',
+          updatedAt: '2024-01-08',
+          author: '관리자'
+        }
+      ];
+      setNotices(defaultNotices);
+    }
+  };
+
   // 별점 내림차순 정렬 후 상위 10개만 사용
   const topProducts = [...products].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)).slice(0, 10);
 
@@ -103,6 +159,7 @@ const Home: React.FC = () => {
   // 컴포넌트 마운트 시 상품 데이터와 즐겨찾기 로드
   useEffect(() => {
     loadProducts();
+    loadNotices();
     const savedFavorites = getFavorites();
     setFavorites(savedFavorites);
     // 초기 slidesToShow 설정
@@ -221,22 +278,18 @@ const Home: React.FC = () => {
         
         {/* 공지사항 목록 */}
         <div className="bg-gray-100 rounded-lg p-6 space-y-3">
-          <div className="flex items-center justify-between bg-white rounded-lg px-4 py-3 shadow-sm">
-            <span className="text-gray-600">애드모어 런칭</span>
-            <span className="text-orange-500 font-medium">2023-02-22</span>
-          </div>
-          <div className="flex items-center justify-between bg-white rounded-lg px-4 py-3 shadow-sm">
-            <span className="text-gray-600">신규 상품 출시 안내</span>
-            <span className="text-orange-500 font-medium">2023-03-15</span>
-          </div>
-          <div className="flex items-center justify-between bg-white rounded-lg px-4 py-3 shadow-sm">
-            <span className="text-gray-600">서비스 이용약관 개정</span>
-            <span className="text-orange-500 font-medium">2023-04-10</span>
-          </div>
-          <div className="flex items-center justify-between bg-white rounded-lg px-4 py-3 shadow-sm">
-            <span className="text-gray-600">고객센터 운영시간 변경</span>
-            <span className="text-orange-500 font-medium">2023-05-20</span>
-          </div>
+          {notices.slice(0, 4).map((notice) => (
+            <div key={notice.id} className="flex items-center justify-between bg-white rounded-lg px-4 py-3 shadow-sm">
+              <span className="text-gray-600">{notice.title}</span>
+              <span className="text-orange-500 font-medium">{notice.createdAt}</span>
+            </div>
+          ))}
+          {notices.length === 0 && (
+            <div className="flex items-center justify-between bg-white rounded-lg px-4 py-3 shadow-sm">
+              <span className="text-gray-600">애드모어 런칭</span>
+              <span className="text-orange-500 font-medium">2023-02-22</span>
+            </div>
+          )}
         </div>
 
         {/* 할인 프로모션 박스 */}
