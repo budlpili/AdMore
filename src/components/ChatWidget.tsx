@@ -206,6 +206,14 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
       return;
     }
     
+    // 현재 메시지가 이미 환영 메시지만 있는 상태라면 로드하지 않음
+    if (messages.length === 1 && 
+        messages[0].from === 'admin' && 
+        messages[0].text?.includes('고객님 반갑습니다')) {
+      console.log('현재 환영 메시지만 있는 상태이므로 기존 메시지를 불러오지 않음');
+      return;
+    }
+    
     // 강제 로드 함수 사용
     const savedMessages = forceLoadMessages();
     console.log('저장된 메시지:', savedMessages);
@@ -224,7 +232,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     } else {
       console.log('저장된 메시지 없음');
     }
-  }, [sessionId, actualUserEmail]);
+  }, [sessionId, actualUserEmail, messages]);
 
 
 
@@ -556,9 +564,6 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     
     // 새로운 창을 열 때는 새로운 세션 ID 생성
     const newSessionId = `${actualUserEmail}_session_${Date.now()}`;
-    setSessionId(newSessionId);
-    localStorage.setItem(`current_session_${actualUserEmail}`, newSessionId);
-    console.log('새로운 창 열기 - 새로운 세션 ID 생성:', newSessionId);
     
     // 기존 메시지 완전히 초기화
     const welcomeMessage = {
@@ -566,7 +571,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
       text: '고객님 반갑습니다!\n\n상담 운영 시간 안내\n· 평일 10:00 ~ 17:00\n· 주말, 공휴일 휴무\n순차적으로 확인하여 답변드리도록 하겠습니다.'
     };
     
-    // 메시지 상태를 즉시 초기화
+    // 메시지 상태를 즉시 초기화 (sessionId 변경 전에 실행)
     setMessages([welcomeMessage]);
     
     // 새로운 세션의 로컬 스토리지 키도 초기화
@@ -584,6 +589,10 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
       console.log('기존 세션 키 삭제:', key);
     });
     
+    // sessionId를 마지막에 변경하여 useEffect가 실행되지 않도록 함
+    setSessionId(newSessionId);
+    localStorage.setItem(`current_session_${actualUserEmail}`, newSessionId);
+    console.log('새로운 창 열기 - 새로운 세션 ID 생성:', newSessionId);
     console.log('새로운 창 열기 - 기본 환영 메시지 설정 및 로컬 스토리지 초기화 완료');
   };
 
