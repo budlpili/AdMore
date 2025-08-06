@@ -1526,10 +1526,11 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                 {notices.length > 1 && (
                   <button
                     onClick={handlePrevNotice}
-                    className="absolute top-0 left-1/2 transform -translate-x-1/2 z-10 bg-white/80 border border-gray-200 rounded-full w-5 h-5 flex items-center justify-center shadow-sm hover:bg-gray-100 transition-colors"
+                    className="absolute top-1 right-0 transform -translate-x-1/2 z-10
+                      w-4 h-4 flex items-center justify-center hover:bg-gray-100 transition-colors"
                     aria-label="이전 공지사항"
                   >
-                    <FontAwesomeIcon icon={faChevronUp} className="text-xs text-gray-500" />
+                    <FontAwesomeIcon icon={faChevronUp} className="text-[10px] text-gray-500" />
                   </button>
                 )}
                 
@@ -1537,28 +1538,27 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                 {notices.length > 1 && (
                   <button
                     onClick={handleNextNotice}
-                    className="absolute bottom-0 left-1/2 transform -translate-x-1/2 z-10 bg-white/80 border border-gray-200 rounded-full w-5 h-5 flex items-center justify-center shadow-sm hover:bg-gray-100 transition-colors"
+                    className="absolute bottom-1 right-0 transform -translate-x-1/2 z-10 
+                      w-4 h-4 flex items-center justify-center hover:bg-gray-100 transition-colors"
                     aria-label="다음 공지사항"
                   >
-                    <FontAwesomeIcon icon={faChevronDown} className="text-xs text-gray-500" />
+                    <FontAwesomeIcon icon={faChevronDown} className="text-[10px] text-gray-500" />
                   </button>
                 )}
                 
                 {notices.length > 0 ? (
                   <div 
                     key={`notice-${currentNoticeIndex}`}
-                    className="absolute left-0 right-0 flex justify-between items-center"
+                    className="absolute left-0 right-0 flex justify-center items-center"
                     style={{
                       animation: 'fadeInOut 4s ease-in-out'
                     }}
                   >
-                    <span className="text-gray-600 font-semibold">{notices[currentNoticeIndex]?.title}</span>
                     <span className="text-orange-500 font-bold">{notices[currentNoticeIndex]?.createdAt}</span>
                   </div>
                 ) : (
-                  <div className="absolute left-0 right-0 flex justify-between items-center">
+                  <div className="absolute left-0 right-0 flex justify-center items-center">
                     <span className="text-gray-600 font-semibold">애드모어 공지사항입니다.</span>
-                    <span className="text-orange-500 font-bold"></span>
                   </div>
                 )}
               </div>
