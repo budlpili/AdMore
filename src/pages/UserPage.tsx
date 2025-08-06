@@ -1549,16 +1549,23 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                 {notices.length > 0 ? (
                   <div 
                     key={`notice-${currentNoticeIndex}`}
-                    className="absolute left-0 right-0 flex justify-center items-center"
+                    className="absolute left-4 right-8 flex justify-start items-center"
                     style={{
                       animation: 'fadeInOut 4s ease-in-out'
                     }}
                   >
-                    <span className="text-orange-500 font-bold">{notices[currentNoticeIndex]?.createdAt}</span>
+                    <span className="text-gray-600 font-semibold min-w-[200px] mr-4">{notices[currentNoticeIndex]?.title}</span>
+                    <span className="text-orange-500 font-bold">
+                      {notices[currentNoticeIndex]?.createdAt ? 
+                        new Date(notices[currentNoticeIndex].createdAt).toISOString().split('T')[0] 
+                        : ''
+                      }
+                    </span>
                   </div>
                 ) : (
-                  <div className="absolute left-0 right-0 flex justify-center items-center">
+                  <div className="absolute left-0 right-0 flex justify-between items-center">
                     <span className="text-gray-600 font-semibold">애드모어 공지사항입니다.</span>
+                    <span className="text-orange-500 font-bold"></span>
                   </div>
                 )}
               </div>
