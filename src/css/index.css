@@ -63,4 +63,28 @@ code {
 
 .inquiry-message-input-container.h-\[80px\] {
   height: auto !important;
+}
+
+/* 공지사항 슬라이드 애니메이션 */
+@keyframes slideInFromBottom {
+  0% {
+    transform: translateY(100px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* 공지사항 순환 애니메이션 */
+@keyframes slideUp {
+  0% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-60px);
+    opacity: 0;
+  }
 } 

@@ -72,6 +72,7 @@ const Home: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [notices, setNotices] = useState<Notice[]>([]);
+  const [currentNoticeIndex, setCurrentNoticeIndex] = useState(0);
   const location = useLocation();
 
   // 슬라이드 트랙 ref 및 컨테이너 width
@@ -198,6 +199,17 @@ const Home: React.FC = () => {
     setSlidesToShow(getSlidesToShow());
   }, []);
 
+  // 공지사항 순환 애니메이션
+  useEffect(() => {
+    if (notices.length === 0) return;
+    
+    const interval = setInterval(() => {
+      setCurrentNoticeIndex((prevIndex) => (prevIndex + 1) % notices.length);
+    }, 3000); // 3초마다 다음 공지사항으로 변경
+
+    return () => clearInterval(interval);
+  }, [notices.length]);
+
   // 상담창 열기 처리
   useEffect(() => {
     if (location.state?.openChat) {
@@ -308,24 +320,27 @@ const Home: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-6 text-center">애드모어 새소식</h2>
         
-        {/* 공지사항 목록 */}
-        <div className="bg-gray-100 rounded-lg p-6 space-y-3">
+        {/* 공지사항 목록 - 순환 애니메이션 */}
+        <div className="bg-gray-100 rounded-lg p-6 relative overflow-hidden" style={{ height: '60px' }}>
           {(() => {
             console.log('렌더링 - notices 상태:', notices);
             console.log('렌더링 - notices 길이:', notices.length);
+            console.log('현재 공지사항 인덱스:', currentNoticeIndex);
             return null;
           })()}
-          {notices.slice(0, 4).map((notice) => {
-            console.log('렌더링 - 개별 공지사항:', notice);
-            return (
-              <div key={notice.id} className="flex items-center justify-between bg-white rounded-lg px-4 py-3 shadow-sm">
-                <span className="text-gray-600">{notice.title}</span>
-                <span className="text-orange-500 font-medium">{notice.createdAt}</span>
-              </div>
-            );
-          })}
-          {notices.length === 0 && (
-            <div className="flex items-center justify-between bg-white rounded-lg px-4 py-3 shadow-sm">
+          {notices.length > 0 ? (
+            <div 
+              key={notices[currentNoticeIndex]?.id || 'default'}
+              className="absolute left-0 right-0 flex items-center justify-between bg-white rounded-lg px-4 py-3 shadow-sm transition-all duration-500 ease-in-out"
+              style={{
+                animation: 'slideInFromBottom 0.5s ease-in-out'
+              }}
+            >
+              <span className="text-gray-600">{notices[currentNoticeIndex]?.title}</span>
+              <span className="text-orange-500 font-medium">{notices[currentNoticeIndex]?.createdAt}</span>
+            </div>
+          ) : (
+            <div className="absolute left-0 right-0 flex items-center justify-between bg-white rounded-lg px-4 py-3 shadow-sm">
               <span className="text-gray-600">애드모어 런칭</span>
               <span className="text-orange-500 font-medium">2023-02-22</span>
             </div>
