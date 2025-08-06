@@ -50,7 +50,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     console.log('강제 메시지 로드 시도, 현재 sessionId:', sessionId);
     
     // 새로운 세션인지 확인 (타임스탬프가 포함된 세션 ID)
-    const isNewSession = sessionId.includes('_session_');
+    const isNewSession = sessionId.match(/_session_\d+$/);
     console.log('새로운 세션 여부:', isNewSession);
     
     // 새로운 세션인 경우 기존 메시지를 불러오지 않음
