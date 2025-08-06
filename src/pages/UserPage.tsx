@@ -8,11 +8,12 @@ import { faFacebook, faInstagram, faYoutube, faBlogger, faTwitter, faTelegram, I
 import CouponCard from '../components/CouponCard';
 import ProductCard from '../components/ProductCard';
 import { useDragScroll } from '../hooks/useDragScroll';
-import { ordersAPI } from '../services/api';
+import { ordersAPI, customerServiceAPI } from '../services/api';
 import { mockReviews } from '../data/reviews-list';
 import { products } from '../data/products';
 import { DUMMY_COUPONS, Coupon } from '../data/coupons';
 import { Order } from '../data/orderdata';
+import { Notice } from '../types';
 import MobileNavBar from '../components/MobileNavBar';
 
 interface UserPageProps {
@@ -299,12 +300,52 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
   const [isEditingName, setIsEditingName] = useState(false);
   const [newName, setNewName] = useState('');
   const [nameError, setNameError] = useState('');
+  
+  // 공지사항 상태
+  const [notices, setNotices] = useState<Notice[]>([]);
 
   const handleLogout = () => {
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('userEmail');
     localStorage.removeItem('userRole');
     navigate('/');
+  };
+
+  // 공지사항 로드
+  const loadNotices = async () => {
+    try {
+      const response = await customerServiceAPI.getNotices();
+      console.log('UserPage - 공지사항 데이터:', response);
+      
+      // 백엔드 데이터를 프론트엔드 형식으로 변환
+      const transformedNotices = response.map((notice: any) => ({
+        id: notice.id,
+        title: notice.title,
+        content: notice.content,
+        important: notice.important === true || notice.important === 1 || notice.important === '1',
+        createdAt: notice.createdAt,
+        updatedAt: notice.updatedAt,
+        author: notice.author || '관리자'
+      }));
+      
+      console.log('UserPage - 변환된 공지사항:', transformedNotices);
+      setNotices(transformedNotices);
+    } catch (error: any) {
+      console.error('UserPage - 공지사항 로드 에러:', error);
+      // 기본 공지사항으로 fallback
+      const defaultNotices: Notice[] = [
+        {
+          id: 1,
+          title: '서비스 이용약관 개정 안내',
+          content: '안녕하세요. 서비스 이용약관이 개정되었습니다. 새로운 약관을 확인해주세요.',
+          important: true,
+          createdAt: '2024-01-15',
+          updatedAt: '2024-01-15',
+          author: '관리자'
+        }
+      ];
+      setNotices(defaultNotices);
+    }
   };
 
   // 사용자 정보 로드
@@ -382,6 +423,8 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
     
     // 사용자 정보 로드
     loadUserInfo();
+    // 공지사항 로드
+    loadNotices();
   }, []);
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -1452,7 +1495,23 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
           {activeTab === 'mypage' && (
             <div className="bg-white rounded-lg shadow p-6 mb-6 min-h-[600px]">
               <div className="font-bold text-gray-700 mb-2">애드모어 새소식</div>
-              <div className="bg-gray-100 rounded p-3 text-xs text-gray-600 mb-4">애드모어 런칭 <span className="text-orange-500 font-bold ml-2">2023-02-22</span></div>
+              {/* 마이프로필 공지사항표시 */}
+              <div className="bg-gray-100 rounded p-3 text-xs text-gray-600 mb-4">
+                {notices.length > 0 ? (
+                  notices.slice(0, 3).map((notice) => (
+                    <div key={notice.id} className="flex justify-between items-center mb-2 last:mb-0">
+                      <span className="text-gray-600 font-semibold">{notice.title}</span>
+                      <span className="text-orange-500 font-bold">{notice.createdAt}</span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600 font-semibold">애드모어 런칭</span>
+                    <span className="text-orange-500 font-bold">2023-02-22</span>
+                  </div>
+                )}
+              </div>
+              {/* 마이프로필 스몰베너 */}
               <div className="bg-teal-400 w-full h-40 rounded-lg p-8 text-center text-white font-bold text-2xl mb-12 flex items-center justify-center">
                 지금 애드모어를 이용하시면, 최대 10프로 할인
               </div>
