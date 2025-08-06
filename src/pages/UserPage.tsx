@@ -1498,7 +1498,7 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
               {/* 마이프로필 공지사항표시 */}
               <div className="bg-gray-100 rounded p-3 text-xs text-gray-600 mb-4">
                 {notices.length > 0 ? (
-                  notices.slice(0, 3).map((notice) => (
+                  notices.slice(0, 1).map((notice) => (
                     <div key={notice.id} className="flex justify-between items-center mb-2 last:mb-0">
                       <span className="text-gray-600 font-semibold">{notice.title}</span>
                       <span className="text-orange-500 font-bold">{notice.createdAt}</span>

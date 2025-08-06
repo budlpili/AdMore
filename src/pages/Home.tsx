@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { Product, Notice } from '../types/index';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFacebook, faInstagram, faYoutube, faBlogger, faTwitter, faTelegram, IconDefinition } from '@fortawesome/free-brands-svg-icons';
-import { faChevronLeft, faChevronRight, faHeart as faSolidHeart, faHeart as faRegularHeart, faStar as faSolidStar, faStarHalfAlt, faStar as faRegularStar } from '@fortawesome/free-solid-svg-icons';
+import { faChevronLeft, faChevronRight, faHeart as faSolidHeart, faHeart as faRegularHeart, faStar as faSolidStar, faStarHalfAlt, faStar as faRegularStar, faChevronUp, faChevronDown } from '@fortawesome/free-solid-svg-icons';
 import ProductCard from '../components/ProductCard';
 import { productAPI, customerServiceAPI } from '../services/api';
 
@@ -210,6 +210,19 @@ const Home: React.FC = () => {
     return () => clearInterval(interval);
   }, [notices.length]);
 
+  // 공지사항 수동 변경 함수들
+  const handlePrevNotice = () => {
+    if (notices.length === 0) return;
+    setCurrentNoticeIndex((prevIndex) => 
+      prevIndex === 0 ? notices.length - 1 : prevIndex - 1
+    );
+  };
+
+  const handleNextNotice = () => {
+    if (notices.length === 0) return;
+    setCurrentNoticeIndex((prevIndex) => (prevIndex + 1) % notices.length);
+  };
+
   // 상담창 열기 처리
   useEffect(() => {
     if (location.state?.openChat) {
@@ -328,6 +341,29 @@ const Home: React.FC = () => {
             console.log('현재 공지사항 인덱스:', currentNoticeIndex);
             return null;
           })()}
+          
+          {/* 위쪽 스크롤 버튼 */}
+          {notices.length > 1 && (
+            <button
+              onClick={handlePrevNotice}
+              className="absolute top-1 left-1/2 transform -translate-x-1/2 z-10 bg-white/80 border border-gray-200 rounded-full w-6 h-6 flex items-center justify-center shadow-sm hover:bg-gray-100 transition-colors"
+              aria-label="이전 공지사항"
+            >
+              <FontAwesomeIcon icon={faChevronUp} className="text-xs text-gray-500" />
+            </button>
+          )}
+          
+          {/* 아래쪽 스크롤 버튼 */}
+          {notices.length > 1 && (
+            <button
+              onClick={handleNextNotice}
+              className="absolute bottom-1 left-1/2 transform -translate-x-1/2 z-10 bg-white/80 border border-gray-200 rounded-full w-6 h-6 flex items-center justify-center shadow-sm hover:bg-gray-100 transition-colors"
+              aria-label="다음 공지사항"
+            >
+              <FontAwesomeIcon icon={faChevronDown} className="text-xs text-gray-500" />
+            </button>
+          )}
+          
           {notices.length > 0 ? (
             <div 
               key={`notice-${currentNoticeIndex}`}
