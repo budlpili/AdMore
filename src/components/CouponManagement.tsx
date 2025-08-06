@@ -284,6 +284,18 @@ const CouponManagement: React.FC = () => {
     setIsDiscountTypeDropdownOpen(false);
   };
 
+  const handleQuickDateSet = (months: number) => {
+    const today = new Date();
+    const endDate = new Date();
+    endDate.setMonth(today.getMonth() + months);
+    
+    setFormData(prev => ({
+      ...prev,
+      startDate: today.toISOString().split('T')[0],
+      endDate: endDate.toISOString().split('T')[0]
+    }));
+  };
+
   // 쿠폰 발송 관련 함수들
   const handleSendCoupon = (coupon: Coupon) => {
     setSelectedCoupon(coupon);
@@ -604,7 +616,7 @@ const CouponManagement: React.FC = () => {
                     required
                     value={formData.code}
                     onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="text-sm w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="예: WELCOME10"
                   />
                 </div>
@@ -617,7 +629,7 @@ const CouponManagement: React.FC = () => {
                     required
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="text-sm w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="예: 신규 가입 쿠폰"
                   />
                 </div>
@@ -630,138 +642,89 @@ const CouponManagement: React.FC = () => {
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="text-sm w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   rows={3}
                   placeholder="쿠폰에 대한 설명을 입력하세요"
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    할인 유형 *
-                  </label>
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onClick={() => setIsDiscountTypeDropdownOpen(!isDiscountTypeDropdownOpen)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-left flex items-center justify-between"
-                    >
-                      <span className="text-gray-700">
-                        {formData.discountType === 'percentage' ? '퍼센트 할인' : '정액 할인'}
-                      </span>
-                      <FontAwesomeIcon 
-                        icon={isDiscountTypeDropdownOpen ? faCaretUp : faCaretDown} 
-                        className="text-gray-400" 
-                      />
-                    </button>
-                    
-                    {isDiscountTypeDropdownOpen && (
-                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-md shadow-lg z-10">
-                        <div 
-                          className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                          onClick={() => handleDiscountTypeChange('percentage')}
-                        >
-                          퍼센트 할인
-                        </div>
-                        <div 
-                          className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                          onClick={() => handleDiscountTypeChange('fixed')}
-                        >
-                          정액 할인
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    할인 값 *
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      required
-                      value={formData.discountValue ? formatNumberDisplay(formData.discountValue) : ''}
-                      onChange={(e) => handleNumberInputChange('discountValue', e.target.value)}
-                      className="w-full px-3 py-2 pr-8 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder={formData.discountType === 'percentage' ? '10' : '5,000'}
-                    />
-                    {formData.discountType === 'percentage' && (
-                      <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">
-                        %
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    최소 구매 금액
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.minAmount ? formatNumberDisplay(formData.minAmount) : ''}
-                    onChange={(e) => handleNumberInputChange('minAmount', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="0"
-                  />
-                </div>
-              </div>
+                             <div className="grid grid-cols-2 gap-4">
+                 <div>
+                   <label className="block text-sm font-medium text-gray-700 mb-1">
+                     시작일 *
+                   </label>
+                   <input
+                     type="date"
+                     required
+                     value={formData.startDate}
+                     onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                     className="text-sm w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                   />
+                 </div>
+                 <div>
+                   <label className="block text-sm font-medium text-gray-700 mb-1">
+                     종료일 *
+                   </label>
+                   <input
+                     type="date"
+                     required
+                     value={formData.endDate}
+                     onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                     className="text-sm w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                   />
+                 </div>
+               </div>
 
-              {formData.discountType === 'percentage' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    최대 할인 금액
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.maxDiscount ? formatNumberDisplay(formData.maxDiscount) : ''}
-                    onChange={(e) => handleNumberInputChange('maxDiscount', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="0"
-                  />
-                </div>
-              )}
+               {/* 빠른 날짜 설정 */}
+               <div>
+                 <label className="block text-sm font-medium text-gray-700 mb-2">
+                   빠른 설정
+                 </label>
+                 <div className="flex gap-2 flex-wrap">
+                   <button
+                     type="button"
+                     onClick={() => handleQuickDateSet(1)}
+                     className="text-xs px-3 py-1.5 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+                   >
+                     1개월
+                   </button>
+                   <button
+                     type="button"
+                     onClick={() => handleQuickDateSet(3)}
+                     className="text-xs px-3 py-1.5 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+                   >
+                     3개월
+                   </button>
+                   <button
+                     type="button"
+                     onClick={() => handleQuickDateSet(6)}
+                     className="text-xs px-3 py-1.5 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+                   >
+                     6개월
+                   </button>
+                   <button
+                     type="button"
+                     onClick={() => handleQuickDateSet(12)}
+                     className="text-xs px-3 py-1.5 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+                   >
+                     1년
+                   </button>
+                 </div>
+               </div>
 
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    시작일 *
-                  </label>
-                  <input
-                    type="date"
-                    required
-                    value={formData.startDate}
-                    onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    종료일 *
-                  </label>
-                  <input
-                    type="date"
-                    required
-                    value={formData.endDate}
-                    onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    사용 제한 *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.usageLimit ? formatNumberDisplay(formData.usageLimit) : ''}
-                    onChange={(e) => handleNumberInputChange('usageLimit', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="1,000"
-                  />
-                </div>
-              </div>
+               <div>
+                 <label className="block text-sm font-medium text-gray-700 mb-1">
+                   사용 제한 *
+                 </label>
+                 <input
+                   type="text"
+                   required
+                   value={formData.usageLimit ? formatNumberDisplay(formData.usageLimit) : ''}
+                   onChange={(e) => handleNumberInputChange('usageLimit', e.target.value)}
+                   className="text-sm w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                   placeholder="1,000"
+                 />
+               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -771,7 +734,7 @@ const CouponManagement: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setIsFormStatusDropdownOpen(!isFormStatusDropdownOpen)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-left flex items-center justify-between"
+                    className="text-sm w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-left flex items-center justify-between"
                   >
                     <span className="text-gray-700">
                       {formData.status === 'active' && '활성'}
@@ -818,17 +781,109 @@ const CouponManagement: React.FC = () => {
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    할인 유형 *
+                  </label>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setIsDiscountTypeDropdownOpen(!isDiscountTypeDropdownOpen)}
+                      className="text-sm w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-left flex items-center justify-between"
+                    >
+                      <span className="text-gray-700">
+                        {formData.discountType === 'percentage' ? '퍼센트 할인' : '정액 할인'}
+                      </span>
+                      <FontAwesomeIcon 
+                        icon={isDiscountTypeDropdownOpen ? faCaretUp : faCaretDown} 
+                        className="text-gray-400" 
+                      />
+                    </button>
+                    
+                    {isDiscountTypeDropdownOpen && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-md shadow-lg z-10">
+                        <div 
+                          className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                          onClick={() => handleDiscountTypeChange('percentage')}
+                        >
+                          퍼센트 할인
+                        </div>
+                        <div 
+                          className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                          onClick={() => handleDiscountTypeChange('fixed')}
+                        >
+                          정액 할인
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    할인 값 *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      required
+                      value={formData.discountValue ? formatNumberDisplay(formData.discountValue) : ''}
+                      onChange={(e) => handleNumberInputChange('discountValue', e.target.value)}
+                      className="text-sm w-full px-3 py-2 pr-8 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder={formData.discountType === 'percentage' ? '10' : '5,000'}
+                    />
+                    {formData.discountType === 'percentage' && (
+                      <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">
+                        %
+                      </span>
+                    )}
+                  </div>
+                </div>
+                
+              </div>
+
+              {formData.discountType === 'percentage' && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      최소 구매 금액
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.minAmount ? formatNumberDisplay(formData.minAmount) : ''}
+                      onChange={(e) => handleNumberInputChange('minAmount', e.target.value)}
+                      className="text-sm w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="0"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      최대 할인 금액
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.maxDiscount ? formatNumberDisplay(formData.maxDiscount) : ''}
+                      onChange={(e) => handleNumberInputChange('maxDiscount', e.target.value)}
+                      className="text-sm w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="0"
+                    />
+                  </div>
+                </div>
+              )}
+
+              
+
               <div className="flex justify-end gap-3 pt-4">
                 <button
                   type="button"
                   onClick={() => setIsFormOpen(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                  className="text-sm px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
                 >
                   취소
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                  className="text-sm px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700"
                 >
                   {editingCoupon ? '수정' : '추가'}
                 </button>
