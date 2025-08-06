@@ -978,7 +978,7 @@ const Admin: React.FC = () => {
       setActiveTab('customerService');
       setIsCustomerServiceExpanded(!isCustomerServiceExpanded);
       setIsMobileSidebarOpen(false); // 모바일에서도 닫기
-    } else if (['dashboard', 'orders', 'reviews', 'inquiries', 'users'].includes(tabId)) {
+    } else if (['dashboard', 'orders', 'reviews', 'coupons', 'points', 'inquiries', 'users'].includes(tabId)) {
       setActiveTab(tabId as any);
       setIsMobileSidebarOpen(false); // 모바일에서도 닫기
     }
