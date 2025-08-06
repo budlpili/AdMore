@@ -438,6 +438,14 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     }
   }, [messages, isChatOpen, mode]);
 
+  // isChatOpen이 true로 변경될 때 handleOpen 실행
+  useEffect(() => {
+    if (isChatOpen) {
+      console.log('isChatOpen이 true로 변경됨, handleOpen 실행');
+      handleOpen();
+    }
+  }, [isChatOpen]);
+
   // 자동 메시지 입력 기능 (결제취소 요청, 상담 문의 등)
   useEffect(() => {
     if (isChatOpen) {
@@ -557,7 +565,6 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     // 로그인하지 않은 사용자 체크
     if (!checkLoginStatus()) return;
     
-    setIsChatOpen(true);
     setMode('home');
     setIsChatCompleted(false);
     setShowDeleteConfirmModal(false);
