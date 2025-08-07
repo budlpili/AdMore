@@ -44,11 +44,14 @@ const Order: React.FC = () => {
           const allProducts = await productAPI.getAllProducts();
           const foundProduct = allProducts.find(p => p.id === orderInfo.product.id);
           if (foundProduct) {
+            console.log('백엔드에서 가져온 상품 데이터:', foundProduct);
             setProduct(foundProduct);
           } else {
+            console.log('백엔드에서 상품을 찾을 수 없음, 전달받은 데이터 사용:', orderInfo.product);
             setProduct(orderInfo.product);
           }
         } else {
+          console.log('상품 ID가 없음, 전달받은 데이터 사용:', orderInfo.product);
           setProduct(orderInfo.product);
         }
       } catch (error) {
@@ -127,29 +130,29 @@ const Order: React.FC = () => {
   const calculateDiscountRate = (selectedQuantity: number) => {
     if (!product || !product.price1Day) return 0;
     
-    // 1일 가격을 기준으로 원가 계산
-    const basePrice = typeof product.price1Day === 'number' ? product.price1Day : parseFloat(String(product.price1Day));
-    const originalPrice = basePrice * selectedQuantity;
-    
-    // 선택된 기간의 실제 가격
-    let actualPrice = 0;
-    if (selectedQuantity === 1) {
-      actualPrice = basePrice;
-    } else if (selectedQuantity === 7 && product.price7Days) {
-      actualPrice = typeof product.price7Days === 'number' ? product.price7Days : parseFloat(String(product.price7Days));
-    } else if (selectedQuantity === 30 && product.price30Days) {
-      actualPrice = typeof product.price30Days === 'number' ? product.price30Days : parseFloat(String(product.price30Days));
-    } else {
-      actualPrice = originalPrice; // 할인 없음
-    }
-    
-    // 할인율 계산 (1일은 할인 없음)
+    // 1일 선택 시 할인율 0% (1일 가격이 기준이므로 할인 없음)
     if (selectedQuantity === 1) {
       return 0;
     }
     
-    const discountRate = ((originalPrice - actualPrice) / originalPrice) * 100;
-    return Math.round(discountRate);
+    // 7일 또는 30일 선택 시 할인율 계산
+    const price1Day = typeof product.price1Day === 'number' ? product.price1Day : parseFloat(String(product.price1Day));
+    
+    if (selectedQuantity === 7 && product.price7Days) {
+      const price7Days = typeof product.price7Days === 'number' ? product.price7Days : parseFloat(String(product.price7Days));
+      const originalPrice = price1Day * 7; // 7일 원가
+      const discountRate = ((originalPrice - price7Days) / originalPrice) * 100;
+      return Math.round(discountRate);
+    }
+    
+    if (selectedQuantity === 30 && product.price30Days) {
+      const price30Days = typeof product.price30Days === 'number' ? product.price30Days : parseFloat(String(product.price30Days));
+      const originalPrice = price1Day * 30; // 30일 원가
+      const discountRate = ((originalPrice - price30Days) / originalPrice) * 100;
+      return Math.round(discountRate);
+    }
+    
+    return 0;
   };
 
   if (loading) {
@@ -315,9 +318,46 @@ const Order: React.FC = () => {
         <div className="flex flex-row justify-between items-center mb-4">
           <span className="text-gray-700 font-semibold text-base" >주문내역</span>
         </div>
-        <div className="flex items-center mb-4">
-          <img src={product.background || product.image} alt="product" className="w-28 h-20 rounded-lg object-cover mr-4" />
-          <div className="flex-1">
+        <div className="flex items-start mb-4">
+          <img 
+            src={(() => {
+              // 이미지 경로 처리 - 상품 이미지를 우선적으로 사용
+              console.log('상품 이미지 정보:', { 
+                image: product.image, 
+                background: product.background,
+                name: product.name 
+              });
+              
+              if (product.image) {
+                const imagePath = product.image.startsWith('data:') ? 
+                  product.image : 
+                  product.image.startsWith('/') ? 
+                    product.image : 
+                    `/${product.image}`;
+                console.log('사용할 이미지 경로 (image):', imagePath);
+                return imagePath;
+              } else if (product.background) {
+                const backgroundPath = product.background.startsWith('data:') ? 
+                  product.background : 
+                  product.background.startsWith('/') ? 
+                    product.background : 
+                    `/${product.background}`;
+                console.log('사용할 이미지 경로 (background):', backgroundPath);
+                return backgroundPath;
+              }
+              console.log('기본 이미지 사용');
+              return '/images/default-product.png'; // 기본 이미지
+            })()} 
+            alt={product.name} 
+            className="w-28 h-24 rounded-lg object-cover mr-4"
+            onError={(e) => {
+              // 이미지 로드 실패 시 기본 이미지로 대체
+              console.log('이미지 로드 실패, 기본 이미지로 대체');
+              const target = e.currentTarget as HTMLImageElement;
+              target.src = '/images/default-product.png';
+            }}
+          />
+          <div className="flex-1 mt-1">
             <div className="font-bold text-lg mb-1">{product.name}</div>
             <div className="text-gray-500 text-sm">{product.description}</div>
             
@@ -340,12 +380,26 @@ const Order: React.FC = () => {
           </div>
           <div className="flex flex-col items-end w-full">
             <div className="flex flex-row justify-between items-center">
-              {discountRate > 0 && (
-                <span className="text-blue-600 font-bold mr-2">{discountRate}%</span>
-              )}
-              {discountRate > 0 && (
-                <span className="line-through text-gray-400 mr-4">{totalOriginal.toLocaleString()}원</span>
-              )}
+              <span className="text-blue-600 font-bold mr-2">{discountRate}%</span>
+              {(() => {
+                // 원가 표시: 1일 가격 기준으로 계산
+                const price1Day = product.price1Day || 0;
+                let originalPrice = 0;
+                
+                if (price1Day > 0) {
+                  if (quantity === 1) {
+                    originalPrice = price1Day; // 1일 원가 (1일 가격과 동일)
+                  } else if (quantity === 7) {
+                    originalPrice = price1Day * 7; // 7일 원가
+                  } else if (quantity === 30) {
+                    originalPrice = price1Day * 30; // 30일 원가
+                  }
+                }
+                
+                return originalPrice > 0 ? (
+                  <span className="line-through text-gray-400 mr-4">{originalPrice.toLocaleString()}원</span>
+                ) : null;
+              })()}
               <span className="text-blue-600 font-bold text-lg">{totalPrice.toLocaleString()}원</span>
             </div>
             <span className="text-gray-600 text-xs mt-1">예상 작업기간 

@@ -24,7 +24,8 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { Category, NavigationCategory } from '../types';
 import { faEye as faEyeRegular, faHeart as faHeartRegular, faUser as faUserSolid } from '@fortawesome/free-regular-svg-icons';
-import { getRecentProducts, clearRecentProducts } from '../utils/recentProducts';
+import { getRecentProducts, clearRecentProducts, removeRecentProduct, updateRecentProduct } from '../utils/recentProducts';
+import { couponsAPI } from '../services/api';
 
 const mockRecentProducts = [
   {
@@ -61,6 +62,7 @@ const Header: React.FC<HeaderProps> = ({ setIsChatOpen }) => {
   const [isLoggedIn, setIsLoggedIn] = useState(() => typeof window !== 'undefined' && localStorage.getItem('isLoggedIn') === 'true');
   const [userRole, setUserRole] = useState<string>('user');
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [couponCount, setCouponCount] = useState<number>(0);
 
   const categories: NavigationCategory[] = [
     { name: '페이스북', path: '/products?category=facebook' },
@@ -84,14 +86,37 @@ const Header: React.FC<HeaderProps> = ({ setIsChatOpen }) => {
 
   useEffect(() => {
     if (recentDrawerOpen) {
-      setRecentProducts(getRecentProducts());
+      // localStorage에서 최근 본 상품 데이터를 새로 가져옴
+      const recentProductsData = getRecentProducts();
+      console.log('최근 본 상품 데이터 로드:', recentProductsData);
+      
+      // 각 상품의 discountRate와 originalPrice 확인
+      recentProductsData.forEach((item, index) => {
+        console.log(`상품 ${index + 1} (${item.name}):`, {
+          discountRate: item.discountRate,
+          originalPrice: item.originalPrice,
+          price: item.price,
+          image: item.image,
+          background: item.background
+        });
+      });
+      
+      setRecentProducts(recentProductsData);
     }
   }, [recentDrawerOpen]);
 
   useEffect(() => {
     const handleStorage = () => {
-      setIsLoggedIn(localStorage.getItem('isLoggedIn') === 'true');
+      const newLoginState = localStorage.getItem('isLoggedIn') === 'true';
+      setIsLoggedIn(newLoginState);
       setUserRole(localStorage.getItem('userRole') || 'user');
+      
+      // 로그인 상태가 변경되면 쿠폰 개수도 다시 로드
+      if (newLoginState) {
+        loadCouponCount();
+      } else {
+        setCouponCount(0);
+      }
     };
     
     // localStorage 변경 감지
@@ -100,14 +125,17 @@ const Header: React.FC<HeaderProps> = ({ setIsChatOpen }) => {
     // 커스텀 이벤트 리스너 추가 (같은 탭에서의 변경 감지)
     window.addEventListener('loginStateChanged', handleStorage);
     
-    // 초기 로드 시 사용자 역할 설정
+    // 초기 로드 시 사용자 역할 설정 및 쿠폰 개수 로드
     setUserRole(localStorage.getItem('userRole') || 'user');
+    if (isLoggedIn) {
+      loadCouponCount();
+    }
     
     return () => {
       window.removeEventListener('storage', handleStorage);
       window.removeEventListener('loginStateChanged', handleStorage);
     };
-  }, []);
+  }, [isLoggedIn]);
 
   useEffect(() => {
     if (!userMenuOpen) return;
@@ -121,12 +149,47 @@ const Header: React.FC<HeaderProps> = ({ setIsChatOpen }) => {
     return () => document.removeEventListener('mousedown', handleClick);
   }, [userMenuOpen]);
 
+  const loadCouponCount = async () => {
+    if (!isLoggedIn) {
+      setCouponCount(0);
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      let userId = '1';
+      
+      if (token) {
+        try {
+          const tokenParts = token.split('.');
+          if (tokenParts.length === 3) {
+            const payload = JSON.parse(atob(tokenParts[1]));
+            userId = payload.id.toString();
+          }
+        } catch (e) {
+          console.log('토큰에서 사용자 ID 추출 실패:', e);
+        }
+      }
+
+      const response = await couponsAPI.getUserCoupons(userId);
+      if (response.success && response.coupons) {
+        setCouponCount(response.coupons.length);
+      } else {
+        setCouponCount(0);
+      }
+    } catch (error) {
+      console.error('쿠폰 개수 로드 에러:', error);
+      setCouponCount(0);
+    }
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('userEmail');
     localStorage.removeItem('userRole');
     setIsLoggedIn(false);
     setUserRole('user');
+    setCouponCount(0);
     
     // 커스텀 이벤트 발생
     window.dispatchEvent(new Event('loginStateChanged'));
@@ -252,9 +315,8 @@ const Header: React.FC<HeaderProps> = ({ setIsChatOpen }) => {
                       </div>
                       <div className="flex items-center justify-center gap-4 px-4 py-4 rounded-md bg-gray-100 text-xs">
                         <span className="font-semibold">쿠폰 
-                          <span className="hidden text-blue-600 font-bold ml-2">3개</span>
-                          <span className="text-xs text-gray-400 ml-4">준비중</span>
-                          </span>
+                          <span className="text-blue-600 font-bold ml-2">{couponCount}개</span>
+                        </span>
                         <div className="w-px h-4 bg-gray-300"></div>
                         <span className="font-semibold">포인트 
                           <span className="hidden text-blue-600 font-bold ml-2">0P</span>
@@ -298,7 +360,7 @@ const Header: React.FC<HeaderProps> = ({ setIsChatOpen }) => {
                           </button>
                         </li>
                         <li>
-                          <button className="hidden text-sm w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center font-semibold"
+                          <button className="text-sm w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center font-semibold"
                             onClick={() => { setUserMenuOpen(false); navigate('/mypage?tab=coupons'); }}>
                             <FontAwesomeIcon icon={faTicketAlt} className="mr-2 text-gray-400 w-4 h-4" />
                             쿠폰함
@@ -542,29 +604,163 @@ const Header: React.FC<HeaderProps> = ({ setIsChatOpen }) => {
               <div className="p-4 overflow-y-auto h-[calc(100vh-64px)]">
                 {recentProducts.length === 0 ? (
                   <div className="text-gray-400 text-center mt-10">
-                    <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="mx-auto h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <div className="text-gray-400 text-center mt-5">최근 본 상품이 없습니다.</div>
+                    <div className="text-gray-400 text-center mt-5 text-sm">최근 본 상품이 없습니다.</div>
                   </div>
                 ) : (
                   <ul className="space-y-3">
                     {recentProducts.map((item) => (
-                      <li key={item.id} className="flex items-start gap-3 border-b pb-3 last:border-b-0">
-                        <img src={item.background || item.image} alt={item.name} className="w-16 h-16 rounded-lg object-cover border" />
+                      <li 
+                        key={item.id} 
+                        className="flex items-start gap-3 border-b pb-3 last:border-b-0 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors relative group"
+                        onClick={async () => {
+                          try {
+                            // 상품 상세 페이지로 이동하기 전에 최신 상품 데이터를 가져와서 최근 본 상품 업데이트
+                            const response = await fetch(`/api/products/${item.id}`);
+                            if (response.ok) {
+                              const updatedProduct = await response.json();
+                              console.log('최신 상품 데이터:', updatedProduct);
+                              console.log('기존 최근 본 상품 데이터:', item);
+                              
+                              // 이미지 경로 정규화
+                              const normalizedProduct = {
+                                ...updatedProduct,
+                                image: updatedProduct.image ? 
+                                  (updatedProduct.image.startsWith('data:') ? 
+                                    updatedProduct.image : 
+                                    updatedProduct.image.startsWith('/') ? 
+                                      updatedProduct.image : 
+                                      `/${updatedProduct.image}`
+                                  ) : undefined,
+                                background: updatedProduct.background ? 
+                                  (updatedProduct.background.startsWith('data:') ? 
+                                    updatedProduct.background : 
+                                    updatedProduct.background.startsWith('/') ? 
+                                      updatedProduct.background : 
+                                      `/${updatedProduct.background}`
+                                  ) : undefined
+                              };
+                              
+                              console.log('정규화된 상품 데이터:', normalizedProduct);
+                              
+                              // 최근 본 상품 업데이트
+                              updateRecentProduct(item.id, normalizedProduct);
+                              
+                              // 현재 표시 중인 목록도 업데이트
+                              setRecentProducts(prev => 
+                                prev.map(p => p.id === item.id ? normalizedProduct : p)
+                              );
+                            }
+                          } catch (error) {
+                            console.error('상품 데이터 업데이트 실패:', error);
+                          }
+                          
+                          navigate(`/products/${item.id}`);
+                          setRecentDrawerOpen(false);
+                        }}
+                      >
+                        <img 
+                          src={(() => {
+                            // 이미지 경로 처리 - 상품 이미지를 우선적으로 사용
+                            if (item.image) {
+                              return item.image.startsWith('data:') ? 
+                                item.image : 
+                                item.image.startsWith('/') ? 
+                                  item.image : 
+                                  `/${item.image}`;
+                            } else if (item.background) {
+                              return item.background.startsWith('data:') ? 
+                                item.background : 
+                                item.background.startsWith('/') ? 
+                                  item.background : 
+                                  `/${item.background}`;
+                            }
+                            return '/images/default-product.png'; // 기본 이미지
+                          })()} 
+                          alt={item.name} 
+                          className="w-16 h-16 rounded-lg object-cover border"
+                          onError={(e) => {
+                            // 이미지 로드 실패 시 기본 이미지로 대체
+                            const target = e.currentTarget as HTMLImageElement;
+                            target.src = '/images/default-product.png';
+                          }}
+                        />
                         <div className="flex-1 min-w-0">
                           <div className="font-semibold text-xs text-gray-900 truncate">{item.name}</div>
                           <div className="text-xs text-gray-500 truncate mb-1">{item.description}</div>
                           <div className="flex items-end gap-1">
-                            {item.discountRate && (
-                              <span className="text-blue-600 font-bold text-xs">{item.discountRate}%</span>
-                            )}
-                            {item.originalPrice && (
-                              <span className="text-gray-400 line-through text-xs">{item.originalPrice.toLocaleString()}원</span>
-                            )}
-                            <span className="text-gray-900 font-bold text-xs">{typeof item.price === 'number' ? item.price.toLocaleString() : item.price}원</span>
+                            {(() => {
+                              // 할인율 계산: 1일 가격을 기준으로 원가 계산
+                              const price1Day = item.price1Day || 0;
+                              const currentPrice = typeof item.price === 'string' ? parseInt(item.price, 10) : item.price;
+                              
+                              if (price1Day > 0 && currentPrice > 0) {
+                                let originalPrice = 0;
+                                let calculatedDiscountRate = 0;
+                                
+                                if (currentPrice === price1Day) {
+                                  originalPrice = price1Day; // 1일 원가 (1일 가격과 동일)
+                                  calculatedDiscountRate = 0; // 1일은 할인율 0%
+                                } else if (currentPrice === (item.price7Days || 0)) {
+                                  originalPrice = price1Day * 7; // 7일 원가
+                                  calculatedDiscountRate = Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
+                                } else if (currentPrice === (item.price30Days || 0)) {
+                                  originalPrice = price1Day * 30; // 30일 원가
+                                  calculatedDiscountRate = Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
+                                }
+                                
+                                // 할인율 표시 (1일은 0%이지만 일관성을 위해 표시)
+                                return (
+                                  <span className="text-blue-600 font-bold text-xs">{calculatedDiscountRate}%</span>
+                                );
+                              }
+                              
+                              return null;
+                            })()}
+                            {(() => {
+                              // 원가 표시: 1일 가격을 기준으로 계산
+                              const price1Day = item.price1Day || 0;
+                              const currentPrice = typeof item.price === 'string' ? parseInt(item.price, 10) : item.price;
+                              
+                              if (price1Day > 0 && currentPrice > 0) {
+                                let originalPrice = 0;
+                                
+                                if (currentPrice === price1Day) {
+                                  originalPrice = price1Day; // 1일 원가 (1일 가격과 동일)
+                                } else if (currentPrice === (item.price7Days || 0)) {
+                                  originalPrice = price1Day * 7; // 7일 원가
+                                } else if (currentPrice === (item.price30Days || 0)) {
+                                  originalPrice = price1Day * 30; // 30일 원가
+                                }
+                                
+                                return originalPrice > 0 ? (
+                                  <span className="text-gray-400 line-through text-xs">{originalPrice.toLocaleString()}원</span>
+                                ) : null;
+                              }
+                              
+                              return null;
+                            })()}
+                            <span className="text-gray-900 font-bold text-xs">
+                              {(() => {
+                                // 가격을 안전하게 숫자로 변환
+                                const price = typeof item.price === 'string' ? parseInt(item.price, 10) : item.price;
+                                return isNaN(price) ? '0' : price.toLocaleString();
+                              })()}원
+                            </span>
                           </div>
                         </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeRecentProduct(item.id);
+                            setRecentProducts(prev => prev.filter(p => p.id !== item.id));
+                          }}
+                          className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                        >
+                          <FontAwesomeIcon icon={faTimes} className="w-2 h-2" />
+                        </button>
                       </li>
                     ))}
                   </ul>

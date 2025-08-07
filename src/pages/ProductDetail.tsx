@@ -5,7 +5,7 @@ import { faStar as faSolidStar, faStarHalfAlt, faStar as faRegularStar, faHeart 
 import { faHeart as faRegularHeart } from '@fortawesome/free-regular-svg-icons';
 import { mockReviews } from '../data/reviews-list';
 import { products } from '../data/products';
-import { addRecentProduct } from '../utils/recentProducts';
+import { addRecentProduct, updateRecentProduct } from '../utils/recentProducts';
 import MobileNavBar from '../components/MobileNavBar';
 import { productAPI, reviewsAPI, ordersAPI } from '../services/api';
 import { Product } from '../types';
@@ -245,17 +245,33 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ setIsChatOpen }) => {
     return Math.round(discountRate);
   };
 
-  // 1일 선택 시에도 할인율을 표시하기 위한 함수 (7일 기준 할인율)
+  // 1일 선택 시에도 할인율을 표시하기 위한 함수 (1일 가격 기준 원가 대비 할인율)
   const calculateDisplayDiscountRate = (selectedQuantity: number) => {
     if (!product || !product.price1Day) return 0;
     
-    // 1일 선택 시 0% 할인율 표시
+    // 1일 선택 시 할인율 0% (1일 가격이 기준이므로 할인 없음)
     if (selectedQuantity === 1) {
       return 0;
     }
     
-    // 기존 로직 사용
-    return calculateDiscountRate(selectedQuantity);
+    // 7일 또는 30일 선택 시 할인율 계산
+    const price1Day = typeof product.price1Day === 'number' ? product.price1Day : parseFloat(String(product.price1Day));
+    
+    if (selectedQuantity === 7 && product.price7Days) {
+      const price7Days = typeof product.price7Days === 'number' ? product.price7Days : parseFloat(String(product.price7Days));
+      const originalPrice = price1Day * 7; // 7일 원가
+      const discountRate = ((originalPrice - price7Days) / originalPrice) * 100;
+      return Math.round(discountRate);
+    }
+    
+    if (selectedQuantity === 30 && product.price30Days) {
+      const price30Days = typeof product.price30Days === 'number' ? product.price30Days : parseFloat(String(product.price30Days));
+      const originalPrice = price1Day * 30; // 30일 원가
+      const discountRate = ((originalPrice - price30Days) / originalPrice) * 100;
+      return Math.round(discountRate);
+    }
+    
+    return 0;
   };
 
   // 드롭다운 외부 클릭 시 닫기
@@ -977,6 +993,28 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ setIsChatOpen }) => {
         
         if (foundProduct) {
           setProduct(foundProduct);
+          // 최근 본 상품에 추가 (이미지 필드 정규화)
+          const productForRecent = {
+            ...foundProduct,
+            // 이미지 경로 정규화
+            image: foundProduct.image ? 
+              (foundProduct.image.startsWith('data:') ? 
+                foundProduct.image : 
+                foundProduct.image.startsWith('/') ? 
+                  foundProduct.image : 
+                  `/${foundProduct.image}`
+              ) : undefined,
+            background: foundProduct.background ? 
+              (foundProduct.background.startsWith('data:') ? 
+                foundProduct.background : 
+                foundProduct.background.startsWith('/') ? 
+                  foundProduct.background : 
+                  `/${foundProduct.background}`
+              ) : undefined
+          };
+          addRecentProduct(productForRecent);
+          // 최근 본 상품 목록에서 해당 상품을 최신 데이터로 업데이트
+          updateRecentProduct(foundProduct.id, productForRecent);
           console.log('로드된 상품 데이터:', foundProduct);
           console.log('상품 ID:', foundProduct.id);
           console.log('상품명:', foundProduct.name);
@@ -994,6 +1032,28 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ setIsChatOpen }) => {
           const localProduct = products.find(p => p.id === Number(id));
           if (localProduct) {
             setProduct(localProduct);
+            // 최근 본 상품에 추가 (이미지 필드 정규화)
+            const productForRecent = {
+              ...localProduct,
+              // 이미지 경로 정규화
+              image: localProduct.image ? 
+                (localProduct.image.startsWith('data:') ? 
+                  localProduct.image : 
+                  localProduct.image.startsWith('/') ? 
+                    localProduct.image : 
+                    `/${localProduct.image}`
+                ) : undefined,
+              background: localProduct.background ? 
+                (localProduct.background.startsWith('data:') ? 
+                  localProduct.background : 
+                  localProduct.background.startsWith('/') ? 
+                    localProduct.background : 
+                    `/${localProduct.background}`
+                ) : undefined
+            };
+            addRecentProduct(productForRecent);
+            // 최근 본 상품 목록에서 해당 상품을 최신 데이터로 업데이트
+            updateRecentProduct(localProduct.id, productForRecent);
             console.log('로컬에서 상품 데이터 로드:', localProduct);
           } else {
             // 상품을 찾을 수 없는 경우
@@ -1909,26 +1969,38 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ setIsChatOpen }) => {
               const discountRate = calculateDisplayDiscountRate(quantity);
               const originalPrice = calculateOriginalPrice(quantity);
               console.log('할인율 체크:', { quantity, discountRate, hasDiscount: discountRate >= 0 });
-              return discountRate >= 0 ? (
+              return (
                 <div className="flex items-center mb-1">
                   <span className="text-blue-500 font-bold text-sm mr-2">
-                    {discountRate}%
+                    {discountRate || 0}%
                   </span>
                 </div>
-              ) : null;
+              );
             })()}
             
-            {/* 원가 표시 (1일이거나 할인율이 있을 때) */}
+            {/* 원가 표시 (1일 가격 기준으로 계산) */}
             {(() => {
-              const discountRate = calculateDisplayDiscountRate(quantity);
-              const originalPrice = calculateOriginalPrice(quantity);
+              const price1Day = product.price1Day || 0;
+              let originalPrice = 0;
+              
+              if (price1Day > 0) {
+                if (quantity === 1) {
+                  originalPrice = price1Day; // 1일 원가 (1일 가격과 동일)
+                } else if (quantity === 7) {
+                  originalPrice = price1Day * 7; // 7일 원가
+                } else if (quantity === 30) {
+                  originalPrice = price1Day * 30; // 30일 원가
+                }
+              }
+              
               console.log('원가 체크:', { 
                 quantity, 
-                discountRate, 
+                price1Day,
                 originalPrice,
-                hasOriginalPrice: originalPrice > 0 && (quantity === 1 || discountRate > 0)
+                hasOriginalPrice: originalPrice > 0
               });
-              return originalPrice > 0 && (quantity === 1 || discountRate > 0) ? (
+              
+              return originalPrice > 0 ? (
                 <div className="flex items-center mb-1">
                   <span className="text-gray-400 line-through text-sm mr-2">
                     {originalPrice.toLocaleString()}원
