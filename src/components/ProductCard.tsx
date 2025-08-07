@@ -53,23 +53,42 @@ const ProductCard: React.FC<ProductCardProps> = ({
           backgroundImage: product.background ? 
             (product.background.startsWith('data:') ? 
               `url(${product.background})` : 
-              `url(${process.env.REACT_APP_API_URL || 'http://localhost:5001'}${product.background})`
+              product.background.startsWith('/') ? 
+                `url(${product.background})` : 
+                `url(/${product.background})`
             ) : undefined,
           backgroundColor: !product.background ? '#FFF7ED' : undefined
         }}
       >
-        {product.image && product.image.startsWith('data:') ? (
+        {product.image ? (
           <img 
-            src={product.image} 
+            src={product.image.startsWith('data:') ? 
+              product.image : 
+              product.image.startsWith('/') ? 
+                product.image : 
+                `/${product.image}`
+            } 
             alt={product.name}
             className="w-full h-full object-cover"
+            onError={(e) => {
+              // 이미지 로드 실패 시 카테고리 아이콘 표시
+              const target = e.currentTarget as HTMLImageElement;
+              target.style.display = 'none';
+              const parent = target.parentElement;
+              if (parent) {
+                const iconElement = parent.querySelector('.category-icon') as HTMLElement;
+                if (iconElement) {
+                  iconElement.style.display = 'flex';
+                }
+              }
+            }}
           />
-        ) : (
-          <FontAwesomeIcon
-            icon={safeCategoryIcon.icon}
-            className={`text-5xl ${safeCategoryIcon.color}`}
-          />
-        )}
+        ) : null}
+        <FontAwesomeIcon
+          icon={safeCategoryIcon.icon}
+          className={`text-5xl ${safeCategoryIcon.color} category-icon`}
+          style={{ display: product.image ? 'none' : 'flex' }}
+        />
       </div>
       {/* 카드 내용 */}
       <div className="p-4">

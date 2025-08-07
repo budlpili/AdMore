@@ -43,11 +43,15 @@ const Login: React.FC = () => {
       authAPI.login(formData.email, formData.password)
         .then((response: any) => {
           console.log('로그인 응답:', response);
+          console.log('사용자 정보:', response.user);
           if (response.token) {
             localStorage.setItem('isLoggedIn', 'true');
             localStorage.setItem('userEmail', response.user.email);
+            localStorage.setItem('userName', response.user.name || '사용자');
             localStorage.setItem('userRole', response.user.role || 'user');
             localStorage.setItem('token', response.token);
+            console.log('저장된 userName:', response.user.name);
+            console.log('저장된 userEmail:', response.user.email);
             // 커스텀 이벤트 발생 (Header 컴포넌트에 로그인 상태 변경 알림)
             window.dispatchEvent(new Event('loginStateChanged'));
             alert('로그인 성공!');

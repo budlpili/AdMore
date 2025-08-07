@@ -817,8 +817,43 @@ const Admin: React.FC = () => {
     { id: 'users', label: '회원관리', icon: faUser, count: totalUsers, action: undefined },
   ];
 
+  // 로그아웃 함수
+  const handleLogout = async () => {
+    if (window.confirm('정말 로그아웃 하시겠습니까?')) {
+      try {
+        // 백엔드에 로그아웃 요청
+        await authAPI.logout();
+        console.log('백엔드 로그아웃 성공');
+      } catch (error) {
+        console.error('백엔드 로그아웃 실패:', error);
+        // 백엔드 로그아웃이 실패해도 프론트엔드 로그아웃은 진행
+      }
+
+      // localStorage에서 모든 로그인 정보 제거
+      localStorage.removeItem('isLoggedIn');
+      localStorage.removeItem('userEmail');
+      localStorage.removeItem('userName');
+      localStorage.removeItem('userRole');
+      localStorage.removeItem('token');
+      
+      // 채팅 관련 데이터도 제거
+      localStorage.removeItem('chat_messages');
+      localStorage.removeItem('current_session');
+      localStorage.removeItem('recentProducts');
+      
+      // 기타 세션 데이터 제거
+      sessionStorage.clear();
+      
+      // 로그아웃 완료 알림
+      alert('로그아웃이 완료되었습니다.');
+      
+      // 로그인 페이지로 이동
+      navigate('/login', { replace: true });
+    }
+  };
+
   const homeItem: SidebarItem = { id: 'home', label: '홈으로', icon: faHome, action: () => navigate('/'), count: undefined };
-  const logoutItem: SidebarItem = { id: 'logout', label: '로그아웃', icon: faSignOutAlt, action: () => navigate('/login'), count: undefined };
+  const logoutItem: SidebarItem = { id: 'logout', label: '로그아웃', icon: faSignOutAlt, action: handleLogout, count: undefined };
 
   // 회원 선택 관련 함수들
   const toggleUserSelection = (userId: string) => {
@@ -1378,7 +1413,7 @@ const Admin: React.FC = () => {
             </div>
             <div className="relative group mt-2">
               <button
-                onClick={() => navigate('/login')}
+                onClick={handleLogout}
                 className="w-full h-12 flex items-center px-6 py-2 rounded-lg transition-all duration-500 ease-in-out text-red-600 hover:bg-gray-100"
                 title={isSidebarCollapsed ? logoutItem.label : undefined}
               >
@@ -1527,7 +1562,7 @@ const Admin: React.FC = () => {
             <div className="relative group mt-2">
               <button
                 onClick={() => {
-                  navigate('/login');
+                  handleLogout();
                   setIsMobileSidebarOpen(false);
                 }}
                 className="w-full h-12 flex items-center px-6 py-2 rounded-lg transition-all duration-500 ease-in-out text-red-600 hover:bg-gray-100"
@@ -1589,10 +1624,10 @@ const Admin: React.FC = () => {
                 <FontAwesomeIcon icon={faSearch} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="검색어를 입력하세요(전체검색)"
+                  placeholder="검색어를 입력하세요(전체)"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-64 pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-xs outline-none
+                  className="min-w-[200px] pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-xs outline-none
                       focus:ring-2 focus:ring-orange-200 focus:border-transparent"
                 />
               </div>
@@ -1612,21 +1647,25 @@ const Admin: React.FC = () => {
                 {/* 알림 드롭다운 */}
                 {isNotificationDropdownOpen && (
                   <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
-                    <div className="p-4 border-b border-gray-200">
-                      <h3 className="text-lg font-semibold text-gray-900">알림</h3>
+                    <div className="px-4 py-2 border-b border-gray-200">
+                      <span className="text-sm font-semibold text-gray-900">알림</span>
                     </div>
                     <div className="max-h-64 overflow-y-auto">
-                      <div className="p-3 hover:bg-gray-50 border-b border-gray-100">
+                      <div className="px-3 py-2 hover:bg-gray-50 border-b border-gray-100">
                         <p className="text-sm font-medium text-gray-900">새로운 주문이 접수되었습니다</p>
                         <p className="text-xs text-gray-500 mt-1">주문번호: 20240601-004</p>
                         <p className="text-xs text-gray-400">2분 전</p>
                       </div>
-                      <div className="p-3 hover:bg-gray-50 border-b border-gray-100">
+                      <div className="px-3 py-2 hover:bg-gray-50 border-b border-gray-100">
                         <p className="text-sm font-medium text-gray-900">새로운 리뷰가 작성되었습니다</p>
                         <p className="text-xs text-gray-500 mt-1">상품: 프리미엄 디자인 서비스</p>
                         <p className="text-xs text-gray-400">15분 전</p>
                       </div>
-                      <div className="p-3 hover:bg-gray-50">
+                      <div className="px-3 py-2 hover:bg-gray-50">
+                        <p className="text-sm font-medium text-gray-900">고객 문의가 접수되었습니다</p>
+                        <p className="text-xs text-gray-500 mt-1">문의자: 김고객</p>
+                        <p className="text-xs text-gray-400">1시간 전</p>
+                      </div><div className="px-3 py-2 hover:bg-gray-50">
                         <p className="text-sm font-medium text-gray-900">고객 문의가 접수되었습니다</p>
                         <p className="text-xs text-gray-500 mt-1">문의자: 김고객</p>
                         <p className="text-xs text-gray-400">1시간 전</p>
@@ -1678,7 +1717,7 @@ const Admin: React.FC = () => {
                     </div>
                     <div className="border-t border-gray-200 py-2">
                       <button 
-                        onClick={() => navigate('/login')}
+                        onClick={handleLogout}
                         className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 transition-colors"
                       >
                         로그아웃

@@ -16,6 +16,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
 
 // 테이블 초기화 함수
 const initializeTables = () => {
+    // 마이그레이션 코드는 나중에 별도로 처리
   // 사용자 테이블
   db.run(`CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -38,7 +39,7 @@ const initializeTables = () => {
     description TEXT,
     discountRate INTEGER DEFAULT 0,
     originalPrice INTEGER,
-    price TEXT NOT NULL,
+    price INTEGER NOT NULL,
     price1Day INTEGER,
     price7Days INTEGER,
     price30Days INTEGER,

@@ -24,4 +24,20 @@ export function getRecentProducts(): Product[] {
 
 export function clearRecentProducts() {
   localStorage.removeItem(RECENT_KEY);
+}
+
+export function removeRecentProduct(productId: number) {
+  try {
+    const list: Product[] = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
+    const updatedList = list.filter((p) => p.id !== productId);
+    localStorage.setItem(RECENT_KEY, JSON.stringify(updatedList));
+  } catch {}
+}
+
+export function updateRecentProduct(productId: number, updatedProduct: Product) {
+  try {
+    const list: Product[] = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
+    const updatedList = list.map((p) => p.id === productId ? updatedProduct : p);
+    localStorage.setItem(RECENT_KEY, JSON.stringify(updatedList));
+  } catch {}
 } 

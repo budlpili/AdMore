@@ -8,9 +8,8 @@ import { faFacebook, faInstagram, faYoutube, faBlogger, faTwitter, faTelegram, I
 import CouponCard from '../components/CouponCard';
 import ProductCard from '../components/ProductCard';
 import { useDragScroll } from '../hooks/useDragScroll';
-import { ordersAPI, customerServiceAPI, couponsAPI } from '../services/api';
+import { ordersAPI, customerServiceAPI, couponsAPI, productAPI } from '../services/api';
 import { mockReviews } from '../data/reviews-list';
-import { products } from '../data/products';
 import { DUMMY_COUPONS, Coupon } from '../data/coupons';
 import { Order } from '../data/orderdata';
 import { Notice } from '../types';
@@ -431,14 +430,27 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
       console.error('사용자 정보 로드 실패:', error);
     }
   };
+  // 상품 데이터 상태
+  const [products, setProducts] = useState<any[]>([]);
+  
   // 즐겨찾기 상태
   const [favoriteIds, setFavoriteIds] = useState<number[]>([]);
   const [favoriteProducts, setFavoriteProducts] = useState<any[]>([]);
+  
+  // 상품 데이터 로드
+  const loadProducts = async () => {
+    try {
+      const activeProducts = await productAPI.getActiveProducts();
+      setProducts(activeProducts);
+    } catch (error) {
+      console.error('상품 로드 에러:', error);
+      setProducts([]);
+    }
+  };
+  
   useEffect(() => {
-    const favorites = getFavorites();
-    setFavoriteIds(favorites);
-    const favoriteProductsList = products.filter(product => favorites.includes(product.id));
-    setFavoriteProducts(favoriteProductsList);
+    // 상품 데이터 로드
+    loadProducts();
     
     // 사용자 정보 로드
     loadUserInfo();
@@ -447,6 +459,14 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
     // 쿠폰함 로드
     loadUserCoupons();
   }, []);
+  
+  // 즐겨찾기 상품 업데이트
+  useEffect(() => {
+    const favorites = getFavorites();
+    setFavoriteIds(favorites);
+    const favoriteProductsList = products.filter((product: any) => favorites.includes(product.id));
+    setFavoriteProducts(favoriteProductsList);
+  }, [products]);
 
   // 공지사항 순환 애니메이션
   useEffect(() => {
@@ -671,7 +691,7 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
     } else {
       addFavorite(id);
       setFavoriteIds(prev => [...prev, id]);
-      const productToAdd = products.find(p => p.id === id);
+      const productToAdd = products.find((p: any) => p.id === id);
       if (productToAdd) {
         setFavoriteProducts(prev => [...prev, productToAdd]);
       }
@@ -2728,12 +2748,12 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                   {favoriteProducts.length === 0 ? (
                     <div className="text-center py-12">
                       <div className="text-gray-400 mb-4">
-                        <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg className="mx-auto h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                         </svg>
                       </div>
-                      <p className="text-gray-500 text-lg">즐겨찾기한 상품이 없습니다.</p>
-                      <p className="text-gray-400 text-sm mt-2">상품을 즐겨찾기에 추가해보세요.</p>
+                      <p className="text-gray-500 text-base">즐겨찾기한 상품이 없습니다.</p>
+                      <p className="text-gray-400 text-xs mt-1">상품을 즐겨찾기에 추가해보세요.</p>
                     </div>
                   ) : (
                     <>
@@ -2745,7 +2765,7 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                           전체 삭제
                         </button>
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         {favoriteProducts.map((product) => (
                           <ProductCard
                             key={product.id}

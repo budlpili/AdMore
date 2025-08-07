@@ -483,10 +483,15 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
   };
 
   const checkLoginStatus = () => {
-    if (!userEmail || userEmail === 'guest@example.com') {
+    console.log('checkLoginStatus - userEmail:', userEmail);
+    console.log('checkLoginStatus - actualUserEmail:', actualUserEmail);
+    
+    if (!actualUserEmail || actualUserEmail === 'guest@example.com') {
+      console.log('로그인 필요 - 로그인 모달 표시');
       setShowLoginModal(true);
       return false;
     }
+    console.log('로그인 상태 확인됨');
     return true;
   };
 
@@ -564,10 +569,21 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
   };
 
   const handleOpen = () => {
-    // 로그인하지 않은 사용자 체크
-    if (!checkLoginStatus()) return;
+    console.log('handleOpen 호출됨');
+    console.log('userEmail:', userEmail);
+    console.log('actualUserEmail:', actualUserEmail);
     
-    setMode('home');
+    // 로그인하지 않은 사용자 체크
+    if (!checkLoginStatus()) {
+      console.log('로그인 상태 체크 실패');
+      return;
+    }
+    
+    console.log('채팅창 열기 시도');
+    // 채팅창 열기
+    setIsChatOpen(true);
+    
+    setMode('chat');
     setIsChatCompleted(false);
     setShowDeleteConfirmModal(false);
     
@@ -700,9 +716,13 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
   return (
     <>
       {/* 문의하기 플로팅 버튼 (데스크탑만, 상품 상세 페이지에서는 숨김) */}
-      {!hideFloatingButton && (
+      {(() => {
+        console.log('ChatWidget - hideFloatingButton:', hideFloatingButton);
+        console.log('ChatWidget - 플로팅 버튼 표시 여부:', !hideFloatingButton);
+        return !hideFloatingButton;
+      })() && (
         <button
-          className="hidden md:flex fixed bottom-6 right-6 z-50 bg-blue-600 text-white rounded-full shadow-lg w-16 h-16 items-center justify-center text-3xl hover:bg-blue-700 transition"
+          className="fixed bottom-6 right-6 z-50 bg-blue-600 text-white rounded-full shadow-lg w-16 h-16 items-center justify-center text-3xl hover:bg-blue-700 transition"
           onClick={handleOpen}
           aria-label="문의하기"
           style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.15)' }}
@@ -746,9 +766,10 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                 {mode === 'chat' && !isChatCompleted && (
                   <button 
                     onClick={handleCompleteChat} 
-                    className="text-xs bg-orange-600 text-white px-3 py-1 rounded-md hover:bg-orange-700 transition-colors font-medium"
+                    className="text-xs bg-blue-600 text-white p-2 w-12 h-12 rounded-full hover:bg-blue-700 
+                      transition-colors font-medium mr-4 shadow-md shadow-blue-500/50 border border-blue-600"
                   >
-                    답변완료
+                    채팅<br />완료
                   </button>
                 )}
                 <button onClick={handleClose} className="text-gray-500 hover:text-gray-700 text-base">

@@ -311,7 +311,18 @@ const Header: React.FC<HeaderProps> = ({ setIsChatOpen }) => {
 
                       <div className="flex items-center gap-2 px-0 py-2">
                           <FontAwesomeIcon icon={faUserSolid} className="border px-2 py-2 rounded-full text-2xl text-gray-400 bg-gray-100" />
-                          <span className="font-semibold text-gray-800 text-[14px]">{localStorage.getItem('userEmail') || ''}</span>
+                          <div className="flex flex-col">
+                            <span className="font-semibold text-gray-800 text-[14px]">
+                              {(() => {
+                                const userName = localStorage.getItem('userName');
+                                const userEmail = localStorage.getItem('userEmail');
+                                console.log('Header - userName:', userName);
+                                console.log('Header - userEmail:', userEmail);
+                                return userName || '사용자';
+                              })()}
+                            </span>
+                            <span className="text-gray-500 text-[12px]">{localStorage.getItem('userEmail') || ''}</span>
+                          </div>
                       </div>
                       <div className="flex items-center justify-center gap-4 px-4 py-4 rounded-md bg-gray-100 text-xs">
                         <span className="font-semibold">쿠폰 

@@ -248,6 +248,19 @@ const changePassword = (req, res) => {
   });
 };
 
+// 로그아웃
+const logout = (req, res) => {
+  try {
+    // 클라이언트에서 토큰을 제거하도록 안내
+    // 서버 측에서는 토큰 블랙리스트나 세션 관리를 할 수 있지만,
+    // 현재 구현에서는 클라이언트 측 토큰 제거로 충분
+    res.json({ message: '로그아웃이 완료되었습니다.' });
+  } catch (error) {
+    console.error('로그아웃 오류:', error);
+    res.status(500).json({ message: '로그아웃 처리 중 오류가 발생했습니다.' });
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -255,5 +268,6 @@ module.exports = {
   verifyAdminPassword,
   getProfile,
   updateProfile,
-  changePassword
+  changePassword,
+  logout
 }; 
