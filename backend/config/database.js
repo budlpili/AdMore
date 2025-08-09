@@ -29,7 +29,10 @@ const initializeTables = () => {
     role TEXT DEFAULT 'user',
     lastLogin TEXT,
     orderCount INTEGER DEFAULT 0,
-    totalSpent INTEGER DEFAULT 0
+    totalSpent INTEGER DEFAULT 0,
+    emailVerified INTEGER DEFAULT 0,
+    verifyToken TEXT,
+    verifyExpires TEXT
   )`);
 
   // 상품 테이블
@@ -217,6 +220,23 @@ const initializeTables = () => {
   )`);
 
   console.log('데이터베이스 테이블이 초기화되었습니다.');
+
+  // users 테이블에 이메일 인증 관련 컬럼 보강 (기존 DB 안전 추가)
+  db.run(`ALTER TABLE users ADD COLUMN emailVerified INTEGER DEFAULT 0`, (err) => {
+    if (err && !String(err.message).includes('duplicate column name')) {
+      console.error('emailVerified 컬럼 추가 오류:', err.message);
+    }
+  });
+  db.run(`ALTER TABLE users ADD COLUMN verifyToken TEXT`, (err) => {
+    if (err && !String(err.message).includes('duplicate column name')) {
+      console.error('verifyToken 컬럼 추가 오류:', err.message);
+    }
+  });
+  db.run(`ALTER TABLE users ADD COLUMN verifyExpires TEXT`, (err) => {
+    if (err && !String(err.message).includes('duplicate column name')) {
+      console.error('verifyExpires 컬럼 추가 오류:', err.message);
+    }
+  });
   
   // productNumber 컬럼이 없는 경우 추가
   db.run(`ALTER TABLE products ADD COLUMN productNumber TEXT`, (err) => {

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { register, login, adminLogin, verifyAdminPassword, getProfile, updateProfile, changePassword, logout } = require('../controllers/userController');
+const { register, login, adminLogin, verifyAdminPassword, getProfile, updateProfile, changePassword, logout, verifyEmail } = require('../controllers/userController');
 const { auth } = require('../middleware/auth');
 
 // 회원가입
@@ -26,5 +26,8 @@ router.put('/change-password', auth, changePassword);
 
 // 로그아웃 (인증 필요)
 router.post('/logout', auth, logout);
+
+// 이메일 인증 확인
+router.get('/verify-email', verifyEmail);
 
 module.exports = router; 

@@ -1022,7 +1022,7 @@ const Admin: React.FC = () => {
     { id: 'coupons', label: '쿠폰관리', icon: faTicketAlt, count: undefined, action: undefined },
     { id: 'points', label: '포인트관리', icon: faCoins, count: undefined, action: undefined },
     { id: 'customerService', label: '고객센터', icon: faComments, count: undefined, action: undefined, subItems: [
-      { id: 'notices', label: '공지사항', icon: faBell, count: undefined, action: undefined },
+      { id: 'notices', label: '공지사항', icon: faBell, count: unreadCount, action: undefined },
       { id: 'terms', label: '이용약관', icon: faFileAlt, count: undefined, action: undefined },
       { id: 'privacy', label: '개인정보취급방침', icon: faShieldAlt, count: undefined, action: undefined }
     ] },
@@ -1637,9 +1637,9 @@ const Admin: React.FC = () => {
                   }`}>
                     <div className="whitespace-nowrap text-sm font-semibold">{item.label}</div>
                     {item.count !== undefined && (
-                      <div className="bg-orange-500 text-white font-bold text-[8px] leading-4 text-center w-[14px] h-[14px] rounded-full ml-2 
-                          whitespace-nowrap">
-                        {item.count}
+                      <div className="bg-orange-500 text-white text-[9px] leading-4 text-center w-4 h-4 rounded-full ml-2 
+                        px-[1px] whitespace-nowrap">
+                        {typeof item.count === 'number' && item.count > 99 ? '99+' : item.count}
                       </div>
                     )}
                   </div>
@@ -1676,9 +1676,8 @@ const Admin: React.FC = () => {
                       >
                         <span className="whitespace-nowrap text-xs font-medium text-gray-700">{subItem.label}</span>
                         {subItem.count !== undefined && (
-                          <span className="bg-orange-500 text-white font-bold text-[8px] leading-4 text-center w-[14px] h-[14px] rounded-full ml-2 
-                          whitespace-nowrap">
-                            {subItem.count}
+                          <span className="bg-orange-500 text-white font-bold text-[8px] leading-4 text-center min-w-[14px] h-[14px] rounded-full ml-2 px-[3px] whitespace-nowrap">
+                            {typeof subItem.count === 'number' && subItem.count > 99 ? '99+' : subItem.count}
                           </span>
                         )}
                       </button>
@@ -1901,7 +1900,7 @@ const Admin: React.FC = () => {
         <header className="relative bg-white shadow-none border-b border-gray-200 px-6 py-2">
           <div className="flex items-center justify-between">
             {/* 왼쪽: 사이드바 토글 버튼 */}
-            <div className="flex items-center">
+            <div className="absolute left-1 top-1/2 transform -translate-y-1/2 flex items-center">
               <button
                 onClick={() => {
                   if (window.innerWidth < 768) {
@@ -1944,8 +1943,9 @@ const Admin: React.FC = () => {
                   className="relative p-2 text-gray-500 hover:text-gray-900 rounded-lg transition-colors"
                 >
                   <FontAwesomeIcon icon={faBell} className="text-lg" />
-                  <span className="absolute top-[2px] -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
-                    {unreadCount > 0 ? unreadCount : ''}
+                  <span className="absolute top-[2px] -right-1 bg-red-500 text-white text-[10px] rounded-full 
+                    min-w-4 h-4 px-1 flex items-center justify-center">
+                    {unreadCount > 99 ? '99+' : unreadCount}
                   </span>
                 </button>
 
@@ -2213,10 +2213,7 @@ const Admin: React.FC = () => {
                             <span className="font-semibold text-yellow-600">{orders.filter(o => o.paymentMethod === 'virtual').length}건</span>
                           </div>
                           
-                          <div className="flex justify-between items-center">
-                            <span className="text-gray-600">작업취소</span>
-                            <span className="font-semibold text-red-600">{orders.filter(o => o.status === '작업취소').length}건</span>
-                          </div>
+                          
                         </div>
                       </div>
                       {/* 차트 */}
@@ -2224,17 +2221,15 @@ const Admin: React.FC = () => {
                         <div className="p-2 w-40 h-40">
                           <Doughnut
                             data={{
-                              labels: ['신용카드', '가상계좌', '작업취소'],
+                              labels: ['신용카드', '가상계좌'],
                               datasets: [{
                                 data: [
                                   orders.filter(o => o.paymentMethod === 'card').length,
                                   orders.filter(o => o.paymentMethod === 'virtual').length,
-                                  orders.filter(o => o.status === '작업취소').length
                                 ],
                                 backgroundColor: [
                                   '#3B82F6', // blue
                                   '#FCD34D', // yellow
-                                  '#EF4444'  // red
                                 ],
                                 borderWidth: 2,
                                 borderColor: '#fff'
