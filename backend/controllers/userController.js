@@ -322,6 +322,54 @@ const logout = (req, res) => {
   }
 };
 
+// 이메일 인증 메일 재발송
+const resendVerifyEmail = (req, res) => {
+  const { email, name } = req.body || {};
+  if (!email) return res.status(400).json({ message: '이메일이 필요합니다.' });
+
+  db.get('SELECT id, name, emailVerified FROM users WHERE email = ?', [email], async (err, user) => {
+    if (err) return res.status(500).json({ message: '서버 오류가 발생했습니다.' });
+    if (!user) return res.status(404).json({ message: '가입 정보를 찾을 수 없습니다.' });
+    if (user.emailVerified === 1) return res.status(400).json({ message: '이미 이메일 인증이 완료된 계정입니다.' });
+
+    const verifyToken = crypto.randomBytes(32).toString('hex');
+    const verifyExpires = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+
+    db.run('UPDATE users SET verifyToken = ?, verifyExpires = ? WHERE id = ?', [verifyToken, verifyExpires, user.id], async (uErr) => {
+      if (uErr) return res.status(500).json({ message: '토큰 생성 중 오류가 발생했습니다.' });
+
+      try {
+        const transporter = nodemailer.createTransport({
+          host: process.env.SMTP_HOST || 'smtp.gmail.com',
+          port: Number(process.env.SMTP_PORT) || 587,
+          secure: false,
+          auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+        });
+        const baseUrl = process.env.APP_BASE_URL || 'http://localhost:3000';
+        const verifyUrl = `${baseUrl}/verify-email?token=${verifyToken}`;
+        await transporter.sendMail({
+          from: process.env.MAIL_FROM || process.env.SMTP_USER,
+          to: email,
+          subject: '애드모어 이메일 인증을 완료해주세요',
+          html: `
+            <div style="font-family:Arial,sans-serif;font-size:14px;color:#111">
+              <h2>안녕하세요, ${name || user.name || ''}님!</h2>
+              <p>아래 버튼을 눌러 이메일 인증을 완료해주세요. 링크는 30분간 유효합니다.</p>
+              <p><a href="${verifyUrl}" style="display:inline-block;padding:10px 16px;background:#f97316;color:#fff;border-radius:6px;text-decoration:none">이메일 인증</a></p>
+              <p>버튼이 동작하지 않으면 링크를 복사하여 브라우저에 붙여넣기 해주세요:</p>
+              <p><a href="${verifyUrl}">${verifyUrl}</a></p>
+            </div>
+          `,
+        });
+        return res.json({ message: '인증 메일을 재발송했습니다.' });
+      } catch (mailErr) {
+        console.error('메일 재발송 오류:', mailErr);
+        return res.status(500).json({ message: '메일 발송 중 오류가 발생했습니다.' });
+      }
+    });
+  });
+};
+
 module.exports = {
   register,
   login,
@@ -331,5 +379,6 @@ module.exports = {
   updateProfile,
   changePassword,
   logout,
-  verifyEmail
+  verifyEmail,
+  resendVerifyEmail
 }; 

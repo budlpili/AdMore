@@ -64,7 +64,17 @@ const Login: React.FC = () => {
           console.error('로그인 오류:', error);
           // 더 자세한 에러 메시지 처리
           if (error.response && error.response.data) {
-            setErrors({ general: error.response.data.message || '로그인에 실패했습니다.' });
+            const msg = error.response.data.message || '로그인에 실패했습니다.';
+            setErrors({ general: msg });
+            // 이메일 인증 필요시 재발송 안내
+            if (msg.includes('이메일 인증')) {
+              const email = formData.email;
+              if (window.confirm('이메일 인증이 필요합니다.\n\n인증 메일을 다시 보내시겠습니까?')) {
+                authAPI.resendVerify(email)
+                  .then(() => alert('인증 메일을 재발송했습니다. 메일함을 확인해주세요.'))
+                  .catch(() => alert('메일 재발송 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'));
+              }
+            }
           } else if (error.message) {
             setErrors({ general: error.message });
           } else {

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { register, login, adminLogin, verifyAdminPassword, getProfile, updateProfile, changePassword, logout, verifyEmail } = require('../controllers/userController');
+const { register, login, adminLogin, verifyAdminPassword, getProfile, updateProfile, changePassword, logout, verifyEmail, resendVerifyEmail } = require('../controllers/userController');
 const { auth } = require('../middleware/auth');
 
 // 회원가입
@@ -29,5 +29,6 @@ router.post('/logout', auth, logout);
 
 // 이메일 인증 확인
 router.get('/verify-email', verifyEmail);
+router.post('/resend-verify', resendVerifyEmail);
 
 module.exports = router; 

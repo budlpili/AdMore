@@ -93,6 +93,13 @@ export const authAPI = {
       body: JSON.stringify(userData),
     });
   },
+  // 인증메일 재발송
+  resendVerify: async (email: string) => {
+    return apiRequest('/auth/resend-verify', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  },
 
   // 로그아웃
   logout: async () => {
