@@ -21,6 +21,21 @@ import ApiTest from './components/ApiTest';
 import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
 
+// 보호된 라우트 컴포넌트
+const ProtectedAdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const isLoggedIn = localStorage.getItem('isLoggedIn');
+  const userRole = localStorage.getItem('userRole');
+  const userEmail = localStorage.getItem('userEmail');
+  const token = localStorage.getItem('token');
+
+  // 관리자 권한 체크 (userRole이 'admin'이면 접근 허용)
+  if (!isLoggedIn || userRole !== 'admin' || !userEmail || !token) {
+    return <Login />;
+  }
+
+  return <>{children}</>;
+};
+
 const AppRoutes: React.FC<{ isChatOpen: boolean; setIsChatOpen: (open: boolean) => void; userEmail: string }> = ({ isChatOpen, setIsChatOpen, userEmail }) => {
   const location = useLocation();
   const isOrderPage = location.pathname.startsWith('/order');
@@ -52,7 +67,7 @@ const AppRoutes: React.FC<{ isChatOpen: boolean; setIsChatOpen: (open: boolean) 
               <Route path="/review/write" element={<ReviewWritePage />} />
               <Route path="/terms" element={<Terms />} />
               <Route path="/privacy" element={<Privacy />} />
-              <Route path="/admin" element={<Admin />} />
+              <Route path="/admin" element={<ProtectedAdminRoute><Admin /></ProtectedAdminRoute>} />
               <Route path="/api-test" element={<ApiTest />} />
             </Routes>
           </main>
@@ -62,7 +77,7 @@ const AppRoutes: React.FC<{ isChatOpen: boolean; setIsChatOpen: (open: boolean) 
       
       {isAdminPage && (
         <Routes>
-          <Route path="/admin" element={<Admin />} />
+          <Route path="/admin" element={<ProtectedAdminRoute><Admin /></ProtectedAdminRoute>} />
         </Routes>
       )}
 

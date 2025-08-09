@@ -70,7 +70,7 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
   const [exportedFiles, setExportedFiles] = useState<Array<{name: string; size: number; created: string; type: string}>>([]);
   const [showFileList, setShowFileList] = useState(false);
   const [deletedUsers, setDeletedUsers] = useState<Set<string>>(new Set());
-  const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(false);
+  const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(true);
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
   const [activeUsers, setActiveUsers] = useState<Array<{email: string; lastMessageTime: string; isOnline: boolean}>>([]);
   const [selectedUserEmail, setSelectedUserEmail] = useState<string | null>(null);
@@ -941,7 +941,7 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                           <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center">
                             <span className="text-white text-xs font-bold">{getInitials(user)}</span>
                           </div>
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1 mt-4">
                             {isDeleteMode && (
                               <input
                                 type="checkbox"
@@ -1003,7 +1003,7 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                             </div>
                           </div>
                           <div className="text-sm text-gray-600 mt-1 overflow-hidden" title={latestMessage.message}>
-                            <div className="line-clamp-1 text-ellipsis overflow-hidden">
+                            <div className="w-[240px] truncate whitespace-nowrap overflow-hidden">
                               {latestMessage.message}
                             </div>
                           </div>
@@ -1021,75 +1021,75 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
             </div>
           )}
         </div>
-                 <div className="flex justify-between gap-2 border-t border-gray-200 p-4">
-           {!isDeleteMode && !isExportMode ? (
-             <>
-               <button
-                 onClick={toggleDeleteMode}
-                 className="px-3 py-1 text-sm font-medium text-gray-500 hover:text-gray-600 hover:underline transition-colors"
-               >
-                 삭제하기
-               </button>
-               <button
-                 onClick={toggleExportMode}
-                 className="px-3 py-1 text-sm font-medium text-blue-500 hover:text-blue-600 hover:underline transition-colors"
-               >
-                 저장하기
-               </button>
-               
-               <button
-                 onClick={() => {
-                   loadExportedFiles();
-                   setShowFileList(!showFileList);
-                 }}
-                 className="px-3 py-1 text-sm font-medium text-purple-500 hover:text-purple-600 hover:underline transition-colors"
-               >
-                 저장된 파일
-               </button>
-             </>
-           ) : isDeleteMode ? (
-             <>
-               <button
-                 onClick={handleDeleteSelectedUsers}
-                 disabled={selectedUsersForDelete.size === 0}
-                 className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-               >
-                 선택 삭제 ({selectedUsersForDelete.size})
-               </button>
-               <button
-                 onClick={toggleDeleteMode}
-                 className="px-3 py-1 text-sm bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
-               >
-                 취소
-               </button>
-             </>
-           ) : isExportMode ? (
-             <>
-               <button
-                 onClick={handleExportSelectedUsers}
-                 disabled={selectedUsersForExport.size === 0}
-                 className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-               >
-                 선택 저장 ({selectedUsersForExport.size})
-               </button>
-               <button
-                 onClick={toggleExportMode}
-                 className="px-3 py-1 text-sm bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
-               >
-                 취소
-               </button>
-             </>
+        <div className="flex justify-between gap-2 border-t border-gray-200 p-4">
+          {!isDeleteMode && !isExportMode ? (
+            <>
+              <button
+                onClick={toggleDeleteMode}
+                className="px-3 py-1 text-sm font-medium text-gray-500 hover:text-gray-600 hover:underline transition-colors"
+              >
+                삭제하기
+              </button>
+              <button
+                onClick={toggleExportMode}
+                className="px-3 py-1 text-sm font-medium text-blue-500 hover:text-blue-600 hover:underline transition-colors"
+              >
+                저장하기
+              </button>
+              
+              <button
+                onClick={() => {
+                  loadExportedFiles();
+                  setShowFileList(!showFileList);
+                }}
+                className="px-3 py-1 text-sm font-medium text-purple-500 hover:text-purple-600 hover:underline transition-colors"
+              >
+                저장된 파일
+              </button>
+            </>
+          ) : isDeleteMode ? (
+            <>
+              <button
+                onClick={handleDeleteSelectedUsers}
+                disabled={selectedUsersForDelete.size === 0}
+                className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+              >
+                선택 삭제 ({selectedUsersForDelete.size})
+              </button>
+              <button
+                onClick={toggleDeleteMode}
+                className="px-3 py-1 text-sm bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
+              >
+                취소
+              </button>
+            </>
+          ) : isExportMode ? (
+            <>
+              <button
+                onClick={handleExportSelectedUsers}
+                disabled={selectedUsersForExport.size === 0}
+                className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+              >
+                선택 저장 ({selectedUsersForExport.size})
+              </button>
+              <button
+                onClick={toggleExportMode}
+                className="px-3 py-1 text-sm bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
+              >
+                취소
+              </button>
+            </>
                       ) : null}
-         </div>
+        </div>
 
          {/* 저장된 파일 목록 */}
-         {showFileList && (
-           <div className="border-t border-gray-200 p-4 bg-gray-50">
-             <h4 className="text-xs font-medium text-gray-700 mb-2">저장된 파일 목록</h4>
-             {exportedFiles.length === 0 ? (
-               <p className="text-sm text-gray-500">저장된 파일이 없습니다.</p>
-             ) : (
-                               <div className="space-y-2 max-h-40 overflow-y-auto">
+        {showFileList && (
+          <div className="border-t border-gray-200 p-4 bg-gray-50">
+            <h4 className="text-xs font-medium text-gray-700 mb-2">저장된 파일 목록</h4>
+            {exportedFiles.length === 0 ? (
+              <p className="text-sm text-gray-500">저장된 파일이 없습니다.</p>
+            ) : (
+                              <div className="space-y-2 max-h-40 overflow-y-auto">
                   {exportedFiles.map((file, index) => (
                     <div key={index} className="flex items-center justify-between p-2 bg-white rounded border">
                       <div className="w-full">
@@ -1119,8 +1119,8 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                </div>
              )}
            </div>
-         )}
-       </div>
+        )}
+      </div>
 
       {/* 중앙 패널 */}
       <div className="flex-1 bg-white border-r border-gray-200 flex flex-col relative">
@@ -1128,10 +1128,11 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
         <div className="p-4 border-b border-gray-200 flex items-center justify-between">
 
           {/* 모바일 유저 선택 드롭다운 */}
-          <div className="user-dropdown md:hidden relative ml-4 border w-full">
+          <div className="user-dropdown md:hidden relative w-full">
             <button
               onClick={() => setIsUserDropdownOpen(!isUserDropdownOpen)}
-              className="w-full flex items-center justify-between gap-2 px-3 py-3 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+              className="w-full flex items-center justify-between gap-2 px-3 py-3 bg-gray-100 
+                hover:bg-gray-200 rounded-lg transition-colors"
             >
               <span className="text-sm font-medium text-gray-700">
                 {selectedMessage ? getSelectedUserDisplayName() : '유저 선택'}
@@ -1250,7 +1251,7 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                                     </div>
                                   </div>
                                   <div className="text-xs text-gray-600 mt-1 overflow-hidden" title={latestMessage.message}>
-                                    <div className="line-clamp-2 text-ellipsis overflow-hidden">
+                                    <div className="truncate whitespace-nowrap overflow-hidden">
                                       {latestMessage.message}
                                     </div>
                                   </div>
@@ -1267,7 +1268,9 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                 </div>
               </div>
             )}
+
           </div>
+
           <div className="flex-1">
             {/* 선택된 유저 정보 */}
             {selectedMessage && (
@@ -1286,18 +1289,20 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                     <button
                       onClick={() => handleCloseChat(selectedMessage)}
                       disabled={selectedMessage.status === 'closed' || isChatCompleted(selectedMessage.user)}
-                      className={`px-3 py-3 text-sm rounded-lg min-w-20 ${
+                      className={`sm:px-3 sm:py-3 px-1 py-1 sm:text-sm text-[12px] rounded-lg w-[36px] sm:w-[80px] ${
                         selectedMessage.status === 'closed' || isChatCompleted(selectedMessage.user)
                           ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                           : 'bg-green-500 text-white hover:bg-green-600'
                       }`}
                     >
-                      {selectedMessage.status === 'closed' || isChatCompleted(selectedMessage.user) ? '답변완료됨' : '답변완료'}
+                      {selectedMessage.status === 'closed' || isChatCompleted(selectedMessage.user) ? '답변종료' : '답변완료'}
                     </button>
                     {selectedMessage.status !== 'closed' && !isChatCompleted(selectedMessage.user) && (
-                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-0 pointer-events-none whitespace-nowrap z-10">
+                      <div className="absolute bottom-[40px] right-0 mb-2 px-2 py-1 bg-gray-800 
+                        text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity 
+                          duration-0 pointer-events-none whitespace-nowrap z-1000">
                         답변완료를 누르시면 채팅이 종료됩니다.
-                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
+                        <div className="absolute top-full right-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
                       </div>
                     )}
                   </div>
@@ -1309,12 +1314,13 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
           {/* 오른쪽 패널 토글 버튼 */}
           <button
             onClick={() => setIsRightPanelCollapsed(!isRightPanelCollapsed)}
-            className="ml-4 p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            className="ml-1 p-2 text-gray-500 border border-gray-200 rounded-full w-6 h-6 flex items-center justify-center
+              hover:text-gray-700 hover:bg-gray-100 transition-colors"
             title={isRightPanelCollapsed ? "오른쪽 패널 펼치기" : "오른쪽 패널 접기"}
           >
             <FontAwesomeIcon 
               icon={isRightPanelCollapsed ? faChevronLeft : faChevronRight} 
-              className="text-sm" 
+              className="text-xs w-3 h-3 text-gray-400 hover:text-gray-700" 
             />
           </button>
         </div>
@@ -1549,9 +1555,8 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
           ) : (
             <>
               <div 
-                className="inquiry-message-input-container relative min-h-[18px] !h-auto bg-white rounded-lg 
-                border border-gray-300 shadow-xs"
-                style={{ height: 'auto', minHeight: '18px' }}
+                className="inquiry-message-input-container relative min-h-[36px] !h-auto bg-white rounded-lg"
+                style={{ height: 'auto', minHeight: '36px' }}
               >
                 {/* 파일 미리보기 */}
                 {selectedFile && (
@@ -1583,23 +1588,38 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                 {selectedMessage && isChatCompleted(selectedMessage.user) && (
                   <div className="absolute inset-0 bg-gray-50 bg-opacity-100 flex flex-col items-center justify-center 
                       rounded-lg z-10 min-h-[50px]">
-                    <FontAwesomeIcon icon={faCheckCircle} className="text-2xl text-gray-400 mb-2" />
-                    <p className="text-sm font-medium">채팅이 종료되었습니다</p>
-                    <span className="text-gray-500 text-sm font-medium mb-1">채팅이 완료되었습니다</span>
+                    <FontAwesomeIcon icon={faCheckCircle} className="text-2xl text-gray-400 mb-3" />
+                    <p className="text-gray-600 text-sm font-medium">채팅이 종료되었습니다</p>
                     <span className="text-gray-400 text-xs font-medium">더 이상 메시지를 주고받을 수 없습니다</span>
                   </div>
                 )}
                 
-                <div className="relative pr-20 py-1 flex items-center">
+                <div className={`relative pr-20 flex items-center transition-all duration-200 ${
+                  selectedMessage && isChatCompleted(selectedMessage.user)
+                    ? 'opacity-60'
+                    : ''
+                }`}>
+                  {selectedMessage && isChatCompleted(selectedMessage.user) && (
+                    <div className="absolute top-0 left-0 right-0 bottom-0 bg-gray-50 bg-opacity-50 rounded-lg flex items-center justify-center z-10">
+                      <div className="flex items-center gap-2 text-gray-500 text-xs">
+                        <FontAwesomeIcon icon={faCheckCircle} className="text-green-500" />
+                        <span>채팅이 종료되었습니다</span>
+                      </div>
+                    </div>
+                  )}
                   <textarea
                     value={messageInput}
                     onChange={(e) => setMessageInput(e.target.value)}
                     onKeyDown={handleMessageInputKeyDown}
                     rows={1}
-                    placeholder={selectedMessage && isChatCompleted(selectedMessage.user) ? "채팅이 완료되었습니다" : `메시지를 입력하세요. 
+                    placeholder={selectedMessage && isChatCompleted(selectedMessage.user) ? "채팅이 종료되었습니다" : `메시지를 입력하세요. 
 (Enter: 줄바꿈 / Ctrl+Enter: 전송)`}
-                    className="w-full pl-4 pr-4 py-0.5 bg-transparent border-none resize-none
-                      focus:outline-none focus:ring-0 text-xs placeholder-gray-400 h-[36px]"
+                    className={`w-full pl-4 pr-4 py-2 bg-transparent border resize-none
+                      focus:outline-none focus:ring-2 text-xs placeholder-gray-400 h-[48px] rounded-lg overflow-hidden transition-all duration-200 ${
+                        selectedMessage && isChatCompleted(selectedMessage.user)
+                          ? 'border-gray-200 bg-gray-50 text-gray-500 cursor-not-allowed focus:ring-gray-200 h-[80px]'
+                          : 'border-gray-300 focus:ring-orange-500'
+                      }`}
                     disabled={selectedMessage && isChatCompleted(selectedMessage.user)}
                   />
                   <div className="flex items-center justify-end absolute bottom-[6px] right-[6px] gap-2">
@@ -1608,10 +1628,20 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={selectedMessage && isChatCompleted(selectedMessage.user)}
-                      className="text-gray-500 hover:text-gray-700 transition-colors 
-                       flex items-center gap-2 p-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                      className={`transition-colors flex items-center gap-2 p-2 rounded-lg ${
+                        selectedMessage && isChatCompleted(selectedMessage.user)
+                          ? 'text-gray-300 cursor-not-allowed'
+                          : 'text-gray-500 hover:text-gray-700'
+                      }`}
                     >
-                      <FontAwesomeIcon icon={faPaperclip} className="text-base text-gray-400 hover:text-gray-700" />
+                      <FontAwesomeIcon 
+                        icon={faPaperclip} 
+                        className={`text-base transition-colors ${
+                          selectedMessage && isChatCompleted(selectedMessage.user)
+                            ? 'text-gray-300'
+                            : 'text-gray-400 hover:text-gray-700'
+                        }`} 
+                      />
                       {/* 파일첨부 */}
                     </button>
                     <input
@@ -1626,13 +1656,22 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                   <button 
                     onClick={handleSendMessage}
                     disabled={(!messageInput.trim() && !selectedFile) || isSending || (selectedMessage && isChatCompleted(selectedMessage.user))}
-                    className={`flex items-center p-2 rounded-lg transition-colors ${
-                      (messageInput.trim() || selectedFile) && !isSending && !(selectedMessage && isChatCompleted(selectedMessage.user))
-                        ? 'text-white bg-orange-500 hover:bg-orange-600' 
-                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    className={`flex items-center p-2 rounded-lg transition-all duration-200 ${
+                      selectedMessage && isChatCompleted(selectedMessage.user)
+                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                        : (messageInput.trim() || selectedFile) && !isSending
+                          ? 'text-white bg-orange-500 hover:bg-orange-600 shadow-sm' 
+                          : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                     }`}
                   >
-                    <FontAwesomeIcon icon={faPaperPlane} className="text-base" />
+                    <FontAwesomeIcon 
+                      icon={faPaperPlane} 
+                      className={`text-base transition-colors ${
+                        selectedMessage && isChatCompleted(selectedMessage.user)
+                          ? 'text-gray-400'
+                          : ''
+                      }`} 
+                    />
                     {/* <span>{isSending ? '전송중...' : '전송'}</span> */}
                   </button>
                 </div>

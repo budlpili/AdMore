@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement } from 'chart.js';
+import { Bar, Doughnut } from 'react-chartjs-2';
 import { 
   faHome, faCog, faBox, faStar, faComments, faUser, faSignOutAlt, faBell, faSearch, 
   faCaretDown, faCaretUp, faEdit, faTrash, faCheck, faTimes, faEye, faPlus, faMinus,
   faChevronLeft, faChevronRight, faBars, faTimes as faTimesIcon, faSync, faHeadset, faFileAlt, faShieldAlt,
-  faTicketAlt, faCoins
+  faTicketAlt, faCoins, faChartPie, faTasks, faListUl, faHistory
 } from '@fortawesome/free-solid-svg-icons';
 import { authAPI, productAPI, categoryAPI, tagAPI, reviewsAPI, usersAPI } from '../services/api';
 import ProductManagement from '../components/ProductManagement';
@@ -18,9 +20,12 @@ import Pagination from '../components/Pagination';
 import { products as initialProducts, getProducts, saveProducts, resetProducts } from '../data/products';
 import { mockReviews } from '../data/reviews-list';
 import { defaultUsers, User } from '../data/users';
-import { defaultOrderList } from '../data/orderdata';
+import { defaultOrderList, Order as OrderData } from '../data/orderdata';
 import { Product } from '../types';
 import { useWebSocket } from '../hooks/useWebSocket';
+
+// Chart.js 등록
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
 
 interface Order {
   orderId: string;
@@ -78,6 +83,19 @@ interface ChatMessage {
   isCompleted?: boolean; // 채팅 완료 상태 추가
 }
 
+interface Notification {
+  id: string;
+  type: 'order' | 'review' | 'chat' | 'user' | 'system';
+  title: string;
+  message: string;
+  timestamp: string;
+  isRead: boolean;
+  link?: string;
+  orderId?: string;
+  userId?: string;
+  productId?: string;
+}
+
 interface SidebarItem {
   id: string;
   label: string;
@@ -101,12 +119,61 @@ const maskEmail = (email: string): string => {
 const Admin: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+
+  // 관리자 인증 체크
+  useEffect(() => {
+    const checkAdminAuth = () => {
+      const isLoggedIn = localStorage.getItem('isLoggedIn');
+      const userRole = localStorage.getItem('userRole');
+      const userEmail = localStorage.getItem('userEmail');
+      const token = localStorage.getItem('token');
+
+      // 로그인 상태가 아니거나 관리자가 아니면 로그인 페이지로 리다이렉트
+      if (!isLoggedIn || userRole !== 'admin' || !userEmail || !token) {
+        console.log('관리자 권한이 없습니다. 로그인 페이지로 이동합니다.');
+        alert('관리자 권한이 필요합니다. 로그인해주세요.');
+        navigate('/login', { replace: true });
+        return false;
+      }
+
+      // 관리자 권한 체크 (userRole이 'admin'이면 접근 허용)
+      if (userRole !== 'admin') {
+        console.log('관리자 권한이 없습니다. 로그인 페이지로 이동합니다.');
+        alert('관리자 권한이 필요합니다. 로그인해주세요.');
+        navigate('/login', { replace: true });
+        return false;
+      }
+
+      return true;
+    };
+
+    // 페이지 로드 시 인증 체크
+    if (!checkAdminAuth()) {
+      return;
+    }
+  }, [navigate]);
+
   const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'orders' | 'reviews' | 'coupons' | 'points' | 'customerService' | 'inquiries' | 'users'>('dashboard');
   const [customerServiceTab, setCustomerServiceTab] = useState<'notices' | 'terms' | 'privacy'>('notices');
   const [isCustomerServiceExpanded, setIsCustomerServiceExpanded] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
+  // 최근 주문내용 필터 (결제완료 | 입금전)
+  const [recentOrdersFilter, setRecentOrdersFilter] = useState<'paid' | 'unpaid'>('paid');
+  const filteredRecentOrders = useMemo(() => {
+    if (recentOrdersFilter === 'paid') {
+      return orders.filter(o => (
+        ((o.paymentMethod === 'card' || o.paymentMethod === '신용카드') && o.paymentDate && o.paymentDate !== '-') ||
+        ((o.paymentMethod === 'virtual' || o.paymentMethod === '가상계좌') && o.paymentDate && o.paymentDate !== '-')
+      ));
+    }
+    // unpaid: 가상계좌 입금전만
+    return orders.filter(o => (
+      (o.paymentMethod === 'virtual' || o.paymentMethod === '가상계좌') && (!o.paymentDate || o.paymentDate === '-')
+    ));
+  }, [orders, recentOrdersFilter]);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const recentActivityRef = useRef<HTMLDivElement | null>(null);
   const [completedChats, setCompletedChats] = useState<string[]>([]); // 완료된 채팅 추적
 
   // WebSocket 훅 사용
@@ -177,6 +244,47 @@ const Admin: React.FC = () => {
     }
   }, [wsMessages]);
 
+  // 최근 활동 자동 스크롤 (하나씩 위로 이동)
+  useEffect(() => {
+    const container = recentActivityRef.current;
+    if (!container) return;
+
+    let currentIndex = 0;
+
+    const getItems = () => Array.from(container.querySelectorAll<HTMLElement>('.recent-activity-item'));
+
+    const scrollOne = () => {
+      const items = getItems();
+      if (items.length === 0) return;
+
+      // 현재 인덱스의 아이템 높이 만큼 스크롤
+      const targetIndex = Math.min(currentIndex, items.length - 1);
+      const item = items[targetIndex];
+      if (!item) return;
+
+      const gapBetweenItemsPx = 8; // Tailwind space-y-2 = 0.5rem = 8px
+      const step = item.offsetHeight + gapBetweenItemsPx;
+
+      const maxScroll = container.scrollHeight - container.clientHeight;
+      const nextTop = Math.min(container.scrollTop + step, maxScroll);
+      container.scrollTo({ top: nextTop, behavior: 'smooth' });
+
+      currentIndex += 1;
+
+      // 끝까지 스크롤되면 처음으로 리셋
+      if (nextTop >= maxScroll) {
+        // 부드러운 스크롤 종료 후 살짝 대기하고 맨 위로 순간이동
+        setTimeout(() => {
+          container.scrollTo({ top: 0, behavior: 'auto' });
+          currentIndex = 0;
+        }, 600);
+      }
+    };
+
+    const intervalId = window.setInterval(scrollOne, 3000);
+    return () => window.clearInterval(intervalId);
+  }, [orders, reviews, chatMessages]);
+
   // chatMessages 상태를 localStorage에 저장하는 함수
   const updateChatMessages = (newMessages: ChatMessage[]) => {
     setChatMessages(newMessages);
@@ -193,7 +301,20 @@ const Admin: React.FC = () => {
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const [isNotificationDropdownOpen, setIsNotificationDropdownOpen] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  
+  // 알림 관련 상태
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+
+  // 사용자 정보 상태
+  const [currentUser, setCurrentUser] = useState<{
+    name: string;
+    email: string;
+  }>({
+    name: localStorage.getItem('userName') || '관리자',
+    email: localStorage.getItem('userEmail') || 'admin@admore.com'
+  });
 
   // 상품 관리 관련 상태
   const [isProductFormOpen, setIsProductFormOpen] = useState(false);
@@ -262,16 +383,15 @@ const Admin: React.FC = () => {
       try {
         setIsLoading(true);
         
-        // 자동 관리자 로그인
-        const token = localStorage.getItem('authToken');
-        if (!token) {
-          const loginResult = await authAPI.adminLogin('admin@admore.com', 'admin123');
-          if (loginResult) {
-            localStorage.setItem('authToken', loginResult.token);
-            console.log('관리자 로그인 완료');
-          } else {
-            console.error('관리자 로그인 실패');
-          }
+        // 인증 체크
+        const isLoggedIn = localStorage.getItem('isLoggedIn');
+        const userRole = localStorage.getItem('userRole');
+        const userEmail = localStorage.getItem('userEmail');
+        const token = localStorage.getItem('token');
+
+        if (!isLoggedIn || userRole !== 'admin' || !userEmail || !token) {
+          console.log('관리자 권한이 없어 데이터를 로드하지 않습니다.');
+          return;
         }
 
         // 모든 데이터 로드
@@ -307,6 +427,14 @@ const Admin: React.FC = () => {
           )
         );
         
+        // 현재 로그인한 사용자의 정보가 변경된 경우 currentUser 상태도 업데이트
+        if (userEmail === currentUser.email) {
+          setCurrentUser(prev => ({
+            ...prev,
+            name: newName
+          }));
+        }
+        
         // 필터링된 사용자 목록은 users 상태가 업데이트되면 자동으로 재계산됨
         
         console.log(`사용자 ${userEmail}의 이름이 ${newName}으로 변경되었습니다.`);
@@ -321,6 +449,43 @@ const Admin: React.FC = () => {
       window.removeEventListener('userInfoChanged', handleUserInfoChanged as EventListener);
     };
   }, []);
+
+  // localStorage에서 사용자 정보 실시간 감지
+  useEffect(() => {
+    const checkUserInfo = () => {
+      const userName = localStorage.getItem('userName');
+      const userEmail = localStorage.getItem('userEmail');
+      
+      if (userName && userEmail) {
+        setCurrentUser({
+          name: userName,
+          email: userEmail
+        });
+      }
+    };
+
+    // 초기 체크
+    checkUserInfo();
+
+    // storage 이벤트 리스너 (다른 탭에서 변경된 경우)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'userName' || e.key === 'userEmail') {
+        checkUserInfo();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
+
+  // 알림 카운트 실시간 업데이트
+  useEffect(() => {
+    const unreadNotifications = notifications.filter(notification => !notification.isRead);
+    setUnreadCount(unreadNotifications.length);
+  }, [notifications]);
 
   // URL 파라미터와 location.state 변경 처리
   useEffect(() => {
@@ -434,7 +599,7 @@ const Admin: React.FC = () => {
       if (response.ok) {
         const data = await response.json();
         setOrders(data.orders);
-        // console.log('백엔드에서 주문 데이터 로드 완료:', data.orders);
+        console.log('백엔드에서 주문 데이터 로드 완료:', data.orders);
       } else {
         console.error('주문 데이터 로드 실패:', response.status);
         setOrders([]);
@@ -560,6 +725,14 @@ const Admin: React.FC = () => {
           // 성공 시 주문 목록 다시 로드
           await loadOrders();
           alert(`주문 상태가 "${newStatus}"로 변경되었습니다.`);
+          
+          // 주문 상태 변경 알림 추가
+          addNotification({
+            type: 'order',
+            title: '주문 상태 변경',
+            message: `주문 ${orderId}의 상태가 "${newStatus}"로 변경되었습니다.`,
+            orderId
+          });
         } else {
           console.error('주문 상태 업데이트 실패:', response.status);
           alert('주문 상태 업데이트에 실패했습니다.');
@@ -597,6 +770,14 @@ const Admin: React.FC = () => {
           // 성공 시 주문 목록 다시 로드
           await loadOrders();
           alert('입금 확인이 완료되었습니다.');
+          
+          // 입금 확인 알림 추가
+          addNotification({
+            type: 'order',
+            title: '입금 확인',
+            message: `주문 ${orderId}의 입금이 확인되었습니다.`,
+            orderId
+          });
         } else {
           console.error('입금 확인 실패:', response.status);
           alert('입금 확인에 실패했습니다.');
@@ -654,6 +835,14 @@ const Admin: React.FC = () => {
           // 성공 시 리뷰 목록 다시 로드
           await loadReviews();
           alert('리뷰가 성공적으로 삭제되었습니다.');
+          
+          // 리뷰 삭제 알림 추가
+          addNotification({
+            type: 'review',
+            title: '리뷰 삭제',
+            message: `리뷰 ID ${reviewId}가 삭제되었습니다.`,
+            productId: reviewId.toString()
+          });
         } else {
           console.error('리뷰 삭제 실패:', response.status);
           alert('리뷰 삭제에 실패했습니다.');
@@ -685,6 +874,14 @@ const Admin: React.FC = () => {
         // 성공 시 회원 목록 다시 로드
         await loadUsers();
         alert(`회원 상태가 "${statusText[newStatus]}"로 변경되었습니다.`);
+        
+        // 회원 상태 변경 알림 추가
+        addNotification({
+          type: 'user',
+          title: '회원 상태 변경',
+          message: `회원 ${userId}의 상태가 "${statusText[newStatus]}"로 변경되었습니다.`,
+          userId
+        });
       } catch (error) {
         console.error('회원 상태 업데이트 에러:', error);
         alert('회원 상태 업데이트에 실패했습니다.');
@@ -755,17 +952,33 @@ const Admin: React.FC = () => {
     const matchesSearch = (order.product?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
                          (order.orderId?.toLowerCase() || '').includes(searchTerm.toLowerCase());
     
-    // 상태 필터링 로직 (UserPage와 동일)
+    // 상태 필터링 로직 (업데이트된 드롭다운 라벨 대응)
     let matchesStatus = true;
     if (statusFilter !== 'all') {
-      if (statusFilter === '가상계좌발급') {
-        matchesStatus = order.paymentMethod === '가상계좌' && (!order.paymentDate || order.paymentDate === '-');
-      } else if (statusFilter === '작업완료') {
-        matchesStatus = order.status === '작업완료' && order.confirmStatus !== '구매완료';
-      } else if (statusFilter === '구매완료') {
-        matchesStatus = order.status === '작업완료' && order.confirmStatus === '구매완료';
-      } else {
-        matchesStatus = order.status === statusFilter;
+      switch (statusFilter) {
+        case '입금완료':
+          // 가상계좌 + 입금 완료
+          matchesStatus = (order.paymentMethod === 'virtual' || order.paymentMethod === '가상계좌') &&
+                          !!order.paymentDate && order.paymentDate !== '-';
+          break;
+        case '결제완료':
+          // 신용카드 결제 완료
+          matchesStatus = (order.paymentMethod === 'card' || order.paymentMethod === '신용카드') &&
+                          !!order.paymentDate && order.paymentDate !== '-';
+          break;
+        case '결제취소':
+          // 결제 취소(주문 상태가 '취소')
+          matchesStatus = order.status === '취소';
+          break;
+        case '작업완료':
+        case '대기중':
+        case '진행 중':
+        case '작업취소':
+        case '취소':
+          matchesStatus = order.status === statusFilter;
+          break;
+        default:
+          matchesStatus = true;
       }
     }
     
@@ -818,6 +1031,98 @@ const Admin: React.FC = () => {
   ];
 
   // 로그아웃 함수
+  // 알림 관련 함수들
+  const addNotification = (notification: Omit<Notification, 'id' | 'timestamp' | 'isRead'>) => {
+    const newNotification: Notification = {
+      ...notification,
+      id: Date.now().toString(),
+      timestamp: new Date().toISOString(),
+      isRead: false
+    };
+    
+    setNotifications(prev => [newNotification, ...prev]);
+    setUnreadCount(prev => prev + 1);
+  };
+
+  const markNotificationAsRead = (notificationId: string) => {
+    setNotifications(prev => 
+      prev.map(notif => 
+        notif.id === notificationId 
+          ? { ...notif, isRead: true }
+          : notif
+      )
+    );
+    setUnreadCount(prev => Math.max(0, prev - 1));
+  };
+
+  const markAllNotificationsAsRead = () => {
+    setNotifications(prev => 
+      prev.map(notif => ({ ...notif, isRead: true }))
+    );
+    setUnreadCount(0);
+  };
+
+  const deleteNotification = (notificationId: string) => {
+    const notification = notifications.find(n => n.id === notificationId);
+    if (notification && !notification.isRead) {
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    }
+    setNotifications(prev => prev.filter(n => n.id !== notificationId));
+  };
+
+  const handleNotificationClick = (notification: Notification) => {
+    if (!notification.isRead) {
+      markNotificationAsRead(notification.id);
+    }
+    
+    // 알림 타입에 따른 페이지 이동
+    switch (notification.type) {
+      case 'order':
+        setActiveTab('orders');
+        break;
+      case 'review':
+        setActiveTab('reviews');
+        break;
+      case 'chat':
+        setActiveTab('inquiries');
+        break;
+      case 'user':
+        setActiveTab('users');
+        break;
+      default:
+        break;
+    }
+    
+    setIsNotificationDropdownOpen(false);
+  };
+
+  // 테스트용 알림 추가 함수
+  const addTestNotification = () => {
+    const testNotifications = [
+      {
+        type: 'order' as const,
+        title: '새로운 주문 접수',
+        message: '새로운 주문이 접수되었습니다. 주문번호: TEST-001',
+        orderId: 'TEST-001'
+      },
+      {
+        type: 'review' as const,
+        title: '새로운 리뷰 작성',
+        message: '새로운 리뷰가 작성되었습니다. 상품: 테스트 상품',
+        productId: '1'
+      },
+      {
+        type: 'chat' as const,
+        title: '고객 문의 접수',
+        message: '새로운 고객 문의가 접수되었습니다.',
+        userId: 'user1'
+      }
+    ];
+
+    const randomNotification = testNotifications[Math.floor(Math.random() * testNotifications.length)];
+    addNotification(randomNotification);
+  };
+
   const handleLogout = async () => {
     if (window.confirm('정말 로그아웃 하시겠습니까?')) {
       try {
@@ -1640,42 +1945,76 @@ const Admin: React.FC = () => {
                 >
                   <FontAwesomeIcon icon={faBell} className="text-lg" />
                   <span className="absolute top-[2px] -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
-                    3
+                    {unreadCount > 0 ? unreadCount : ''}
                   </span>
                 </button>
 
                 {/* 알림 드롭다운 */}
                 {isNotificationDropdownOpen && (
                   <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
-                    <div className="px-4 py-2 border-b border-gray-200">
+                    <div className="px-4 py-2 border-b border-gray-200 flex justify-between items-center">
                       <span className="text-sm font-semibold text-gray-900">알림</span>
+                      {unreadCount > 0 && (
+                        <button 
+                          onClick={markAllNotificationsAsRead}
+                          className="text-xs text-orange-600 hover:text-orange-700"
+                        >
+                          모두 읽음 처리
+                        </button>
+                      )}
                     </div>
                     <div className="max-h-64 overflow-y-auto">
-                      <div className="px-3 py-2 hover:bg-gray-50 border-b border-gray-100">
-                        <p className="text-sm font-medium text-gray-900">새로운 주문이 접수되었습니다</p>
-                        <p className="text-xs text-gray-500 mt-1">주문번호: 20240601-004</p>
-                        <p className="text-xs text-gray-400">2분 전</p>
-                      </div>
-                      <div className="px-3 py-2 hover:bg-gray-50 border-b border-gray-100">
-                        <p className="text-sm font-medium text-gray-900">새로운 리뷰가 작성되었습니다</p>
-                        <p className="text-xs text-gray-500 mt-1">상품: 프리미엄 디자인 서비스</p>
-                        <p className="text-xs text-gray-400">15분 전</p>
-                      </div>
-                      <div className="px-3 py-2 hover:bg-gray-50">
-                        <p className="text-sm font-medium text-gray-900">고객 문의가 접수되었습니다</p>
-                        <p className="text-xs text-gray-500 mt-1">문의자: 김고객</p>
-                        <p className="text-xs text-gray-400">1시간 전</p>
-                      </div><div className="px-3 py-2 hover:bg-gray-50">
-                        <p className="text-sm font-medium text-gray-900">고객 문의가 접수되었습니다</p>
-                        <p className="text-xs text-gray-500 mt-1">문의자: 김고객</p>
-                        <p className="text-xs text-gray-400">1시간 전</p>
-                      </div>
+                      {notifications.length === 0 ? (
+                        <div className="px-4 py-8 text-center text-gray-500">
+                          <p className="text-sm">알림이 없습니다</p>
+                        </div>
+                      ) : (
+                        notifications.slice(0, 10).map((notification) => (
+                          <div 
+                            key={notification.id}
+                            onClick={() => handleNotificationClick(notification)}
+                            className={`px-3 py-2 hover:bg-gray-50 border-b border-gray-100 cursor-pointer ${
+                              !notification.isRead ? 'bg-blue-50' : ''
+                            }`}
+                          >
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1">
+                                <p className={`text-sm font-medium ${!notification.isRead ? 'text-blue-900' : 'text-gray-900'}`}>
+                                  {notification.title}
+                                </p>
+                                <p className="text-xs text-gray-500 mt-1">{notification.message}</p>
+                                <p className="text-xs text-gray-400 mt-1">
+                                  {new Date(notification.timestamp).toLocaleString('ko-KR')}
+                                </p>
+                              </div>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  deleteNotification(notification.id);
+                                }}
+                                className="text-gray-400 hover:text-red-500 text-xs ml-2"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      )}
                     </div>
-                    <div className="p-3 border-t border-gray-200">
-                      <button className="w-full text-sm text-orange-600 hover:text-orange-700 font-medium">
-                        모든 알림 보기
-                      </button>
-                    </div>
+                    {notifications.length > 0 && (
+                      <div className="p-3 border-t border-gray-200">
+                        <button 
+                          onClick={() => {
+                            setNotifications([]);
+                            setUnreadCount(0);
+                            setIsNotificationDropdownOpen(false);
+                          }}
+                          className="w-full text-sm text-orange-600 hover:text-orange-700 font-medium"
+                        >
+                          모든 알림 지우기
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -1701,10 +2040,10 @@ const Admin: React.FC = () => {
                 {isProfileDropdownOpen && (
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 z-[100]">
                     <div className="p-4 border-b border-gray-200">
-                      <p className="text-sm font-medium text-gray-900">관리자</p>
-                      <p className="text-xs text-gray-500">admin@admore.com</p>
+                      <p className="text-sm font-medium text-gray-900">{currentUser.name}</p>
+                      <p className="text-xs text-gray-500">{currentUser.email}</p>
                     </div>
-                    <div className="py-2">
+                    <div className="hidden py-2">
                       <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors">
                         프로필 설정
                       </button>
@@ -1715,7 +2054,7 @@ const Admin: React.FC = () => {
                         도움말
                       </button>
                     </div>
-                    <div className="border-t border-gray-200 py-2">
+                    <div className="py-2">
                       <button 
                         onClick={handleLogout}
                         className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 transition-colors"
@@ -1787,182 +2126,547 @@ const Admin: React.FC = () => {
 
             {/* 대시보드 탭 */}
             {activeTab === 'dashboard' && (
-              <div>
-                {/* 통계 카드 */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                  <div className="bg-white p-4 rounded-lg shadow">
-                    <div className="flex items-center">
-                      <div className="p-2 bg-blue-100 rounded-lg">
-                        <FontAwesomeIcon icon={faBox} className="text-blue-600" />
-                      </div>
-                      <div className="ml-3">
-                        <p className="text-sm text-gray-600">전체 주문</p>
-                        <p className="text-xl font-bold">{totalOrders}</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="bg-white p-4 rounded-lg shadow">
-                    <div className="flex items-center">
-                      <div className="p-2 bg-yellow-100 rounded-lg">
-                        <FontAwesomeIcon icon={faEye} className="text-yellow-600" />
-                      </div>
-                      <div className="ml-3">
-                        <p className="text-sm text-gray-600">대기중</p>
-                        <p className="text-xl font-bold">{orders.filter(o => o.status === '대기중').length}</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="bg-white p-4 rounded-lg shadow">
-                    <div className="flex items-center">
-                      <div className="p-2 bg-green-100 rounded-lg">
-                        <FontAwesomeIcon icon={faCheck} className="text-green-600" />
-                      </div>
-                      <div className="ml-3">
-                        <p className="text-sm text-gray-600">완료</p>
-                        <p className="text-xl font-bold">{orders.filter(o => o.status === '완료').length}</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="bg-white p-4 rounded-lg shadow">
-                    <div className="flex items-center">
-                      <div className="p-2 bg-red-100 rounded-lg">
-                        <FontAwesomeIcon icon={faTimes} className="text-red-600" />
-                      </div>
-                      <div className="ml-3">
-                        <p className="text-sm text-gray-600">취소</p>
-                        <p className="text-xl font-bold">{orders.filter(o => o.status === '취소').length}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
 
-                {/* 추가 통계 카드 */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                  <div className="bg-white p-4 rounded-lg shadow">
-                    <div className="flex items-center">
-                      <div className="p-2 bg-purple-100 rounded-lg">
-                        <FontAwesomeIcon icon={faStar} className="text-purple-600" />
-                      </div>
-                      <div className="ml-3">
-                        <p className="text-sm text-gray-600">전체 리뷰</p>
-                        <p className="text-xl font-bold">{reviews.length}</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="bg-white p-4 rounded-lg shadow">
-                    <div className="flex items-center">
-                      <div className="p-2 bg-indigo-100 rounded-lg">
-                        <FontAwesomeIcon icon={faComments} className="text-indigo-600" />
-                      </div>
-                      <div className="ml-3">
-                        <p className="text-sm text-gray-600">문의내역</p>
-                        <p className="text-xl font-bold">{chatMessages.length}</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="bg-white p-4 rounded-lg shadow">
-                    <div className="flex items-center">
-                      <div className="p-2 bg-orange-100 rounded-lg">
-                        <FontAwesomeIcon icon={faCog} className="text-orange-600" />
-                      </div>
-                      <div className="ml-3">
-                        <p className="text-sm text-gray-600">상품 수</p>
-                        <p className="text-xl font-bold">{products.length}</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="bg-white p-4 rounded-lg shadow">
-                    <div className="flex items-center">
-                      <div className="p-2 bg-blue-100 rounded-lg">
-                        <FontAwesomeIcon icon={faUser} className="text-blue-600" />
-                      </div>
-                      <div className="ml-3">
-                        <p className="text-sm text-gray-600">회원 수</p>
-                        <p className="text-xl font-bold">{totalUsers}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 최근 활동 */}
-                <div className="bg-white rounded-lg shadow p-6">
-                  <h3 className="text-lg font-semibold mb-4">최근 활동</h3>
-                  <div className="space-y-3">
-                    {orders.slice(0, 5).map((order) => (
-                      <div key={order.orderId} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <div>
-                          <p className="font-medium">{order.product}</p>
-                          <p className="text-sm text-gray-500">주문번호: {order.orderId}</p>
+              <div className="flex flex-col md:flex-row gap-4 mb-6">
+                {/* 대쉬보드 좌측 */}
+                <div className="w-full"> 
+                  {/* 통계 카드 */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
+                    <div className="bg-white p-4 rounded-lg shadow">
+                      <div className="flex items-center">
+                        <div className="p-2 bg-blue-100 rounded-lg w-10 h-10 flex items-center justify-center">
+                          <FontAwesomeIcon icon={faBox} className="text-blue-600" />
                         </div>
-                        <span className={`px-2 py-1 text-xs rounded-full ${
-                          order.status === '완료' ? 'bg-green-100 text-green-800' :
-                          order.status === '대기중' ? 'bg-yellow-100 text-yellow-800' :
-                          order.status === '작업취소' ? 'bg-red-100 text-red-800' :
-                          'bg-red-100 text-red-800'
-                        }`}>
-                          {order.status}
-                        </span>
+                        <div className="ml-3">
+                          <p className="text-sm text-gray-600">전체 주문</p>
+                          <p className="text-xl font-bold">{totalOrders} 
+                            <span className="text-xs text-gray-400 ml-1">건</span>
+                          </p>
+                        </div>
                       </div>
-                    ))}
-                  </div>
-                </div>
+                    </div>
+                    {/* 결제완료후 작업시작전 대기중 상태 */}
+                    <div className="bg-white p-4 rounded-lg shadow">
+                      <div className="flex items-center">
+                        <div className="p-2 bg-yellow-100 rounded-lg w-10 h-10 flex items-center justify-center">
+                          <FontAwesomeIcon icon={faEye} className="text-yellow-600" />
+                        </div>
+                        <div className="ml-3">
+                          <p className="text-sm text-gray-600">대기중</p>
+                          <p className="text-xl font-bold">{orders.filter(o => o.status === '대기중').length} 
+                            <span className="text-xs text-gray-400 ml-1">건</span>
+                          </p>
+                        </div>
+                      </div>
+                    </div>
 
-                {/* 상세 통계 */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-                  <div className="bg-white rounded-lg shadow p-6">
-                    <h3 className="text-lg font-semibold mb-4">주문 통계</h3>
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600">전체 주문</span>
-                        <span className="font-semibold">{totalOrders}건</span>
+                    {/* 작업완료 상태 */}
+                    <div className="bg-white p-4 rounded-lg shadow">
+                      <div className="flex items-center">
+                        <div className="p-2 bg-green-100 rounded-lg w-10 h-10 flex items-center justify-center">
+                          <FontAwesomeIcon icon={faCheck} className="text-green-600" />
+                        </div>
+                        <div className="ml-3">
+                          <p className="text-sm text-gray-600">작업완료</p>
+                          <p className="text-xl font-bold">{orders.filter(o => o.status === '작업완료').length}
+                            <span className="text-xs text-gray-400 ml-1">건</span>
+                          </p>
+                        </div>
                       </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600">가상계좌발급</span>
-                        <span className="font-semibold text-yellow-600">{orders.filter(o => o.paymentMethod === '가상계좌' && (!o.paymentDate || o.paymentDate === '-')).length}건</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600">진행 중</span>
-                        <span className="font-semibold text-blue-600">{orders.filter(o => o.status === '진행 중').length}건</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600">작업완료</span>
-                        <span className="font-semibold text-green-600">{orders.filter(o => o.status === '작업완료' && o.confirmStatus !== '구매완료').length}건</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600">구매완료</span>
-                        <span className="font-semibold text-purple-600">{orders.filter(o => o.status === '작업완료' && o.confirmStatus === '구매완료').length}건</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600">취소</span>
-                        <span className="font-semibold text-red-600">{orders.filter(o => o.status === '취소').length}건</span>
+                    </div>
+                    
+                    {/* 작업취소 상태 */}
+                    <div className="bg-white p-4 rounded-lg shadow">
+                      <div className="flex items-center">
+                        <div className="p-2 bg-red-100 rounded-lg w-10 h-10 flex items-center justify-center">
+                          <FontAwesomeIcon icon={faTimes} className="text-red-600" />
+                        </div>
+                        <div className="ml-3">
+                          <p className="text-sm text-gray-600">작업취소</p>
+                          <p className="text-xl font-bold">{orders.filter(o => o.status === '작업취소').length}
+                            <span className="text-xs text-gray-400 ml-1">건</span>
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>
-
-                  <div className="bg-white rounded-lg shadow p-6">
-                    <h3 className="text-lg font-semibold mb-4">리뷰 통계</h3>
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600">전체 리뷰</span>
-                        <span className="font-semibold">{reviews.length}건</span>
+                  
+                  {/* 상세 통계 */}
+                  <div className="grid sm:grid-cols-1 md:grid-cols-2 gap-2 mb-4">
+                    <div className="bg-white rounded-lg shadow p-4 flex flex-row gap-4 justify-between w-full">
+                      <div className="w-full">
+                        <h3 className="text-base font-semibold mb-4 flex items-center gap-2">
+                          <FontAwesomeIcon icon={faChartPie} className="text-gray-600 w-4 h-4" />
+                          주문 통계
+                        </h3>
+                        <div className="space-y-2 text-sm px-2 max-w-[80%]">
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-600">전체 주문</span>
+                            <span className="font-semibold">{totalOrders}건</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-600">신용카드</span>
+                            <span className="font-semibold text-blue-600">{orders.filter(o => o.paymentMethod === 'card').length}건</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-600">가상계좌</span>
+                            <span className="font-semibold text-yellow-600">{orders.filter(o => o.paymentMethod === 'virtual').length}건</span>
+                          </div>
+                          
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-600">작업취소</span>
+                            <span className="font-semibold text-red-600">{orders.filter(o => o.status === '작업취소').length}건</span>
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600">평균 평점</span>
-                        <span className="font-semibold text-orange-600">
-                          {reviews.length > 0 ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1) : '0.0'}점
-                        </span>
+                      {/* 차트 */}
+                      <div className="flex items-center justify-center">
+                        <div className="p-2 w-40 h-40">
+                          <Doughnut
+                            data={{
+                              labels: ['신용카드', '가상계좌', '작업취소'],
+                              datasets: [{
+                                data: [
+                                  orders.filter(o => o.paymentMethod === 'card').length,
+                                  orders.filter(o => o.paymentMethod === 'virtual').length,
+                                  orders.filter(o => o.status === '작업취소').length
+                                ],
+                                backgroundColor: [
+                                  '#3B82F6', // blue
+                                  '#FCD34D', // yellow
+                                  '#EF4444'  // red
+                                ],
+                                borderWidth: 2,
+                                borderColor: '#fff'
+                              }]
+                            }}
+                            options={{
+                              responsive: true,
+                              maintainAspectRatio: false,
+                              plugins: {
+                                legend: {
+                                  display: false
+                                }
+                              },
+                              cutout: '60%'
+                            }}
+                          />
+                        </div>
                       </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600">문의내역</span>
-                        <span className="font-semibold">{chatMessages.length}건</span>
+                    </div>
+                    
+                    <div className="bg-white rounded-lg shadow p-4 flex flex-row gap-4 justify-between w-full">
+                      <div className="w-full">
+                        <h3 className="text-base font-semibold mb-4 flex items-center gap-2">
+                          <FontAwesomeIcon icon={faTasks} className="text-gray-600 w-4 h-4" />
+                          작업현황
+                        </h3>
+                        <div className="space-y-2 text-sm px-2 max-w-[80%]">
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-600">대기중</span>
+                            <span className="font-semibold text-yellow-600">
+                              {orders.filter(o => o.status === '대기중').length}건
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-600">진행 중</span>
+                            <span className="font-semibold text-orange-600">
+                              {orders.filter(o => o.status === '진행 중').length}건
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-600">작업완료</span>
+                            <span className="font-semibold text-green-600">{orders.filter(o => o.status === '작업완료').length}건</span>
+                          </div>
+                          
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-600">구매확정</span>
+                            <span className="font-semibold text-purple-600">{orders.filter(o => o.confirmStatus === '구매확정완료' || o.confirmStatus === '구매완료').length}건</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-600">작업취소</span>
+                            <span className="font-semibold text-red-600">{orders.filter(o => o.status === '작업취소').length}건</span>
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600">상품 수</span>
-                        <span className="font-semibold">{products.length}개</span>
+                      {/* 차트 */}
+                      <div className="flex items-center justify-center">
+                        <div className="p-2 w-40 h-40">
+                          <Doughnut
+                            data={{
+                              labels: ['대기중', '진행 중', '작업완료', '리뷰확인', '구매확정', '작업취소'],
+                              datasets: [{
+                                data: [
+                                  orders.filter(o => o.status === '대기중').length,
+                                  orders.filter(o => o.status === '진행 중').length,
+                                  orders.filter(o => o.status === '작업완료').length,
+                                  orders.filter(o => o.status === '리뷰확인').length,
+                                  orders.filter(o => o.confirmStatus === '구매확정완료' || o.confirmStatus === '구매완료').length,
+                                  orders.filter(o => o.status === '작업취소').length
+                                ],
+                                backgroundColor: [
+                                  '#FCD34D', // yellow (대기중)
+                                  '#F59E0B', // orange (진행 중)
+                                  '#10B981', // green (작업완료)
+                                  '#3B82F6', // blue (리뷰확인)
+                                  '#8B5CF6', // purple (구매확정)
+                                  '#EF4444'  // red (작업취소)
+                                ],
+                                borderWidth: 2,
+                                borderColor: '#fff'
+                              }]
+                            }}
+                            options={{
+                              responsive: true,
+                              maintainAspectRatio: false,
+                              plugins: {
+                                legend: {
+                                  display: false
+                                }
+                              },
+                              cutout: '60%'
+                            }}
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
+                  
+                  {/* 최근 주문내용 */}
+                  <div className="bg-white rounded-lg shadow py-6 px-6 mb-4 ">
+                    <div className="flex flex-row gap-2 justify-between mb-4">
+                      <h3 className="text-base font-semibold mb-2 flex items-center gap-2">
+                        <FontAwesomeIcon icon={faListUl} className="text-gray-600 w-4 h-4" />
+                        최근 주문내용
+                      </h3>
+                      {/* 최근 주문내용 필터 */}
+                      <div className="flex items-center gap-2 text-xs">
+                        <button
+                          className={`px-2 py-1 ${recentOrdersFilter === 'paid' ? 'text-gray-700 font-semibold' : 'text-gray-400'}`}
+                          onClick={() => setRecentOrdersFilter('paid')}
+                        >
+                          결제완료
+                        </button>
+                        <span className="text-gray-400 text-xs w-0.5 h-0.5 bg-gray-400 rounded-full"></span>
+                        <button
+                          className={`px-2 py-1 ${recentOrdersFilter === 'unpaid' ? 'text-gray-700 font-semibold' : 'text-gray-400'}`}
+                          onClick={() => setRecentOrdersFilter('unpaid')}
+                        >
+                          입금전
+                        </button>
+                      </div>
+                    </div>
+                    <div className="overflow-x-auto w-full">
+                      <table className="w-full text-sm" style={{ minWidth: '400px' }}>
+                        <thead>
+                          <tr className="border-b border-gray-200 bg-gray-50">
+                            <th className="text-left py-2 px-2 font-medium text-gray-700" style={{ minWidth: '100px' }}>주문일시</th>
+                            <th className="text-left py-2 px-2 font-medium text-gray-700" style={{ minWidth: '120px' }}>주문번호</th>
+                            <th className="text-left py-2 px-2 font-medium text-gray-700" style={{ minWidth: '100px' }}>주문자</th>
+                            <th className="text-left py-2 px-2 font-medium text-gray-700" style={{ minWidth: '120px' }}>상품정보</th>
+                            <th className="text-left py-2 px-2 font-medium text-gray-700" style={{ minWidth: '60px' }}>수량</th>
+                            <th className="text-right py-2 px-2 font-medium text-gray-700" style={{ minWidth: '80px' }}>결제금액</th>
+                            <th className="text-center py-2 px-2 font-medium text-gray-700" style={{ minWidth: '80px' }}>상태</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredRecentOrders.slice(0, 10).map((order) => (
+                            <tr key={order.orderId} className="border-b border-gray-100 hover:bg-gray-50">
+                              <td className="py-2 px-2 text-xs text-gray-600">
+                                {order.date ? new Date(order.date).toLocaleString('ko-KR', { 
+                                  year: '2-digit', 
+                                  month: '2-digit', 
+                                  day: '2-digit',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                  hour12: false
+                                }).replace(/\. /g, '.').replace(/\.(\d{2}:\d{2})/, '. $1') : '날짜 없음'}
+                              </td>
+                              <td className="py-2 px-2 text-xs text-gray-600">
+                                <div>
+                                  <div>{order.orderId}</div>
+                                  <span className="text-gray-500 text-xs">(PAY-{order.orderId.replace('-', '')})</span>
+                                </div>
+                              </td>
+                              <td className="py-2 px-2 text-xs text-gray-600">
+                                <div>
+                                  <div className="text-xs text-gray-500 font-medium">
+                                    {(() => {
+                                      // users 데이터가 로드된 후에만 사용자 이름 찾기
+                                      if (users.length > 0) {
+                                        const user = users.find(u => u.email === order.userEmail);
+                                        console.log('주문자 정보:', {
+                                          orderEmail: order.userEmail,
+                                          foundUser: user,
+                                          allUsers: users.length
+                                        });
+                                        return user ? user.name : (order.userName || '이름 없음');
+                                      } else {
+                                        // users 데이터가 아직 로드되지 않은 경우
+                                        return order.userName || '로딩 중...';
+                                      }
+                                    })()}
+                                  </div>
+                                  <div className="text-xs text-gray-400">{order.userEmail || '이메일 없음'}</div>
+                                </div>
+                              </td>
+                              <td className="py-2 px-2 text-xs text-gray-800">
+                                <div>
+                                  {order.productNumber && (
+                                    <div className="text-[10px] text-gray-500 mb-1">상품번호: {order.productNumber}</div>
+                                  )}
+                                  <div className="font-medium">{order.product}</div>
+                                </div>
+                              </td>
+                              <td className="py-2 px-2 text-xs text-gray-600">
+                                {order.quantity}일
+                              </td>
+                              <td className="py-2 px-2 text-xs text-blue-600 font-semibold text-right">
+                                <div>
+                                  <div>{typeof order.price === 'string' ? 
+                                    order.price.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : 
+                                    String(order.price || '').replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</div>
+                                  {order.originalPrice && order.originalPrice !== order.price && (
+                                    <div className="text-gray-400 line-through text-[10px]">
+                                      {typeof order.originalPrice === 'string' ? 
+                                        order.originalPrice.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : 
+                                        String(order.originalPrice || '').replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                                    </div>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="py-2 px-2 text-center">
+                                <span className={`px-2 py-1 text-xs rounded-full ${
+                                  (() => {
+                                    // 신용카드 주문시 결제완료 표시
+                                    if ((order.paymentMethod === 'card' || order.paymentMethod === '신용카드') && 
+                                        order.paymentDate && order.paymentDate !== '-') {
+                                      return 'bg-green-100 text-green-800';
+                                    }
+                                    // 가상계좌 주문시 입금여부에 따라 표시
+                                    if ((order.paymentMethod === 'virtual' || order.paymentMethod === '가상계좌')) {
+                                      if (!order.paymentDate || order.paymentDate === '-') {
+                                        return 'bg-yellow-100 text-yellow-800'; // 입금전
+                                      } else {
+                                        return 'bg-green-100 text-green-800'; // 입금완료
+                                      }
+                                    }
+                                    // 기본 상태 표시
+                                    return order.status === '대기중' ? 'bg-yellow-100 text-yellow-800' :
+                                           order.status === '진행 중' ? 'bg-orange-100 text-orange-800' :
+                                           order.status === '작업완료' ? 'bg-green-100 text-green-800' :
+                                           order.status === '구매확정' ? 'bg-blue-100 text-blue-800' :
+                                           order.status === '작업취소' ? 'bg-red-100 text-red-800' :
+                                           'bg-gray-100 text-gray-800';
+                                  })()
+                                }`}>
+                                  {(() => {
+                                    // 신용카드 주문시 결제완료 표시
+                                    if ((order.paymentMethod === 'card' || order.paymentMethod === '신용카드') && 
+                                        order.paymentDate && order.paymentDate !== '-') {
+                                      return '결제완료';
+                                    }
+                                    // 가상계좌 주문시 입금여부에 따라 표시
+                                    if ((order.paymentMethod === 'virtual' || order.paymentMethod === '가상계좌')) {
+                                      if (!order.paymentDate || order.paymentDate === '-') {
+                                        return '입금전';
+                                      } else {
+                                        return '입금완료';
+                                      }
+                                    }
+                                    // 기본 상태 표시
+                                    return order.status;
+                                  })()}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
                 </div>
+                {/* 대쉬보드 우측 */}
+                <div className=" min-w-[300px] flex flex-col gap-6">
+                  {/* 가입회원수 */}
+                  <div className="bg-white p-4 rounded-lg shadow">
+                    <div className="flex flex-col">
+                      <div className="flex items-center mb-4 gap-2">
+                        <FontAwesomeIcon icon={faUser} className="text-gray-400 w-3 h-3" />
+                        <p className="text-sm text-gray-600">가입회원 수</p>
+                      </div>
+                      <div className="flex flex-row gap-2 items-center justify-start">
+                        <div className="flex items-center justify-center">
+                          <p className="text-xs font-semibold text-gray-800 mr-2">일반회원</p>
+                          <p className="text-sm font-semibold text-orange-600">{totalUsers}</p>
+                          <p className="text-xs text-gray-500 ml-1">명</p>
+                        </div>
+                        <span className="text-gray-400 text-xs">|</span>
+                        <div className="flex items-center justify-center">
+                          <p className="text-xs font-semibold text-gray-800 mr-2">관리자</p>
+                          <p className="text-sm font-semibold text-orange-600">{users.filter(u => u.role === 'admin').length}</p>
+                          <p className="text-xs text-gray-500 ml-1">명</p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                  </div>
+                  
+                  {/* 최근 활동 */}
+                  <div className="bg-white rounded-lg shadow py-4 px-4 overflow-hidden">
+                    <h3 className="text-base font-semibold mb-4 flex items-center gap-2">
+                      <FontAwesomeIcon icon={faHistory} className="text-gray-600 w-4 h-4" />
+                      최근 활동
+                    </h3>
+                    <div ref={recentActivityRef} className="space-y-2 min-h-[100px] max-h-[330px] overflow-y-hidden pr-1">
+                      {/* 최근 주문 활동 */}
+                      {orders.slice(0, 5).map((order, index) => (
+                        <div 
+                          key={order.orderId} 
+                          className="recent-activity-item flex items-center justify-between px-3 py-2 bg-gray-50 rounded-lg"
+                        >
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <FontAwesomeIcon icon={faBox} className="text-blue-500 text-xs" />
+                              <p className="font-medium text-sm text-gray-800">{order.product}</p>
+                              <span className={`px-2 py-1 text-[10px] rounded-full ${
+                                order.status === '대기중' ? 'bg-yellow-100 text-yellow-800' :
+                                order.status === '진행 중' ? 'bg-orange-100 text-orange-800' :
+                                order.status === '작업완료' ? 'bg-green-100 text-green-800' :
+                                order.status === '리뷰확인' ? 'bg-blue-100 text-blue-800' :
+                                order.status === '작업취소' ? 'bg-red-100 text-red-800' :
+                                'bg-gray-100 text-gray-800'
+                              }`}>
+                                {order.status}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between gap-3 mt-1 ">
+                              <p className="text-xs text-gray-500">주문번호: {order.orderId}</p>
+                              <p className="text-xs text-gray-400">
+                                {order.date ? new Date(order.date).toLocaleString('ko-KR', { 
+                                  month: '2-digit', 
+                                  day: '2-digit',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                  hour12: false
+                                }).replace(/\. /g, '.').replace(/\.(\d{2}:\d{2})/, '. $1') : ''}
+                              </p>
+                            </div>
+                          </div>
+                          
+                        </div>
+                      ))}
+                      
+                      {/* 최근 리뷰 활동 */}
+                      {reviews.slice(0, 3).map((review, index) => (
+                        <div 
+                          key={review.id} 
+                          className="recent-activity-item flex items-center justify-between px-3 py-2 bg-gray-50 rounded-lg"
+                        >
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <FontAwesomeIcon icon={faStar} className="text-yellow-500 text-xs" />
+                              <p className="font-medium text-sm text-gray-800">{review.product}</p>
+                              <div className="flex items-center gap-0">
+                                {[...Array(5)].map((_, i) => (
+                                  <FontAwesomeIcon 
+                                    key={i} 
+                                    icon={i < review.rating ? faStar : faStar} 
+                                    className={`text-[10px] ${i < review.rating ? 'text-yellow-400' : 'text-gray-300'}`} 
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between gap-3 mt-1">
+                              <p className="text-xs text-gray-500">작성자: {review.user}</p>
+                              <p className="text-xs text-gray-400">
+                                {review.time ? new Date(review.time).toLocaleString('ko-KR', { 
+                                  month: '2-digit', 
+                                  day: '2-digit',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                  hour12: false
+                                }).replace(/\. /g, '.').replace(/\.(\d{2}:\d{2})/, '. $1') : ''}
+                              </p>
+                            </div>
+                          </div>
+                          
+                        </div>
+                      ))}
+                      
+                      {/* 최근 문의 활동 */}
+                      {chatMessages.slice(0, 2).map((message, index) => (
+                        <div 
+                          key={message.id} 
+                          className="recent-activity-item flex items-center justify-between px-3 py-2 bg-gray-50 rounded-lg"
+                        >
+                          
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <FontAwesomeIcon icon={faComments} className="text-purple-500 text-xs" />
+                              <p className="font-medium text-sm text-gray-800">1:1 문의</p>
+                              <span className={`px-2 py-1 text-[10px] rounded-full ${
+                                message.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                message.status === 'answered' ? 'bg-green-100 text-green-800' :
+                                message.status === 'closed' ? 'bg-gray-100 text-gray-800' :
+                                'bg-blue-100 text-blue-800'
+                              }`}>
+                                {message.status === 'pending' ? '대기중' :
+                                message.status === 'answered' ? '답변완료' :
+                                message.status === 'closed' ? '종료' : '문의'}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between gap-3 mt-1">
+                              <p className="text-xs text-gray-500">사용자: {(() => {
+                                // 세션아이디(공백 포함 슬래시/괄호 등) 제거하고 이메일만 남김
+                                const emailMatch = (message.user || '').match(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/);
+                                return emailMatch ? emailMatch[0] : message.user;
+                              })()}</p>
+                              <p className="text-xs text-gray-400">
+                                {message.timestamp ? new Date(message.timestamp).toLocaleString('ko-KR', { 
+                                  month: '2-digit', 
+                                  day: '2-digit',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                  hour12: false
+                                }).replace(/\. /g, '.').replace(/\.(\d{2}:\d{2})/, '. $1') : ''}
+                              </p>
+                            </div>
+                          </div>
+                          
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  {/* 리뷰 & 문의 통계 */}
+                  <div className="bg-white rounded-lg shadow p-4">
+                      <h3 className="text-base font-semibold mb-4 flex items-center gap-2">
+                        <FontAwesomeIcon icon={faStar} className="text-yellow-500" />
+                        리뷰 & 문의
+                      </h3>
+                      <div className="space-y-4">
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-600">전체 리뷰</span>
+                            <span className="font-semibold">{reviews.length}건</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-600">평균 평점</span>
+                            <span className="font-semibold text-orange-600">
+                              {reviews.length > 0 ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1) : '0.0'}점
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-600">문의내역</span>
+                            <span className="font-semibold">{chatMessages.length}건</span>
+                          </div>
+                        </div>
+                        
+                      </div>
+                    </div>
+                </div>
+                
               </div>
             )}
 
@@ -2047,10 +2751,28 @@ const Admin: React.FC = () => {
                                 전체 상태
                               </button>
                               <button
-                                onClick={() => { setStatusFilter('가상계좌발급'); setIsOrderStatusDropdownOpen(false); }}
+                                onClick={() => { setStatusFilter('입금완료'); setIsOrderStatusDropdownOpen(false); }}
                                 className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
                               >
-                                가상계좌발급
+                                입금완료
+                              </button>
+                              <button
+                                onClick={() => { setStatusFilter('결제완료'); setIsOrderStatusDropdownOpen(false); }}
+                                className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
+                              >
+                                결제완료
+                              </button>
+                              <button
+                                onClick={() => { setStatusFilter('결제취소'); setIsOrderStatusDropdownOpen(false); }}
+                                className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
+                              >
+                                결제취소
+                              </button>
+                              <button
+                                onClick={() => { setStatusFilter('대기중'); setIsOrderStatusDropdownOpen(false); }}
+                                className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
+                              >
+                                대기중
                               </button>
                               <button
                                 onClick={() => { setStatusFilter('진행 중'); setIsOrderStatusDropdownOpen(false); }}
@@ -2065,10 +2787,10 @@ const Admin: React.FC = () => {
                                 작업완료
                               </button>
                               <button
-                                onClick={() => { setStatusFilter('구매완료'); setIsOrderStatusDropdownOpen(false); }}
+                                onClick={() => { setStatusFilter('작업취소'); setIsOrderStatusDropdownOpen(false); }}
                                 className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
                               >
-                                구매완료
+                                작업취소
                               </button>
                               <button
                                 onClick={() => { setStatusFilter('취소'); setIsOrderStatusDropdownOpen(false); }}

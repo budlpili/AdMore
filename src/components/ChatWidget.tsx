@@ -966,7 +966,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                   <form className="relative flex items-center border-t px-3 py-3 gap-2" onSubmit={e => { e.preventDefault(); handleSend(); }}>
                     {/* 채팅 완료 시 입력창 비활성화 오버레이 */}
                     {isChatCompleted && (
-                      <div className="absolute inset-0 bg-gray-100 bg-opacity-50 flex flex-col items-center justify-center rounded-md gap-2 z-10">
+                      <div className="absolute inset-0 bg-gray-100 flex flex-col items-center justify-center rounded-md gap-2 z-10">
                         <span className="text-gray-500 text-sm font-medium">상담이 완료되었습니다</span>
                         <span className="text-gray-400 text-xs">더 이상 메시지를 주고받을 수 없습니다</span>
                       </div>
