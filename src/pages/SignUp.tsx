@@ -166,7 +166,7 @@ const SignUp: React.FC = () => {
       authAPI.register(userData)
         .then((response: any) => {
           console.log('회원가입 성공:', response);
-          alert('회원가입이 완료되었습니다!');
+          alert('회원가입이 완료되었습니다.\n\n입력하신 이메일로 인증 메일을 보냈습니다.\n메일함에서 인증을 완료하신 후 로그인해주세요.');
           navigate('/login');
         })
         .catch((error: any) => {
