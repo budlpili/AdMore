@@ -2218,11 +2218,12 @@ const Admin: React.FC = () => {
                       </div>
                       {/* 차트 */}
                       <div className="flex items-center justify-center">
-                        <div className="p-2 w-40 h-40">
-                          <Doughnut
+                        <div className="p-2 w-48 h-32">
+                          <Bar
                             data={{
                               labels: ['신용카드', '가상계좌'],
                               datasets: [{
+                                label: '주문 수',
                                 data: [
                                   orders.filter(o => o.paymentMethod === 'card').length,
                                   orders.filter(o => o.paymentMethod === 'virtual').length,
@@ -2231,8 +2232,13 @@ const Admin: React.FC = () => {
                                   '#3B82F6', // blue
                                   '#FCD34D', // yellow
                                 ],
-                                borderWidth: 2,
-                                borderColor: '#fff'
+                                borderColor: [
+                                  '#2563EB', // darker blue
+                                  '#F59E0B', // darker yellow
+                                ],
+                                borderWidth: 1,
+                                borderRadius: 4,
+                                borderSkipped: false,
                               }]
                             }}
                             options={{
@@ -2241,9 +2247,34 @@ const Admin: React.FC = () => {
                               plugins: {
                                 legend: {
                                   display: false
+                                },
+                                tooltip: {
+                                  callbacks: {
+                                    label: function(context) {
+                                      return `${context.parsed.y}건`;
+                                    }
+                                  }
                                 }
                               },
-                              cutout: '60%'
+                              scales: {
+                                y: {
+                                  beginAtZero: true,
+                                  ticks: {
+                                    stepSize: 1,
+                                    callback: function(value) {
+                                      return value + '건';
+                                    }
+                                  },
+                                  grid: {
+                                    color: '#E5E7EB'
+                                  }
+                                },
+                                x: {
+                                  grid: {
+                                    display: false
+                                  }
+                                }
+                              }
                             }}
                           />
                         </div>
