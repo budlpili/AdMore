@@ -9,11 +9,22 @@ const fs = require('fs');
 const WebSocket = require('ws');
 require('dotenv').config();
 
+// MongoDB 연결
+const connectMongoDB = require('./config/mongodb');
+
 // 데이터베이스 연결
-const db = require('./config/database');
+// const db = require('./config/database'); // SQLite 제거
 
 const app = express();
 const server = http.createServer(app);
+
+// MongoDB 연결 초기화
+connectMongoDB().then(() => {
+  console.log('MongoDB 연결 완료, 서버 시작 중...');
+}).catch(err => {
+  console.error('MongoDB 연결 실패:', err);
+  process.exit(1);
+});
 
 // 일반 WebSocket 서버 추가 (ws://localhost:3000/ws 요청 처리)
 const wss = new WebSocket.Server({ 
@@ -46,7 +57,14 @@ wss.on('connection', (ws) => {
 
 const io = socketIo(server, {
   cors: {
-    origin: true,
+    origin: function (origin, callback) {
+      // origin이 없거나 허용된 도메인인 경우
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('CORS 정책에 의해 차단됨'));
+      }
+    },
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
@@ -61,8 +79,21 @@ const io = socketIo(server, {
 });
 
 // CORS 설정
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://admore-frontend.cloudtype.app', // CloudType 프론트엔드 도메인
+  process.env.FRONTEND_URL // 환경변수로 프론트엔드 URL 설정
+].filter(Boolean);
+
 app.use(cors({
-  origin: true,
+  origin: function (origin, callback) {
+    // origin이 없거나 허용된 도메인인 경우
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('CORS 정책에 의해 차단됨'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
@@ -148,30 +179,30 @@ io.on('connection', (socket) => {
         const emailPattern = `${actualEmail}_%`;
         console.log(`활성 세션 확인: ${actualEmail}, 패턴: ${emailPattern}`);
         
-        db.get(checkActiveSessionQuery, [emailPattern], (err, row) => {
-          if (err) {
-            console.error('활성 세션 확인 오류:', err);
-            // 오류 발생 시 새로운 세션 생성
-            const newSessionId = `${actualEmail}_${Date.now()}`;
-            console.log(`오류 발생, 새로운 세션 생성: ${newSessionId}`);
-            socket.emit('new_session_created', { sessionId: newSessionId });
-            processMessage(newSessionId);
-            return;
-          }
+        // db.get(checkActiveSessionQuery, [emailPattern], (err, row) => { // SQLite 제거
+        //   if (err) {
+        //     console.error('활성 세션 확인 오류:', err);
+        //     // 오류 발생 시 새로운 세션 생성
+        //     const newSessionId = `${actualEmail}_${Date.now()}`;
+        //     console.log(`오류 발생, 새로운 세션 생성: ${newSessionId}`);
+        //     socket.emit('new_session_created', { sessionId: newSessionId });
+        //     processMessage(newSessionId);
+        //     return;
+        //   }
           
-          if (row && row.user) {
-            // 기존 활성 세션이 있으면 그 세션 사용
-            console.log(`기존 활성 세션 발견: ${row.user}`);
-            processMessage(row.user);
-          } else {
-            // 활성 세션이 없으면 새로운 세션 ID 생성
-            const newSessionId = `${actualEmail}_${Date.now()}`;
-            console.log(`활성 세션 없음, 새로운 세션 생성: ${newSessionId}`);
-            // 새로운 세션 ID를 클라이언트에게 알림
-            socket.emit('new_session_created', { sessionId: newSessionId });
-            processMessage(newSessionId);
-          }
-        });
+        //   if (row && row.user) {
+        //     // 기존 활성 세션이 있으면 그 세션 사용
+        //     console.log(`기존 활성 세션 발견: ${row.user}`);
+        //     processMessage(row.user);
+        //   } else {
+        //     // 활성 세션이 없으면 새로운 세션 ID 생성
+        //     const newSessionId = `${actualEmail}_${Date.now()}`;
+        //     console.log(`활성 세션 없음, 새로운 세션 생성: ${newSessionId}`);
+        //     // 새로운 세션 ID를 클라이언트에게 알림
+        //     socket.emit('new_session_created', { sessionId: newSessionId });
+        //     processMessage(newSessionId);
+        //   }
+        // });
       }
       
       function processMessage(sessionId) {
@@ -191,53 +222,53 @@ io.on('connection', (socket) => {
         fileType || null
       ]);
       
-      db.run(insertQuery, [
-        sessionId, 
-        message, 
-        type,
-        file || null,
-        fileName || null,
-        fileType || null
-      ], function(err) {
-        if (err) {
-          console.error('메시지 저장 오류:', err);
-          socket.emit('message_error', { error: '메시지 저장에 실패했습니다.' });
-          return;
-        }
+      // db.run(insertQuery, [ // SQLite 제거
+      //   sessionId, 
+      //   message, 
+      //   type,
+      //   file || null,
+      //   fileName || null,
+      //   fileType || null
+      // ], function(err) {
+      //   if (err) {
+      //     console.error('메시지 저장 오류:', err);
+      //     socket.emit('message_error', { error: '메시지 저장에 실패했습니다.' });
+      //     return;
+      //   }
 
-        // 한국 시간(KST)으로 현재 시간 생성
-        const now = new Date();
-        const kstTime = new Date(now.getTime() + (9 * 60 * 60 * 1000)); // UTC+9
-        const timestamp = kstTime.toISOString().slice(0, 16).replace('T', ' ');
+      //   // 한국 시간(KST)으로 현재 시간 생성
+      //   const now = new Date();
+      //   const kstTime = new Date(now.getTime() + (9 * 60 * 60 * 1000)); // UTC+9
+      //   const timestamp = kstTime.toISOString().slice(0, 16).replace('T', ' ');
         
-        const savedMessage = {
-          id: this.lastID,
-          user: sessionId,
-          message,
-          timestamp: timestamp,
-          type,
-          file: file || null,
-          fileName: fileName || null,
-          fileType: fileType || null
-        };
+      //   const savedMessage = {
+      //     id: this.lastID,
+      //     user: sessionId,
+      //     message,
+      //     timestamp: timestamp,
+      //     type,
+      //     file: file || null,
+      //     fileName: fileName || null,
+      //     fileType: fileType || null
+      //   };
 
-        console.log('저장된 메시지:', savedMessage);
+      //   console.log('저장된 메시지:', savedMessage);
 
-        // 모든 클라이언트에게 메시지 브로드캐스트
-        io.emit('new_message', savedMessage);
+      //   // 모든 클라이언트에게 메시지 브로드캐스트
+      //   io.emit('new_message', savedMessage);
         
-        // 새로운 세션 ID가 생성된 경우, 해당 세션 ID로 메시지를 다시 전송
-        if (sessionId !== userEmail) {
-          console.log(`새로운 세션 ID로 메시지 재전송: ${sessionId}`);
-          socket.emit('message_for_session', { 
-            sessionId: sessionId, 
-            message: savedMessage 
-          });
-        }
+      //   // 새로운 세션 ID가 생성된 경우, 해당 세션 ID로 메시지를 다시 전송
+      //   if (sessionId !== userEmail) {
+      //     console.log(`새로운 세션 ID로 메시지 재전송: ${sessionId}`);
+      //     socket.emit('message_for_session', { 
+      //       sessionId: sessionId, 
+      //       message: savedMessage 
+      //     });
+      //   }
         
-        console.log(`메시지 전송: ${userEmail} -> ${message}`);
-        console.log(`연결된 클라이언트 수: ${Object.keys(io.sockets.sockets).length}`);
-      });
+      //   console.log(`메시지 전송: ${userEmail} -> ${message}`);
+      //   console.log(`연결된 클라이언트 수: ${Object.keys(io.sockets.sockets).length}`);
+      // });
     }
     } catch (error) {
       console.error('메시지 처리 오류:', error);
@@ -256,16 +287,19 @@ io.on('connection', (socket) => {
         WHERE user_email = ? AND status != 'closed'
       `;
       
-      db.run(updateQuery, [status, userEmail], function(err) {
-        if (err) {
-          console.error('상태 업데이트 오류:', err);
-          return;
-        }
+      // db.run(updateQuery, [ // SQLite 제거
+      //   status, 
+      //   userEmail
+      // ], function(err) {
+      //   if (err) {
+      //     console.error('상태 업데이트 오류:', err);
+      //     return;
+      //   }
         
-        // 모든 클라이언트에게 상태 업데이트 알림
-        io.emit('message_status_updated', { userEmail, status });
-        console.log(`메시지 상태 업데이트: ${userEmail} -> ${status}`);
-      });
+      //   // 모든 클라이언트에게 상태 업데이트 알림
+      //   io.emit('message_status_updated', { userEmail, status });
+      //   console.log(`메시지 상태 업데이트: ${userEmail} -> ${status}`);
+      // });
     } catch (error) {
       console.error('상태 업데이트 처리 오류:', error);
     }
@@ -306,22 +340,22 @@ app.get('/api/chat/messages', (req, res) => {
     ORDER BY timestamp ASC
   `;
   
-  db.all(query, [], (err, rows) => {
-    if (err) {
-      console.error('메시지 조회 오류:', err);
-      return res.status(500).json({ error: '메시지 조회에 실패했습니다.' });
-    }
+  // db.all(query, [], (err, rows) => { // SQLite 제거
+  //   if (err) {
+  //     console.error('메시지 조회 오류:', err);
+  //     return res.status(500).json({ error: '메시지 조회에 실패했습니다.' });
+  //   }
     
-    const messages = rows.map(row => ({
-      id: row.id,
-      user: row.user,
-      message: row.message,
-      timestamp: row.timestamp,
-      type: row.type
-    }));
+  //   const messages = rows.map(row => ({
+  //     id: row.id,
+  //     user: row.user,
+  //     message: row.message,
+  //     timestamp: row.timestamp,
+  //     type: row.type
+  //   }));
     
-    res.json(messages);
-  });
+  //   res.json(messages);
+  // });
 });
 
 // 현재 채팅 중인 유저 목록 가져오기
@@ -334,35 +368,35 @@ app.get('/api/chat/active-users', (req, res) => {
     ORDER BY lastMessageTime DESC
   `;
   
-  db.all(query, [], (err, rows) => {
-    if (err) {
-      console.error('활성 유저 조회 오류:', err);
-      return res.status(500).json({ error: '활성 유저 조회에 실패했습니다.' });
-    }
+  // db.all(query, [], (err, rows) => { // SQLite 제거
+  //   if (err) {
+  //     console.error('활성 유저 조회 오류:', err);
+  //     return res.status(500).json({ error: '활성 유저 조회에 실패했습니다.' });
+  //   }
     
-    const activeUsers = rows.map(row => ({
-      email: row.user,
-      lastMessageTime: row.lastMessageTime,
-      isOnline: connectedUsers.has(row.user) || userSockets.has(row.user)
-    }));
+  //   const activeUsers = rows.map(row => ({
+  //     email: row.user,
+  //     lastMessageTime: row.lastMessageTime,
+  //     isOnline: connectedUsers.has(row.user) || userSockets.has(row.user)
+  //   }));
     
-    res.json(activeUsers);
-  });
+  //   res.json(activeUsers);
+  // });
 });
 
 // 모든 메시지 삭제 API
 app.delete('/api/chat/messages/clear', (req, res) => {
   const query = `DELETE FROM chat_messages`;
   
-  db.run(query, [], function(err) {
-    if (err) {
-      console.error('메시지 삭제 오류:', err);
-      return res.status(500).json({ error: '메시지 삭제에 실패했습니다.' });
-    }
+  // db.run(query, [], function(err) { // SQLite 제거
+  //   if (err) {
+  //     console.error('메시지 삭제 오류:', err);
+  //     return res.status(500).json({ error: '메시지 삭제에 실패했습니다.' });
+  //   }
     
-    console.log(`모든 메시지 삭제 완료: ${this.changes}개 메시지 삭제됨`);
-    res.json({ message: '모든 메시지가 삭제되었습니다.', deletedCount: this.changes });
-  });
+  //   console.log(`모든 메시지 삭제 완료: ${this.changes}개 메시지 삭제됨`);
+  //   res.json({ message: '모든 메시지가 삭제되었습니다.', deletedCount: this.changes });
+  // });
 });
 
 // 특정 유저의 채팅 메시지 삭제 API
@@ -375,19 +409,21 @@ app.delete('/api/chat/messages/user/:userEmail', (req, res) => {
   
   const query = `DELETE FROM chat_messages WHERE user = ?`;
   
-  db.run(query, [userEmail], function(err) {
-    if (err) {
-      console.error('유저 메시지 삭제 오류:', err);
-      return res.status(500).json({ error: '유저 메시지 삭제에 실패했습니다.' });
-    }
+  // db.run(query, [ // SQLite 제거
+  //   userEmail
+  // ], function(err) {
+  //   if (err) {
+  //     console.error('유저 메시지 삭제 오류:', err);
+  //     return res.status(500).json({ error: '유저 메시지 삭제에 실패했습니다.' });
+  //   }
     
-    console.log(`유저 ${userEmail}의 메시지 삭제 완료: ${this.changes}개 메시지 삭제됨`);
-    res.json({ 
-      message: `${userEmail}의 모든 채팅 메시지가 삭제되었습니다.`, 
-      deletedCount: this.changes,
-      userEmail: userEmail
-    });
-  });
+  //   console.log(`유저 ${userEmail}의 메시지 삭제 완료: ${this.changes}개 메시지 삭제됨`);
+  //   res.json({ 
+  //     message: `${userEmail}의 모든 채팅 메시지가 삭제되었습니다.`, 
+  //     deletedCount: this.changes,
+  //     userEmail: userEmail
+  //   });
+  // });
 });
 
 // 채팅 메시지를 파일로 저장하는 함수
@@ -397,66 +433,66 @@ const saveChatMessagesToFile = () => {
     ORDER BY timestamp ASC
   `;
   
-  db.all(query, [], (err, rows) => {
-    if (err) {
-      console.error('메시지 조회 오류:', err);
-      return;
-    }
+  // db.all(query, [], (err, rows) => { // SQLite 제거
+  //   if (err) {
+  //     console.error('메시지 조회 오류:', err);
+  //     return;
+  //   }
     
-    const messages = rows.map(row => ({
-      id: row.id,
-      user: row.user,
-      message: row.message,
-      timestamp: row.timestamp,
-      type: row.type,
-      status: row.status,
-      file: row.file,
-      fileName: row.file_name,
-      fileType: row.file_type
-    }));
+  //   const messages = rows.map(row => ({
+  //     id: row.id,
+  //     user: row.user,
+  //     message: row.message,
+  //     timestamp: row.timestamp,
+  //     type: row.type,
+  //     status: row.status,
+  //     file: row.file,
+  //     fileName: row.file_name,
+  //     fileType: row.file_type
+  //   }));
     
-    // 유저별로 메시지 그룹화
-    const userMessages = {};
-    messages.forEach(msg => {
-      if (msg.user !== '관리자') {
-        if (!userMessages[msg.user]) {
-          userMessages[msg.user] = [];
-        }
-        userMessages[msg.user].push(msg);
-      }
-    });
+  //   // 유저별로 메시지 그룹화
+  //   const userMessages = {};
+  //   messages.forEach(msg => {
+  //     if (msg.user !== '관리자') {
+  //       if (!userMessages[msg.user]) {
+  //         userMessages[msg.user] = [];
+  //       }
+  //       userMessages[msg.user].push(msg);
+  //     }
+  //   });
     
-    // 전체 메시지와 유저별 메시지를 각각 저장
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  //   // 전체 메시지와 유저별 메시지를 각각 저장
+  //   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     
-    // 전체 메시지 TXT 저장
-    const allMessagesTxtFile = path.join(__dirname, 'chat_exports', `all_messages_${timestamp}.txt`);
-    fs.mkdirSync(path.dirname(allMessagesTxtFile), { recursive: true });
-    let txtContent = '=== 전체 채팅 메시지 ===\n\n';
-    messages.forEach(msg => {
-      const date = new Date(msg.timestamp).toLocaleString('ko-KR');
-      const type = msg.type === 'admin' ? '[관리자]' : '[사용자]';
-      const fileInfo = msg.file ? ` (첨부파일: ${msg.fileName})` : '';
-      txtContent += `[${date}] ${type} ${msg.user}: ${msg.message}${fileInfo}\n`;
-    });
-    fs.writeFileSync(allMessagesTxtFile, txtContent, 'utf8');
+  //   // 전체 메시지 TXT 저장
+  //   const allMessagesTxtFile = path.join(__dirname, 'chat_exports', `all_messages_${timestamp}.txt`);
+  //   fs.mkdirSync(path.dirname(allMessagesTxtFile), { recursive: true });
+  //   let txtContent = '=== 전체 채팅 메시지 ===\n\n';
+  //   messages.forEach(msg => {
+  //     const date = new Date(msg.timestamp).toLocaleString('ko-KR');
+  //     const type = msg.type === 'admin' ? '[관리자]' : '[사용자]';
+  //     const fileInfo = msg.file ? ` (첨부파일: ${msg.fileName})` : '';
+  //     txtContent += `[${date}] ${type} ${msg.user}: ${msg.message}${fileInfo}\n`;
+  //   });
+  //   fs.writeFileSync(allMessagesTxtFile, txtContent, 'utf8');
     
-    // 유저별 메시지 저장 (TXT만)
-    Object.keys(userMessages).forEach(userEmail => {
-      // 유저별 TXT 파일 저장
-      const userTxtFile = path.join(__dirname, 'chat_exports', `user_${userEmail.replace(/[@.]/g, '_')}_${timestamp}.txt`);
-      let userTxtContent = `=== ${userEmail} 채팅 메시지 ===\n\n`;
-      userMessages[userEmail].forEach(msg => {
-        const date = new Date(msg.timestamp).toLocaleString('ko-KR');
-        const type = msg.type === 'admin' ? '[관리자]' : '[사용자]';
-        const fileInfo = msg.file ? ` (첨부파일: ${msg.fileName})` : '';
-        userTxtContent += `[${date}] ${type} ${msg.user}: ${msg.message}${fileInfo}\n`;
-      });
-      fs.writeFileSync(userTxtFile, userTxtContent, 'utf8');
-    });
+  //   // 유저별 메시지 저장 (TXT만)
+  //   Object.keys(userMessages).forEach(userEmail => {
+  //     // 유저별 TXT 파일 저장
+  //     const userTxtFile = path.join(__dirname, 'chat_exports', `user_${userEmail.replace(/[@.]/g, '_')}_${timestamp}.txt`);
+  //     let userTxtContent = `=== ${userEmail} 채팅 메시지 ===\n\n`;
+  //     userMessages[userEmail].forEach(msg => {
+  //       const date = new Date(msg.timestamp).toLocaleString('ko-KR');
+  //       const type = msg.type === 'admin' ? '[관리자]' : '[사용자]';
+  //       const fileInfo = msg.file ? ` (첨부파일: ${msg.fileName})` : '';
+  //       userTxtContent += `[${date}] ${type} ${msg.user}: ${msg.message}${fileInfo}\n`;
+  //     });
+  //     fs.writeFileSync(userTxtFile, userTxtContent, 'utf8');
+  //   });
     
-    console.log(`채팅 메시지가 TXT 파일로 저장되었습니다. 전체: ${allMessagesTxtFile}`);
-  });
+  //   console.log(`채팅 메시지가 TXT 파일로 저장되었습니다. 전체: ${allMessagesTxtFile}`);
+  // });
 };
 
 // 채팅 메시지를 파일로 저장하는 API
@@ -488,46 +524,48 @@ app.post('/api/chat/messages/export/user/:userEmail', (req, res) => {
       ORDER BY timestamp ASC
     `;
     
-    db.all(query, [userEmail], (err, rows) => {
-      if (err) {
-        console.error('유저 메시지 조회 오류:', err);
-        return res.status(500).json({ error: '유저 메시지 조회에 실패했습니다.' });
-      }
+    // db.all(query, [ // SQLite 제거
+    //   userEmail
+    // ], (err, rows) => {
+    //   if (err) {
+    //     console.error('유저 메시지 조회 오류:', err);
+    //     return res.status(500).json({ error: '유저 메시지 조회에 실패했습니다.' });
+    //   }
       
-      const messages = rows.map(row => ({
-        id: row.id,
-        user: row.user,
-        message: row.message,
-        timestamp: row.timestamp,
-        type: row.type,
-        status: row.status,
-        file: row.file,
-        fileName: row.file_name,
-        fileType: row.file_type
-      }));
+    //   const messages = rows.map(row => ({
+    //     id: row.id,
+    //     user: row.user,
+    //     message: row.message,
+    //     timestamp: row.timestamp,
+    //     type: row.type,
+    //     status: row.status,
+    //     file: row.file,
+    //     fileName: row.file_name,
+    //     fileType: row.file_type
+    //   }));
       
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const userTxtFile = path.join(__dirname, 'chat_exports', `user_${userEmail.replace(/[@.]/g, '_')}_${timestamp}.txt`);
+    //   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    //   const userTxtFile = path.join(__dirname, 'chat_exports', `user_${userEmail.replace(/[@.]/g, '_')}_${timestamp}.txt`);
       
-      fs.mkdirSync(path.dirname(userTxtFile), { recursive: true });
+    //   fs.mkdirSync(path.dirname(userTxtFile), { recursive: true });
       
-      // TXT 파일 생성
-      let txtContent = `=== ${userEmail} 채팅 메시지 ===\n\n`;
-      messages.forEach(msg => {
-        const date = new Date(msg.timestamp).toLocaleString('ko-KR');
-        const type = msg.type === 'admin' ? '[관리자]' : '[사용자]';
-        const fileInfo = msg.file ? ` (첨부파일: ${msg.fileName})` : '';
-        txtContent += `[${date}] ${type} ${msg.user}: ${msg.message}${fileInfo}\n`;
-      });
-      fs.writeFileSync(userTxtFile, txtContent, 'utf8');
+    //   // TXT 파일 생성
+    //   let txtContent = `=== ${userEmail} 채팅 메시지 ===\n\n`;
+    //   messages.forEach(msg => {
+    //     const date = new Date(msg.timestamp).toLocaleString('ko-KR');
+    //     const type = msg.type === 'admin' ? '[관리자]' : '[사용자]';
+    //     const fileInfo = msg.file ? ` (첨부파일: ${msg.fileName})` : '';
+    //     txtContent += `[${date}] ${type} ${msg.user}: ${msg.message}${fileInfo}\n`;
+    //   });
+    //   fs.writeFileSync(userTxtFile, txtContent, 'utf8');
       
-      console.log(`유저 ${userEmail}의 메시지가 TXT 파일로 저장되었습니다: ${userTxtFile}`);
-      res.json({ 
-        message: `${userEmail}의 채팅 메시지가 TXT 파일로 저장되었습니다.`,
-        location: userTxtFile,
-        messageCount: messages.length
-      });
-    });
+    //   console.log(`유저 ${userEmail}의 메시지가 TXT 파일로 저장되었습니다: ${userTxtFile}`);
+    //   res.json({ 
+    //     message: `${userEmail}의 채팅 메시지가 TXT 파일로 저장되었습니다.`,
+    //     location: userTxtFile,
+    //     messageCount: messages.length
+    //   });
+    // });
   } catch (error) {
     console.error('파일 저장 오류:', error);
     res.status(500).json({ error: '파일 저장에 실패했습니다.' });

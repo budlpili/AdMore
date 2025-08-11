@@ -2,7 +2,6 @@ import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faHome, faBoxOpen, faCommentDots, faHeart, faStar } from '@fortawesome/free-solid-svg-icons';
-import { faHeart as faRegularHeart } from '@fortawesome/free-regular-svg-icons';
 
 interface MobileNavBarProps {
   setIsChatOpen: (open: boolean) => void;
@@ -102,7 +101,7 @@ const MobileNavBar: React.FC<MobileNavBarProps> = ({
           onClick={() => toggleFavorite && product && toggleFavorite(product.id)}
         >
           <FontAwesomeIcon
-            icon={product && favorites.includes(product.id) ? faHeart : faRegularHeart}
+            icon={product && favorites.includes(product.id) ? faHeart : faHeart}
             className={product && favorites.includes(product.id) ? 'text-red-500' : 'text-gray-300'}
           />
         </button>

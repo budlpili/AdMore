@@ -2,28 +2,28 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
+  faHome, 
   faSearch, 
-  faUser, 
   faShoppingCart, 
-  faHeart, 
   faBars, 
   faTimes, 
-  faChevronDown,
-  faComments,
+  faChevronDown, 
+  faUser, 
+  faSignOutAlt,
+  faUserPlus,
+  faCommentDots,
+  faHeadset,
+  faEye as faEyeSolid,
+  faHeart as faHeartSolid,
   faClipboardList,
   faCreditCard,
   faTicketAlt,
   faCog,
   faBuilding,
   faBoxOpen,
-  faStar,
-  faSignOutAlt,
-  faUserPlus,
-  faCommentDots,
-  faHeadset
+  faStar
 } from '@fortawesome/free-solid-svg-icons';
 import { Category, NavigationCategory } from '../types';
-import { faEye as faEyeRegular, faHeart as faHeartRegular, faUser as faUserSolid } from '@fortawesome/free-regular-svg-icons';
 import { getRecentProducts, clearRecentProducts, removeRecentProduct, updateRecentProduct } from '../utils/recentProducts';
 import { couponsAPI } from '../services/api';
 
@@ -275,14 +275,14 @@ const Header: React.FC<HeaderProps> = ({ setIsChatOpen }) => {
                 className=" text-gray-400 hover:text-gray-900 px-3 py-2 rounded-md font-medium flex items-center gap-1 focus:outline-none"
                 onClick={() => setRecentDrawerOpen(true)}
               >
-                <FontAwesomeIcon icon={faEyeRegular} className="text-[16px]" />
+                <FontAwesomeIcon icon={faEyeSolid} className="text-[16px]" />
               </button>
               {/* 즐겨찾기 */}
               <button 
                 onClick={() => handleNavigation('/mypage?tab=favorits')} 
                 className="text-gray-400 hover:text-gray-900 px-3 py-2 rounded-md font-medium flex items-center gap-1"
               >
-                <FontAwesomeIcon icon={faHeartRegular} className="text-[16px]" />
+                <FontAwesomeIcon icon={faHeartSolid} className="text-[16px]" />
               </button>
             </div>
             <div className="text-gray-400 px-1 text-[8px] font-semibold hidden md:block">|</div>
@@ -299,7 +299,7 @@ const Header: React.FC<HeaderProps> = ({ setIsChatOpen }) => {
                     type="button"
                     onClick={() => setUserMenuOpen((open) => !open)}
                   >
-                    <FontAwesomeIcon icon={faUserSolid} className="text-[16px]" />
+                    <FontAwesomeIcon icon={faUser} className="text-[16px]" />
                   </button>
 
                   {/* 유저메뉴 드롭다운 */}
@@ -310,7 +310,7 @@ const Header: React.FC<HeaderProps> = ({ setIsChatOpen }) => {
                     >
 
                       <div className="flex items-center gap-2 px-0 py-2">
-                          <FontAwesomeIcon icon={faUserSolid} className="border px-2 py-2 rounded-full text-2xl text-gray-400 bg-gray-100" />
+                          <FontAwesomeIcon icon={faUser} className="border px-2 py-2 rounded-full text-2xl text-gray-400 bg-gray-100" />
                           <div className="flex flex-col">
                             <span className="font-semibold text-gray-800 text-[14px]">
                               {(() => {
@@ -345,7 +345,7 @@ const Header: React.FC<HeaderProps> = ({ setIsChatOpen }) => {
                         <li>
                           <button className="text-sm w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center font-semibold"
                             onClick={() => { setUserMenuOpen(false); setIsChatOpen?.(true); }}>
-                            <FontAwesomeIcon icon={faComments} className="mr-2 text-gray-400 w-4 h-4" />
+                            <FontAwesomeIcon icon={faCommentDots} className="mr-2 text-gray-400 w-4 h-4" />
                             1:1 상담
                           </button>
                         </li>
@@ -366,7 +366,7 @@ const Header: React.FC<HeaderProps> = ({ setIsChatOpen }) => {
                         <li>
                           <button className="text-sm w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center font-semibold"
                             onClick={() => { setUserMenuOpen(false); navigate('/mypage?tab=favorits'); }}>
-                            <FontAwesomeIcon icon={faHeart} className="mr-2 text-gray-400 w-4 h-4" />
+                            <FontAwesomeIcon icon={faHeartSolid} className="mr-2 text-gray-400 w-4 h-4" />
                             즐겨찾기
                           </button>
                         </li>

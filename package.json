@@ -24,6 +24,7 @@
     "@tiptap/starter-kit": "^3.0.7",
     "bcryptjs": "^3.0.2",
     "chart.js": "^4.5.0",
+    "concurrently": "^9.2.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.0",
     "express": "^5.1.0",
@@ -39,10 +40,15 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-    "start": "react-scripts start",
+    "start": "concurrently \"npm run start:backend\" \"npm run start:frontend\"",
+    "start:frontend": "react-scripts start",
+    "start:backend": "cd backend && npm start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:frontend": "react-scripts start",
+    "dev:backend": "cd backend && npm run dev"
   },
   "eslintConfig": {
     "extends": [

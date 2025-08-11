@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faStar as faSolidStar, faStarHalfAlt, faStar as faRegularStar, faHeart as faSolidHeart, faPen, faTrash } from '@fortawesome/free-solid-svg-icons';
-import { faHeart as faRegularHeart } from '@fortawesome/free-regular-svg-icons';
+import { faStar as faSolidStar, faStarHalfAlt, faStar as faRegularStar, faHeart as faSolidHeart, faHeart, faPen, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { mockReviews } from '../data/reviews-list';
 import { products } from '../data/products';
 import { addRecentProduct } from '../utils/recentProducts';
@@ -1423,7 +1422,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ setIsChatOpen }) => {
               onClick={() => toggleFavorite(product.id)}
             >
               <FontAwesomeIcon
-                icon={favorites.includes(product.id) ? faSolidHeart : faRegularHeart}
+                icon={favorites.includes(product.id) ? faSolidHeart : faHeart}
                 className={`text-base ${favorites.includes(product.id) ? 'text-red-500' : 'text-gray-300'}`}
               />
             </button>

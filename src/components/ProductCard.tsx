@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Product } from '../types';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faHeart as faSolidHeart, faHeart as faRegularHeart, faStar as faSolidStar, faStarHalfAlt, faStar as faRegularStar, faPlayCircle } from '@fortawesome/free-solid-svg-icons';
+import { faHeart as faSolidHeart, faHeart, faStar as faSolidStar, faStarHalfAlt, faStar as faRegularStar, faPlayCircle } from '@fortawesome/free-solid-svg-icons';
 import { IconDefinition } from '@fortawesome/free-brands-svg-icons';
 
 interface ProductCardProps {
@@ -42,7 +42,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
         onClick={e => { e.preventDefault(); onFavoriteToggle(product.id); }}
       >
         <FontAwesomeIcon
-          icon={isFavorite ? faSolidHeart : faRegularHeart}
+          icon={isFavorite ? faSolidHeart : faHeart}
           className={`text-lg ${isFavorite ? 'text-red-500' : 'text-gray-100'}`}
         />
       </button>
