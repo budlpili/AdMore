@@ -195,6 +195,47 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     }
   }, [messages, sessionId]);
 
+  // 로컬 스토리지 정리 함수
+  const cleanupLocalStorage = useCallback(() => {
+    const allKeys = Object.keys(localStorage);
+    const chatMessageKeys = allKeys.filter(key => key.startsWith('chat_messages_'));
+    const currentSessionKeys = allKeys.filter(key => key.startsWith('current_session_'));
+    
+    console.log('=== 로컬 스토리지 정리 시작 ===');
+    console.log('총 chat_messages 키 수:', chatMessageKeys.length);
+    console.log('총 current_session 키 수:', currentSessionKeys.length);
+    
+    // 현재 사용자의 키만 유지하고 나머지는 정리
+    const currentUserKeys = chatMessageKeys.filter(key => key.includes(actualUserEmail));
+    const otherUserKeys = chatMessageKeys.filter(key => !key.includes(actualUserEmail));
+    
+    console.log('현재 사용자 키 수:', currentUserKeys.length);
+    console.log('다른 사용자 키 수:', otherUserKeys.length);
+    
+    // 다른 사용자의 키들 정리
+    otherUserKeys.forEach(key => {
+      localStorage.removeItem(key);
+      console.log('제거된 키:', key);
+    });
+    
+    // current_session도 현재 사용자 것만 유지
+    const otherUserSessionKeys = currentSessionKeys.filter(key => !key.includes(actualUserEmail));
+    
+    otherUserSessionKeys.forEach(key => {
+      localStorage.removeItem(key);
+      console.log('제거된 세션 키:', key);
+    });
+    
+    console.log('=== 로컬 스토리지 정리 완료 ===');
+  }, [actualUserEmail]);
+
+  // 컴포넌트 마운트 시 로컬 스토리지 정리
+  useEffect(() => {
+    if (actualUserEmail && actualUserEmail !== 'guest@example.com') {
+      cleanupLocalStorage();
+    }
+  }, [actualUserEmail, cleanupLocalStorage]);
+
   // 컴포넌트 마운트 시 기존 메시지 로드 (강제 로드 함수 사용)
   useEffect(() => {
     console.log('=== 컴포넌트 마운트 시 메시지 로드 ===');
@@ -235,8 +276,6 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
       console.log('저장된 메시지 없음');
     }
   }, [sessionId, actualUserEmail, messages]);
-
-
 
   // onNewMessage 콜백을 useCallback으로 안정화
   const handleNewMessage = useCallback((message: any) => {
@@ -311,17 +350,17 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
       console.log('새 메시지 추가됨, 총 메시지 수:', newMessages.length);
       return newMessages;
     });
-  }, []);
+  }, []); // 의존성 배열을 비워서 함수가 재생성되지 않도록 함
 
-  // WebSocket 훅 사용 (세션 ID를 userEmail로 전달)
+  // useWebSocket 훅 사용 (actualUserEmail이 변경될 때만 재연결)
   const {
     isConnected,
-    messages: wsMessages,
+    wsMessages,
     sendMessage,
     loadMessages,
     socket
   } = useWebSocket({
-    userEmail: sessionId || actualUserEmail, // 세션 ID가 있으면 사용, 없으면 실제 유저 이메일 사용
+    userEmail: actualUserEmail, // 실제 사용자 이메일 사용 (세션 ID가 아님)
     onNewMessage: handleNewMessage
   });
 
@@ -360,14 +399,14 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
 
   // 디버깅: 세션 ID와 userEmail 상태 로깅
   console.log('ChatWidget - sessionId:', sessionId);
-      console.log('ChatWidget - userEmail:', userEmail);
-    console.log('ChatWidget - actualUserEmail:', actualUserEmail);
-    console.log('ChatWidget - useWebSocket에 전달되는 userEmail:', sessionId || actualUserEmail);
+  console.log('ChatWidget - userEmail:', userEmail);
+  console.log('ChatWidget - actualUserEmail:', actualUserEmail);
+  console.log('ChatWidget - useWebSocket에 전달되는 userEmail:', actualUserEmail);
 
   // WebSocket에서 받은 메시지를 로컬 상태와 동기화 (사용자별 키 사용)
   useEffect(() => {
     console.log('wsMessages 변경됨:', wsMessages);
-    if (wsMessages && wsMessages.length > 0) {
+    if (wsMessages && Array.isArray(wsMessages) && wsMessages.length > 0) {
       console.log('WebSocket 메시지 로드됨:', wsMessages.length);
       
       // 현재 세션이 새로운 세션인지 확인 (타임스탬프가 포함된 세션 ID)
@@ -379,7 +418,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
       }
       
       // 채팅 완료 메시지가 포함된 경우 필터링
-      const hasCompletionMessage = wsMessages.some(msg => 
+      const hasCompletionMessage = wsMessages.some((msg: any) => 
         msg.message === '유저가 채팅종료를 하였습니다.' || 
         msg.message === '관리자가 답변을 완료하였습니다.'
       );
@@ -405,7 +444,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
       }
       
       // ChatMessage를 Message 형식으로 변환
-      const convertedMessages: Message[] = wsMessages.map(msg => ({
+      const convertedMessages: Message[] = wsMessages.map((msg: any) => ({
         id: msg.id,
         from: msg.type === 'admin' ? 'admin' : 'user',
         text: msg.message,

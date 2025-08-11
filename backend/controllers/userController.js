@@ -5,6 +5,46 @@ const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 require('dotenv').config();
 
+// 이메일 발송 트랜스포터 (환경변수 없으면 Ethereal 테스트 계정 사용)
+let cachedMailTransporter = null;
+async function getMailTransporter() {
+  if (cachedMailTransporter) return cachedMailTransporter;
+
+  const smtpUser = (process.env.SMTP_USER || '').trim();
+  const smtpPass = (process.env.SMTP_PASS || '').trim();
+  const smtpHost = (process.env.SMTP_HOST || 'smtp.gmail.com').trim();
+  const smtpPort = Number(process.env.SMTP_PORT) || 587;
+  const hasSmtpCreds = smtpUser.length > 0 && smtpPass.length > 0;
+  if (hasSmtpCreds) {
+    const secure = smtpPort === 465;
+    cachedMailTransporter = nodemailer.createTransport({
+      host: smtpHost,
+      port: smtpPort,
+      secure,
+      auth: {
+        user: smtpUser,
+        pass: smtpPass,
+      },
+    });
+    console.log('[Mail] Using real SMTP host:', smtpHost, 'port:', smtpPort, 'secure:', secure);
+    return cachedMailTransporter;
+  }
+
+  // 개발 환경: Ethereal 자동 생성
+  const testAccount = await nodemailer.createTestAccount();
+  cachedMailTransporter = nodemailer.createTransport({
+    host: 'smtp.ethereal.email',
+    port: 587,
+    secure: false,
+    auth: {
+      user: testAccount.user,
+      pass: testAccount.pass,
+    },
+  });
+  console.log('[Mail] Using Ethereal test account:', testAccount.user);
+  return cachedMailTransporter;
+}
+
 // 사용자 등록
 const register = (req, res) => {
   const { name, email, password, phone } = req.body;
@@ -41,22 +81,12 @@ const register = (req, res) => {
         }
 
         try {
-          // 인증 메일 발송 설정
-          const transporter = nodemailer.createTransport({
-            host: process.env.SMTP_HOST || 'smtp.gmail.com',
-            port: Number(process.env.SMTP_PORT) || 587,
-            secure: false,
-            auth: {
-              user: process.env.SMTP_USER,
-              pass: process.env.SMTP_PASS,
-            },
-          });
-
+          const transporter = await getMailTransporter();
           const baseUrl = process.env.APP_BASE_URL || 'http://localhost:3000';
           const verifyUrl = `${baseUrl}/verify-email?token=${verifyToken}`;
 
-          await transporter.sendMail({
-            from: process.env.MAIL_FROM || process.env.SMTP_USER,
+          const info = await transporter.sendMail({
+            from: process.env.MAIL_FROM || process.env.SMTP_USER || 'ADMore <no-reply@admore.local>',
             to: email,
             subject: '애드모어 이메일 인증을 완료해주세요',
             html: `
@@ -69,6 +99,8 @@ const register = (req, res) => {
               </div>
             `,
           });
+          const preview = nodemailer.getTestMessageUrl(info);
+          if (preview) console.log('[Mail] Preview URL:', preview);
 
           res.status(201).json({
             message: '사용자 등록이 완료되었습니다. 이메일 인증을 진행해주세요.',
@@ -94,38 +126,59 @@ const login = (req, res) => {
     return res.status(400).json({ message: '이메일과 비밀번호를 입력해주세요.' });
   }
 
+  console.log('[Login] 로그인 시도:', email);
+
   db.get('SELECT * FROM users WHERE email = ?', [email], (err, user) => {
     if (err) {
+      console.error('[Login] 데이터베이스 오류:', err);
       return res.status(500).json({ message: '서버 오류가 발생했습니다.' });
     }
 
     if (!user) {
+      console.log('[Login] 사용자 없음:', email);
       return res.status(401).json({ message: '이메일 또는 비밀번호가 올바르지 않습니다.' });
     }
 
+    console.log('[Login] 사용자 정보:', {
+      id: user.id,
+      email: user.email,
+      emailVerified: user.emailVerified,
+      status: user.status
+    });
+
     // 사용자 상태 확인
     if (user.status === 'inactive') {
+      console.log('[Login] 비활성화된 계정:', email);
       return res.status(403).json({ message: '비활성화된 계정입니다.' });
     }
 
     if (user.status === 'suspended') {
+      console.log('[Login] 정지된 계정:', email);
       return res.status(403).json({ message: '정지된 계정입니다.' });
     }
 
     // 이메일 인증 여부 확인
+    console.log('[Login] 이메일 인증 상태:', user.emailVerified, '타입:', typeof user.emailVerified);
     if (user.emailVerified !== 1) {
+      console.log('[Login] 이메일 인증 필요:', email, '상태:', user.emailVerified);
       return res.status(403).json({ message: '이메일 인증이 필요합니다.' });
     }
+
+    console.log('[Login] 이메일 인증 완료, 비밀번호 확인 진행');
 
     // 비밀번호 확인
     bcrypt.compare(password, user.password, (err, isMatch) => {
       if (err) {
+        console.error('[Login] 비밀번호 확인 오류:', err);
         return res.status(500).json({ message: '비밀번호 확인 중 오류가 발생했습니다.' });
       }
 
       if (!isMatch) {
+        console.log('[Login] 비밀번호 불일치:', email);
         return res.status(401).json({ message: '이메일 또는 비밀번호가 올바르지 않습니다.' });
       }
+
+      console.log('[Login] 로그인 성공:', email);
 
       // 마지막 로그인 시간 업데이트
       db.run('UPDATE users SET lastLogin = datetime("now", "localtime") WHERE id = ?', [user.id]);
@@ -339,16 +392,11 @@ const resendVerifyEmail = (req, res) => {
       if (uErr) return res.status(500).json({ message: '토큰 생성 중 오류가 발생했습니다.' });
 
       try {
-        const transporter = nodemailer.createTransport({
-          host: process.env.SMTP_HOST || 'smtp.gmail.com',
-          port: Number(process.env.SMTP_PORT) || 587,
-          secure: false,
-          auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-        });
+        const transporter = await getMailTransporter();
         const baseUrl = process.env.APP_BASE_URL || 'http://localhost:3000';
         const verifyUrl = `${baseUrl}/verify-email?token=${verifyToken}`;
-        await transporter.sendMail({
-          from: process.env.MAIL_FROM || process.env.SMTP_USER,
+        const info = await transporter.sendMail({
+          from: process.env.MAIL_FROM || process.env.SMTP_USER || 'ADMore <no-reply@admore.local>',
           to: email,
           subject: '애드모어 이메일 인증을 완료해주세요',
           html: `
@@ -361,6 +409,8 @@ const resendVerifyEmail = (req, res) => {
             </div>
           `,
         });
+        const preview = nodemailer.getTestMessageUrl(info);
+        if (preview) console.log('[Mail] Preview URL:', preview);
         return res.json({ message: '인증 메일을 재발송했습니다.' });
       } catch (mailErr) {
         console.error('메일 재발송 오류:', mailErr);
@@ -380,5 +430,6 @@ module.exports = {
   changePassword,
   logout,
   verifyEmail,
-  resendVerifyEmail
+  resendVerifyEmail,
+  getMailTransporter
 }; 

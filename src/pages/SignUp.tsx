@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { SignUpForm, FormErrors } from '../types/index';
 import { authAPI } from '../services/api';
@@ -27,8 +27,127 @@ const SignUp: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showEmailVerificationModal, setShowEmailVerificationModal] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState('');
+  const [isEmailVerifying, setIsEmailVerifying] = useState(false);
+  const [isEmailVerified, setIsEmailVerified] = useState(false);
+  const [emailVerificationCode, setEmailVerificationCode] = useState('');
+  const [showVerificationInput, setShowVerificationInput] = useState(false);
+  const [verificationExpiry, setVerificationExpiry] = useState<number | null>(null);
+  const [timeLeft, setTimeLeft] = useState<number>(0);
 
   const navigate = useNavigate();
+
+  // 이메일 인증 코드 요청
+  const requestEmailVerification = async (email: string) => {
+    if (!email || !email.includes('@')) {
+      setErrors({ email: '유효한 이메일 주소를 입력해주세요.' });
+      return;
+    }
+
+    setIsEmailVerifying(true);
+    try {
+      const response = await fetch('http://localhost:5001/api/auth/request-verification', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      if (response.ok) {
+        setShowVerificationInput(true);
+        setErrors({ email: '' });
+        // 10분(600초) 유효시간 설정
+        const expiryTime = Date.now() + 10 * 60 * 1000;
+        setVerificationExpiry(expiryTime);
+        setTimeLeft(600);
+        alert('인증 코드가 이메일로 발송되었습니다. 메일함을 확인해주세요.');
+      } else {
+        const errorData = await response.json();
+        setErrors({ email: errorData.message || '인증 코드 발송에 실패했습니다.' });
+      }
+    } catch (error) {
+      console.error('이메일 인증 요청 오류:', error);
+      setErrors({ email: '인증 코드 발송 중 오류가 발생했습니다.' });
+    } finally {
+      setIsEmailVerifying(false);
+    }
+  };
+
+  // 유효시간 포맷팅 함수
+  const formatTimeLeft = (seconds: number): string => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
+  // 유효시간이 만료되었는지 확인
+  const isVerificationExpired = (): boolean => {
+    return verificationExpiry !== null && Date.now() > verificationExpiry;
+  };
+
+  // 유효시간 타이머
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    
+    if (verificationExpiry && timeLeft > 0) {
+      timer = setInterval(() => {
+        const remaining = Math.max(0, Math.ceil((verificationExpiry - Date.now()) / 1000));
+        setTimeLeft(remaining);
+        
+        if (remaining <= 0) {
+          setShowVerificationInput(false);
+          setVerificationExpiry(null);
+          setEmailVerificationCode('');
+          setErrors({ email: '인증 코드 유효시간이 만료되었습니다. 다시 요청해주세요.' });
+        }
+      }, 1000);
+    }
+
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [verificationExpiry, timeLeft]);
+
+  // 이메일 인증 코드 확인
+  const verifyEmailCode = async () => {
+    if (!emailVerificationCode.trim()) {
+      setErrors({ email: '인증 코드를 입력해주세요.' });
+      return;
+    }
+
+    setIsEmailVerifying(true);
+    try {
+      const response = await fetch('http://localhost:5001/api/auth/verify-code', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          email: formData.email, 
+          code: emailVerificationCode 
+        }),
+      });
+
+      if (response.ok) {
+        setIsEmailVerified(true);
+        setShowVerificationInput(false);
+        setVerificationExpiry(null);
+        setTimeLeft(0);
+        setErrors({ email: '' });
+        alert('이메일 인증이 완료되었습니다!');
+      } else {
+        const errorData = await response.json();
+        setErrors({ email: errorData.message || '인증 코드가 올바르지 않습니다.' });
+      }
+    } catch (error) {
+      console.error('이메일 인증 코드 확인 오류:', error);
+      setErrors({ email: '인증 코드 확인 중 오류가 발생했습니다.' });
+    } finally {
+      setIsEmailVerifying(false);
+    }
+  };
 
   // Calculate password strength
   const getPasswordStrength = () => {
@@ -87,11 +206,13 @@ const SignUp: React.FC = () => {
 
     // Email validation
     if (!formData.email) {
-      newErrors.email = '이메일을 입력해주세요.';
       console.log('이메일 누락');
+      newErrors.email = '이메일을 입력해주세요.';
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = '올바른 이메일 형식을 입력해주세요.';
       console.log('이메일 형식 오류');
+      newErrors.email = '올바른 이메일 형식을 입력해주세요.';
+    } else if (!isEmailVerified) {
+      newErrors.email = '이메일 인증을 완료해주세요.';
     } else {
       console.log('이메일 검증 통과');
     }
@@ -224,18 +345,83 @@ const SignUp: React.FC = () => {
               <label htmlFor="email" className="block text-xs font-semibold text-gray-700 mb-1">
                 이메일 *
               </label>
-              <input
-                type="email"
-                id="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                className={`w-full px-3 py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm ${
-                  errors.email ? 'border-red-500' : 'border-gray-300'
-                }`}
-                placeholder="example@email.com"
-                disabled={isSubmitting}
-              />
+              <div className="flex space-x-2 mb-2">
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  className={`flex-1 px-3 py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm ${
+                    errors.email ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="example@email.com"
+                  disabled={isSubmitting || isEmailVerified}
+                />
+                <button
+                  type="button"
+                  onClick={() => requestEmailVerification(formData.email)}
+                  disabled={isSubmitting || isEmailVerifying || isEmailVerified || !formData.email}
+                  className={`w-[96px] px-4 py-3 rounded-md text-sm font-medium transition duration-200 ${
+                    isEmailVerified
+                      ? 'bg-green-500 text-white cursor-not-allowed'
+                      : isEmailVerifying
+                      ? 'bg-gray-400 text-white cursor-not-allowed'
+                      : 'bg-blue-500 text-white hover:bg-blue-600'
+                  }`}
+                >
+                  {isEmailVerified ? '✓ 인증완료' : isEmailVerifying ? '발송중...' : '인증하기'}
+                </button>
+              </div>
+              
+              {/* 이메일 인증 상태 표시 */}
+              {isEmailVerified && (
+                <p className="text-sm text-green-600 mb-2">✓ 이메일 인증이 완료되었습니다.</p>
+              )}
+              
+              {/* 인증 코드 입력 필드 */}
+              {showVerificationInput && !isEmailVerified && (
+                <div className="space-y-2">
+                  {/* 인증 코드 입력 및 확인 버튼 */}
+                  <div className="flex space-x-2">
+                    <div className="relative flex-1">
+                      <input
+                        type="text"
+                        value={emailVerificationCode}
+                        onChange={(e) => setEmailVerificationCode(e.target.value)}
+                        placeholder={`인증 코드 입력 (${formatTimeLeft(timeLeft)})`}
+                        className="w-full px-3 py-3 pr-20 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
+                        maxLength={6}
+                      />
+                      {/* input 내부 오른쪽에 시간 표시 */}
+                      <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                        <span className={`text-xs font-mono font-bold ${
+                          timeLeft <= 60 ? 'text-red-600' : 
+                          timeLeft <= 180 ? 'text-orange-600' : 'text-green-600'
+                        }`}>
+                          {formatTimeLeft(timeLeft)}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={verifyEmailCode}
+                      disabled={isEmailVerifying || !emailVerificationCode.trim() || timeLeft <= 0}
+                      className="w-[82px] px-4 py-3 bg-orange-500 text-white rounded-md text-sm font-medium hover:bg-orange-600 transition duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    >
+                      {isEmailVerifying ? '확인중...' : '확인'}
+                    </button>
+                  </div>
+                  
+                  {/* 유효시간 만료 안내 */}
+                  {timeLeft <= 0 && (
+                    <p className="text-sm text-red-600">
+                      ⏰ 인증 코드 유효시간이 만료되었습니다. "인증하기" 버튼을 다시 클릭해주세요.
+                    </p>
+                  )}
+                </div>
+              )}
+              
               {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email}</p>}
             </div>
 

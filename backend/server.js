@@ -6,6 +6,7 @@ const path = require('path');
 const http = require('http');
 const socketIo = require('socket.io');
 const fs = require('fs');
+const WebSocket = require('ws');
 require('dotenv').config();
 
 // 데이터베이스 연결
@@ -13,6 +14,36 @@ const db = require('./config/database');
 
 const app = express();
 const server = http.createServer(app);
+
+// 일반 WebSocket 서버 추가 (ws://localhost:3000/ws 요청 처리)
+const wss = new WebSocket.Server({ 
+  server,
+  path: '/ws'
+});
+
+// 일반 WebSocket 연결 처리
+wss.on('connection', (ws) => {
+  console.log('일반 WebSocket 연결됨:', ws.url);
+  
+  ws.on('message', (message) => {
+    console.log('일반 WebSocket 메시지 수신:', message.toString());
+    // 에코 응답
+    ws.send(JSON.stringify({ 
+      type: 'echo', 
+      message: message.toString(),
+      timestamp: new Date().toISOString()
+    }));
+  });
+  
+  ws.on('close', () => {
+    console.log('일반 WebSocket 연결 해제됨');
+  });
+  
+  ws.on('error', (error) => {
+    console.error('일반 WebSocket 오류:', error);
+  });
+});
+
 const io = socketIo(server, {
   cors: {
     origin: true,

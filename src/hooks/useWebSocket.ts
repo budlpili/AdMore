@@ -56,7 +56,11 @@ export const useWebSocket = ({
       return socketRef.current;
     }
 
-    // console.log('WebSocket 연결 시도 중...');
+    console.log('=== WebSocket 연결 시도 시작 ===');
+    console.log('연결 대상:', 'http://localhost:5001');
+    console.log('사용자 이메일:', userEmail);
+    console.log('관리자 모드:', isAdmin);
+    
     connectionAttemptedRef.current = true;
 
     const socket = io('http://localhost:5001', {
@@ -73,27 +77,53 @@ export const useWebSocket = ({
     socketRef.current = socket;
 
     socket.on('connect', () => {
-      // console.log('WebSocket 연결됨 - Socket ID:', socket.id);
+      console.log('=== WebSocket 연결 성공 ===');
+      console.log('Socket ID:', socket.id);
+      console.log('연결 상태:', socket.connected);
       setIsConnected(true);
+      connectionAttemptedRef.current = false;
       
       // 사용자 또는 관리자 로그인
       if (isAdmin) {
-        // console.log('관리자 로그인 이벤트 전송');
+        console.log('관리자 로그인 이벤트 전송');
         socket.emit('admin_login');
       } else if (userEmail) {
-        // console.log('사용자 로그인 이벤트 전송:', userEmail);
+        console.log('사용자 로그인 이벤트 전송:', userEmail);
         socket.emit('user_login', userEmail);
       }
     });
 
     socket.on('connect_error', (error) => {
-      console.error('WebSocket 연결 오류:', error);
+      console.error('=== WebSocket 연결 오류 ===');
+      console.error('오류 메시지:', error.message);
+      console.error('오류 상세:', error);
       setIsConnected(false);
       connectionAttemptedRef.current = false;
     });
 
     socket.on('disconnect', (reason) => {
-      console.log('WebSocket 연결 해제됨:', reason);
+      console.log('=== WebSocket 연결 해제 ===');
+      console.log('해제 이유:', reason);
+      console.log('연결 상태:', socket.connected);
+      setIsConnected(false);
+      connectionAttemptedRef.current = false;
+    });
+
+    socket.on('reconnect', (attemptNumber) => {
+      console.log('=== WebSocket 재연결 성공 ===');
+      console.log('재연결 시도 횟수:', attemptNumber);
+      console.log('Socket ID:', socket.id);
+      setIsConnected(true);
+    });
+
+    socket.on('reconnect_error', (error) => {
+      console.error('=== WebSocket 재연결 오류 ===');
+      console.error('오류:', error);
+    });
+
+    socket.on('reconnect_failed', () => {
+      console.error('=== WebSocket 재연결 실패 ===');
+      console.error('최대 재연결 시도 횟수 초과');
       setIsConnected(false);
       connectionAttemptedRef.current = false;
     });
@@ -312,15 +342,27 @@ export const useWebSocket = ({
   useEffect(() => {
     console.log('useWebSocket useEffect 실행:', { userEmail, isAdmin });
     
-    // 기존 연결 해제
+    // userEmail이 없으면 연결하지 않음
+    if (!userEmail) {
+      console.log('userEmail이 없어서 WebSocket 연결을 건너뜀');
+      return;
+    }
+    
+    // 이미 연결 시도 중이면 건너뜀
+    if (connectionAttemptedRef.current) {
+      console.log('이미 연결 시도 중입니다. 건너뜀');
+      return;
+    }
+    
+    // 기존 연결이 있으면 해제
     if (socketRef.current?.connected) {
       console.log('기존 연결 해제 후 재연결');
       socketRef.current.disconnect();
       socketRef.current = null;
     }
     
-    // connectionAttemptedRef 리셋
-    connectionAttemptedRef.current = false;
+    // connectionAttemptedRef 설정
+    connectionAttemptedRef.current = true;
     
     // 새로운 연결
     connect();
@@ -339,6 +381,7 @@ export const useWebSocket = ({
   return {
     isConnected,
     messages,
+    wsMessages: messages, // wsMessages 별칭 추가
     sendMessage,
     updateMessageStatus,
     loadMessages,
