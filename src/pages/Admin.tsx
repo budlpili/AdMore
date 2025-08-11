@@ -2953,8 +2953,7 @@ const Admin: React.FC = () => {
                                   </div>
                                 )}
                               </div>
-                            </td>
-                                                        
+                            </td>                                                        
                             <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
                               <div 
                                 className="cursor-pointer hover:bg-gray-50 p-1 rounded"
@@ -3676,7 +3675,16 @@ const Admin: React.FC = () => {
                             <td className="px-3 py-4 whitespace-nowrap text-xs font-medium text-gray-900">
                               <span className="ml-2">{user.name}</span>
                             </td>
-                            <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500">{user.email}</td>
+                            <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500">
+                              <div className="flex items-center space-x-2">
+                                <span>{user.email}</span>
+                                {user.emailVerified === 1 && (
+                                  <span className="w-5 h-5 inline-flex items-center px-1 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                    <FontAwesomeIcon icon={faCheck} className="mr-1" />
+                                  </span>
+                                )}
+                              </div>
+                            </td>
                             <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500">{user.phone}</td>
                             <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500">{user.joinDate}</td>
                             <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500">

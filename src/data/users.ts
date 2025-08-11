@@ -9,6 +9,7 @@ export interface User {
   lastLogin: string;
   orderCount: number;
   totalSpent: number;
+  emailVerified?: number; // 이메일 인증 완료 여부 (0: 미인증, 1: 인증완료)
 }
 
 export const defaultUsers: User[] = [
@@ -22,7 +23,8 @@ export const defaultUsers: User[] = [
     role: 'admin',
     lastLogin: '2024-06-01 14:30',
     orderCount: 5,
-    totalSpent: 150000
+    totalSpent: 150000,
+    emailVerified: 1
   },
   {
     id: '2',
@@ -34,7 +36,8 @@ export const defaultUsers: User[] = [
     role: 'user',
     lastLogin: '2024-06-01 09:15',
     orderCount: 3,
-    totalSpent: 89000
+    totalSpent: 89000,
+    emailVerified: 1
   },
   {
     id: '3',
@@ -46,7 +49,8 @@ export const defaultUsers: User[] = [
     role: 'user',
     lastLogin: '2024-05-20 16:45',
     orderCount: 1,
-    totalSpent: 45000
+    totalSpent: 45000,
+    emailVerified: 0
   },
   {
     id: '4',
@@ -58,7 +62,8 @@ export const defaultUsers: User[] = [
     role: 'user',
     lastLogin: '2024-06-01 11:20',
     orderCount: 7,
-    totalSpent: 210000
+    totalSpent: 210000,
+    emailVerified: 1
   },
   {
     id: '5',
@@ -70,7 +75,8 @@ export const defaultUsers: User[] = [
     role: 'user',
     lastLogin: '2024-06-01 13:45',
     orderCount: 2,
-    totalSpent: 67000
+    totalSpent: 67000,
+    emailVerified: 0
   },
   {
     id: '6',
@@ -82,7 +88,8 @@ export const defaultUsers: User[] = [
     role: 'user',
     lastLogin: '2024-05-15 10:30',
     orderCount: 0,
-    totalSpent: 0
+    totalSpent: 0,
+    emailVerified: 1
   },
   {
     id: '7',
@@ -94,7 +101,8 @@ export const defaultUsers: User[] = [
     role: 'user',
     lastLogin: '2024-06-01 08:15',
     orderCount: 4,
-    totalSpent: 120000
+    totalSpent: 120000,
+    emailVerified: 1
   },
   {
     id: '8',

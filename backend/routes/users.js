@@ -61,7 +61,7 @@ router.post('/register', (req, res) => {
 
 // 모든 회원 목록 조회
 router.get('/', (req, res) => {
-  db.all('SELECT id, name, email, phone, joinDate, status, role FROM users', [], (err, rows) => {
+  db.all('SELECT id, name, email, phone, joinDate, status, role, emailVerified FROM users', [], (err, rows) => {
     if (err) {
       return res.status(500).json({ message: '회원 목록 조회 중 오류가 발생했습니다.' });
     }
@@ -73,7 +73,7 @@ router.get('/', (req, res) => {
 router.get('/:id', (req, res) => {
   const { id } = req.params;
   
-  db.get('SELECT id, name, email, phone, joinDate, status, role FROM users WHERE id = ?', [id], (err, user) => {
+  db.get('SELECT id, name, email, phone, joinDate, status, role, emailVerified FROM users WHERE id = ?', [id], (err, user) => {
     if (err) {
       return res.status(500).json({ message: '회원 조회 중 오류가 발생했습니다.' });
     }

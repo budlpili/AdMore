@@ -157,14 +157,14 @@ const login = (req, res) => {
       return res.status(403).json({ message: '정지된 계정입니다.' });
     }
 
-    // 이메일 인증 여부 확인
+    // 이메일 인증 여부 확인 (admin@admore.com은 제외)
     console.log('[Login] 이메일 인증 상태:', user.emailVerified, '타입:', typeof user.emailVerified);
-    if (user.emailVerified !== 1) {
+    if (user.emailVerified !== 1 && user.email !== 'admin@admore.com') {
       console.log('[Login] 이메일 인증 필요:', email, '상태:', user.emailVerified);
       return res.status(403).json({ message: '이메일 인증이 필요합니다.' });
     }
 
-    console.log('[Login] 이메일 인증 완료, 비밀번호 확인 진행');
+    console.log('[Login] 이메일 인증 완료 또는 관리자 계정, 비밀번호 확인 진행');
 
     // 비밀번호 확인
     bcrypt.compare(password, user.password, (err, isMatch) => {
