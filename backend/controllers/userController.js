@@ -1,4 +1,4 @@
-const db = require('../config/database');
+const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
@@ -46,76 +46,77 @@ async function getMailTransporter() {
 }
 
 // 사용자 등록
-const register = (req, res) => {
-  const { name, email, password, phone } = req.body;
+const register = async (req, res) => {
+  try {
+    const { name, email, password, phone } = req.body;
 
-  if (!name || !email || !password) {
-    return res.status(400).json({ message: '필수 필드가 누락되었습니다.' });
-  }
-
-  // 이메일 중복 확인
-  db.get('SELECT * FROM users WHERE email = ?', [email], (err, user) => {
-    if (err) {
-      return res.status(500).json({ message: '서버 오류가 발생했습니다.' });
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: '필수 필드가 누락되었습니다.' });
     }
-    
-    if (user) {
+
+    // 이메일 중복 확인
+    const existingUser = await User.findByEmail(email);
+    if (existingUser) {
       return res.status(400).json({ message: '이미 존재하는 이메일입니다.' });
     }
 
     // 비밀번호 해시화
-    bcrypt.hash(password, 10, (err, hashedPassword) => {
-      if (err) {
-        return res.status(500).json({ message: '비밀번호 암호화 오류가 발생했습니다.' });
-      }
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-      // 이메일 인증 토큰 생성 (30분 유효)
-      const verifyToken = crypto.randomBytes(32).toString('hex');
-      const verifyExpires = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+    // 이메일 인증 토큰 생성 (30분 유효)
+    const verifyToken = crypto.randomBytes(32).toString('hex');
+    const verifyExpires = new Date(Date.now() + 30 * 60 * 1000);
 
-      // 사용자 생성 (초기 emailVerified=0)
-      const sql = `INSERT INTO users (name, email, password, phone, emailVerified, verifyToken, verifyExpires) VALUES (?, ?, ?, ?, 0, ?, ?)`;
-      db.run(sql, [name, email, hashedPassword, phone, verifyToken, verifyExpires], async function(err) {
-        if (err) {
-          return res.status(500).json({ message: '사용자 등록에 실패했습니다.' });
-        }
-
-        try {
-          const transporter = await getMailTransporter();
-          const baseUrl = process.env.APP_BASE_URL || 'http://localhost:3000';
-          const verifyUrl = `${baseUrl}/verify-email?token=${verifyToken}`;
-
-          const info = await transporter.sendMail({
-            from: process.env.MAIL_FROM || process.env.SMTP_USER || 'ADMore <no-reply@admore.local>',
-            to: email,
-            subject: '애드모어 이메일 인증을 완료해주세요',
-            html: `
-              <div style="font-family:Arial,sans-serif;font-size:14px;color:#111">
-                <h2>안녕하세요, ${name}님!</h2>
-                <p>아래 버튼을 눌러 이메일 인증을 완료해주세요. 링크는 30분간 유효합니다.</p>
-                <p><a href="${verifyUrl}" style="display:inline-block;padding:10px 16px;background:#f97316;color:#fff;border-radius:6px;text-decoration:none">이메일 인증</a></p>
-                <p>버튼이 동작하지 않으면 링크를 복사하여 브라우저에 붙여넣기 해주세요:</p>
-                <p><a href="${verifyUrl}">${verifyUrl}</a></p>
-              </div>
-            `,
-          });
-          const preview = nodemailer.getTestMessageUrl(info);
-          if (preview) console.log('[Mail] Preview URL:', preview);
-
-          res.status(201).json({
-            message: '사용자 등록이 완료되었습니다. 이메일 인증을 진행해주세요.',
-            user: { id: this.lastID, name, email, role: 'user' },
-          });
-        } catch (mailErr) {
-          console.error('메일 발송 오류:', mailErr);
-          res.status(201).json({
-            message: '사용자 등록은 완료되었으나, 인증 메일 발송에 실패했습니다. 나중에 다시 시도해주세요.',
-            user: { id: this.lastID, name, email, role: 'user' },
-          });
-        }
-      });
+    // 사용자 생성 (초기 emailVerified=false)
+    const user = new User({
+      name,
+      email,
+      password: hashedPassword,
+      phone,
+      emailVerified: false,
+      verifyToken,
+      verifyExpires
     });
-  });
+
+    await user.save();
+
+    try {
+      const transporter = await getMailTransporter();
+      const baseUrl = process.env.APP_BASE_URL || 'http://localhost:3000';
+      const verifyUrl = `${baseUrl}/verify-email?token=${verifyToken}`;
+
+      const info = await transporter.sendMail({
+        from: process.env.MAIL_FROM || process.env.SMTP_USER || 'ADMore <no-reply@admore.local>',
+        to: email,
+        subject: '애드모어 이메일 인증을 완료해주세요',
+        html: `
+          <div style="font-family:Arial,sans-serif;font-size:14px;color:#111">
+            <h2>안녕하세요, ${name}님!</h2>
+            <p>아래 버튼을 눌러 이메일 인증을 완료해주세요. 링크는 30분간 유효합니다.</p>
+            <p><a href="${verifyUrl}" style="display:inline-block;padding:10px 16px;background:#f97316;color:#fff;border-radius:6px;text-decoration:none">이메일 인증</a></p>
+            <p>버튼이 동작하지 않으면 링크를 복사하여 브라우저에 붙여넣기 해주세요:</p>
+            <p><a href="${verifyUrl}">${verifyUrl}</a></p>
+          </div>
+        `,
+      });
+
+      console.log('이메일 발송 성공:', info.messageId);
+      res.status(201).json({ 
+        message: '회원가입이 완료되었습니다. 이메일을 확인하여 인증을 완료해주세요.',
+        emailSent: true
+      });
+    } catch (emailError) {
+      console.error('이메일 발송 실패:', emailError);
+      // 이메일 발송 실패해도 사용자는 생성됨
+      res.status(201).json({ 
+        message: '회원가입이 완료되었습니다. 이메일 발송에 실패했지만 나중에 재발송할 수 있습니다.',
+        emailSent: false
+      });
+    }
+  } catch (error) {
+    console.error('사용자 등록 오류:', error);
+    res.status(500).json({ message: '사용자 등록에 실패했습니다.' });
+  }
 };
 
 // 사용자 로그인
@@ -128,81 +129,81 @@ const login = (req, res) => {
 
   console.log('[Login] 로그인 시도:', email);
 
-  db.get('SELECT * FROM users WHERE email = ?', [email], (err, user) => {
-    if (err) {
-      console.error('[Login] 데이터베이스 오류:', err);
-      return res.status(500).json({ message: '서버 오류가 발생했습니다.' });
-    }
-
-    if (!user) {
-      console.log('[Login] 사용자 없음:', email);
-      return res.status(401).json({ message: '이메일 또는 비밀번호가 올바르지 않습니다.' });
-    }
-
-    console.log('[Login] 사용자 정보:', {
-      id: user.id,
-      email: user.email,
-      emailVerified: user.emailVerified,
-      status: user.status
-    });
-
-    // 사용자 상태 확인
-    if (user.status === 'inactive') {
-      console.log('[Login] 비활성화된 계정:', email);
-      return res.status(403).json({ message: '비활성화된 계정입니다.' });
-    }
-
-    if (user.status === 'suspended') {
-      console.log('[Login] 정지된 계정:', email);
-      return res.status(403).json({ message: '정지된 계정입니다.' });
-    }
-
-    // 이메일 인증 여부 확인 (admin@admore.com은 제외)
-    console.log('[Login] 이메일 인증 상태:', user.emailVerified, '타입:', typeof user.emailVerified);
-    if (user.emailVerified !== 1 && user.email !== 'admin@admore.com') {
-      console.log('[Login] 이메일 인증 필요:', email, '상태:', user.emailVerified);
-      return res.status(403).json({ message: '이메일 인증이 필요합니다.' });
-    }
-
-    console.log('[Login] 이메일 인증 완료 또는 관리자 계정, 비밀번호 확인 진행');
-
-    // 비밀번호 확인
-    bcrypt.compare(password, user.password, (err, isMatch) => {
-      if (err) {
-        console.error('[Login] 비밀번호 확인 오류:', err);
-        return res.status(500).json({ message: '비밀번호 확인 중 오류가 발생했습니다.' });
-      }
-
-      if (!isMatch) {
-        console.log('[Login] 비밀번호 불일치:', email);
+  User.findByEmail(email)
+    .then(user => {
+      if (!user) {
+        console.log('[Login] 사용자 없음:', email);
         return res.status(401).json({ message: '이메일 또는 비밀번호가 올바르지 않습니다.' });
       }
 
-      console.log('[Login] 로그인 성공:', email);
-
-      // 마지막 로그인 시간 업데이트
-      db.run('UPDATE users SET lastLogin = datetime("now", "localtime") WHERE id = ?', [user.id]);
-
-      // JWT 토큰 생성
-      const token = jwt.sign(
-        { id: user.id, email: user.email, role: user.role },
-        process.env.JWT_SECRET || 'admore_jwt_secret_key_2024',
-        { expiresIn: '24h' }
-      );
-
-      res.json({
-        message: '로그인이 완료되었습니다.',
-        token,
-        user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          status: user.status
-        }
+      console.log('[Login] 사용자 정보:', {
+        id: user._id,
+        email: user.email,
+        emailVerified: user.emailVerified,
+        status: user.status
       });
+
+      // 사용자 상태 확인
+      if (user.status === 'inactive') {
+        console.log('[Login] 비활성화된 계정:', email);
+        return res.status(403).json({ message: '비활성화된 계정입니다.' });
+      }
+
+      if (user.status === 'suspended') {
+        console.log('[Login] 정지된 계정:', email);
+        return res.status(403).json({ message: '정지된 계정입니다.' });
+      }
+
+      // 이메일 인증 여부 확인 (admin@admore.com은 제외)
+      console.log('[Login] 이메일 인증 상태:', user.emailVerified, '타입:', typeof user.emailVerified);
+      if (!user.emailVerified && user.email !== 'admin@admore.com') {
+        console.log('[Login] 이메일 인증 필요:', email, '상태:', user.emailVerified);
+        return res.status(403).json({ message: '이메일 인증이 필요합니다.' });
+      }
+
+      console.log('[Login] 이메일 인증 완료 또는 관리자 계정, 비밀번호 확인 진행');
+
+      // 비밀번호 확인
+      bcrypt.compare(password, user.password, (err, isMatch) => {
+        if (err) {
+          console.error('[Login] 비밀번호 확인 오류:', err);
+          return res.status(500).json({ message: '비밀번호 확인 중 오류가 발생했습니다.' });
+        }
+
+        if (!isMatch) {
+          console.log('[Login] 비밀번호 불일치:', email);
+          return res.status(401).json({ message: '이메일 또는 비밀번호가 올바르지 않습니다.' });
+        }
+
+        console.log('[Login] 로그인 성공:', email);
+
+        // 마지막 로그인 시간 업데이트
+        User.updateLastLogin(user._id);
+
+        // JWT 토큰 생성
+        const token = jwt.sign(
+          { id: user._id, email: user.email, role: user.role },
+          process.env.JWT_SECRET || 'admore_jwt_secret_key_2024',
+          { expiresIn: '24h' }
+        );
+
+        res.json({
+          message: '로그인이 완료되었습니다.',
+          token,
+          user: {
+            id: user._id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            status: user.status
+          }
+        });
+      });
+    })
+    .catch(err => {
+      console.error('[Login] 데이터베이스 오류:', err);
+      res.status(500).json({ message: '서버 오류가 발생했습니다.' });
     });
-  });
 };
 
 // 이메일 인증 확인
@@ -210,19 +211,27 @@ const verifyEmail = (req, res) => {
   const { token } = req.query;
   if (!token) return res.status(400).json({ message: '토큰이 필요합니다.' });
 
-  db.get('SELECT id, verifyExpires FROM users WHERE verifyToken = ?', [token], (err, user) => {
-    if (err) return res.status(500).json({ message: '서버 오류가 발생했습니다.' });
-    if (!user) return res.status(400).json({ message: '유효하지 않은 토큰입니다.' });
+  User.findByVerifyToken(token)
+    .then(user => {
+      if (!user) return res.status(400).json({ message: '유효하지 않은 토큰입니다.' });
 
-    if (user.verifyExpires && new Date(user.verifyExpires).getTime() < Date.now()) {
-      return res.status(400).json({ message: '토큰이 만료되었습니다.' });
-    }
+      if (user.verifyExpires && new Date(user.verifyExpires).getTime() < Date.now()) {
+        return res.status(400).json({ message: '토큰이 만료되었습니다.' });
+      }
 
-    db.run('UPDATE users SET emailVerified = 1, verifyToken = NULL, verifyExpires = NULL WHERE id = ?', [user.id], function(updateErr) {
-      if (updateErr) return res.status(500).json({ message: '인증 처리 중 오류가 발생했습니다.' });
-      return res.json({ message: '이메일 인증이 완료되었습니다.' });
+      User.updateEmailVerified(user._id)
+        .then(() => {
+          res.json({ message: '이메일 인증이 완료되었습니다.' });
+        })
+        .catch(err => {
+          console.error('인증 처리 중 오류:', err);
+          res.status(500).json({ message: '인증 처리 중 오류가 발생했습니다.' });
+        });
+    })
+    .catch(err => {
+      console.error('토큰 조회 중 오류:', err);
+      res.status(500).json({ message: '서버 오류가 발생했습니다.' });
     });
-  });
 };
 
 // 관리자 로그인 (개발용)
@@ -283,17 +292,18 @@ const verifyAdminPassword = (req, res) => {
 const getProfile = (req, res) => {
   const userId = req.user.id;
 
-  db.get('SELECT id, name, email, phone, joinDate, status, role, lastLogin, orderCount, totalSpent FROM users WHERE id = ?', [userId], (err, user) => {
-    if (err) {
-      return res.status(500).json({ message: '서버 오류가 발생했습니다.' });
-    }
+  User.findById(userId)
+    .then(user => {
+      if (!user) {
+        return res.status(404).json({ message: '사용자를 찾을 수 없습니다.' });
+      }
 
-    if (!user) {
-      return res.status(404).json({ message: '사용자를 찾을 수 없습니다.' });
-    }
-
-    res.json(user);
-  });
+      res.json(user);
+    })
+    .catch(err => {
+      console.error('사용자 정보 조회 오류:', err);
+      res.status(500).json({ message: '서버 오류가 발생했습니다.' });
+    });
 };
 
 // 사용자 정보 수정
@@ -301,18 +311,24 @@ const updateProfile = (req, res) => {
   const userId = req.user.id;
   const { name, phone } = req.body;
 
-  const sql = 'UPDATE users SET name = ?, phone = ? WHERE id = ?';
-  db.run(sql, [name, phone, userId], function(err) {
-    if (err) {
-      return res.status(500).json({ message: '프로필 업데이트에 실패했습니다.' });
-    }
+  User.findById(userId)
+    .then(user => {
+      if (!user) {
+        return res.status(404).json({ message: '사용자를 찾을 수 없습니다.' });
+      }
 
-    if (this.changes === 0) {
-      return res.status(404).json({ message: '사용자를 찾을 수 없습니다.' });
-    }
+      user.name = name;
+      user.phone = phone;
 
-    res.json({ message: '프로필이 업데이트되었습니다.' });
-  });
+      return user.save();
+    })
+    .then(updatedUser => {
+      res.json({ message: '프로필이 업데이트되었습니다.' });
+    })
+    .catch(err => {
+      console.error('프로필 업데이트 오류:', err);
+      res.status(500).json({ message: '프로필 업데이트에 실패했습니다.' });
+    });
 };
 
 // 비밀번호 변경
@@ -325,41 +341,32 @@ const changePassword = (req, res) => {
   }
 
   // 현재 비밀번호 확인
-  db.get('SELECT password FROM users WHERE id = ?', [userId], (err, user) => {
-    if (err) {
-      return res.status(500).json({ message: '서버 오류가 발생했습니다.' });
-    }
-
-    if (!user) {
-      return res.status(404).json({ message: '사용자를 찾을 수 없습니다.' });
-    }
-
-    bcrypt.compare(currentPassword, user.password, (err, isMatch) => {
-      if (err) {
-        return res.status(500).json({ message: '비밀번호 확인 중 오류가 발생했습니다.' });
+  User.findById(userId)
+    .then(user => {
+      if (!user) {
+        return res.status(404).json({ message: '사용자를 찾을 수 없습니다.' });
       }
 
+      return bcrypt.compare(currentPassword, user.password);
+    })
+    .then(isMatch => {
       if (!isMatch) {
         return res.status(400).json({ message: '현재 비밀번호가 올바르지 않습니다.' });
       }
 
       // 새 비밀번호 해시화
-      bcrypt.hash(newPassword, 10, (err, hashedPassword) => {
-        if (err) {
-          return res.status(500).json({ message: '비밀번호 암호화 오류가 발생했습니다.' });
-        }
-
-        // 비밀번호 업데이트
-        db.run('UPDATE users SET password = ? WHERE id = ?', [hashedPassword, userId], function(err) {
-          if (err) {
-            return res.status(500).json({ message: '비밀번호 변경에 실패했습니다.' });
-          }
-
-          res.json({ message: '비밀번호가 변경되었습니다.' });
-        });
-      });
+      return bcrypt.hash(newPassword, 10);
+    })
+    .then(hashedPassword => {
+      return User.updatePassword(req.user.id, hashedPassword);
+    })
+    .then(() => {
+      res.json({ message: '비밀번호가 변경되었습니다.' });
+    })
+    .catch(err => {
+      console.error('비밀번호 변경 오류:', err);
+      res.status(500).json({ message: '비밀번호 변경에 실패했습니다.' });
     });
-  });
 };
 
 // 로그아웃
@@ -380,17 +387,18 @@ const resendVerifyEmail = (req, res) => {
   const { email, name } = req.body || {};
   if (!email) return res.status(400).json({ message: '이메일이 필요합니다.' });
 
-  db.get('SELECT id, name, emailVerified FROM users WHERE email = ?', [email], async (err, user) => {
-    if (err) return res.status(500).json({ message: '서버 오류가 발생했습니다.' });
-    if (!user) return res.status(404).json({ message: '가입 정보를 찾을 수 없습니다.' });
-    if (user.emailVerified === 1) return res.status(400).json({ message: '이미 이메일 인증이 완료된 계정입니다.' });
+  User.findByEmail(email)
+    .then(user => {
+      if (!user) return res.status(404).json({ message: '가입 정보를 찾을 수 없습니다.' });
+      if (user.emailVerified === true) return res.status(400).json({ message: '이미 이메일 인증이 완료된 계정입니다.' });
 
-    const verifyToken = crypto.randomBytes(32).toString('hex');
-    const verifyExpires = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+      const verifyToken = crypto.randomBytes(32).toString('hex');
+      const verifyExpires = new Date(Date.now() + 30 * 60 * 1000);
 
-    db.run('UPDATE users SET verifyToken = ?, verifyExpires = ? WHERE id = ?', [verifyToken, verifyExpires, user.id], async (uErr) => {
-      if (uErr) return res.status(500).json({ message: '토큰 생성 중 오류가 발생했습니다.' });
-
+      return User.updateVerifyToken(user._id, verifyToken, verifyExpires)
+        .then(() => ({ user, verifyToken }));
+    })
+    .then(async ({ user, verifyToken }) => {
       try {
         const transporter = await getMailTransporter();
         const baseUrl = process.env.APP_BASE_URL || 'http://localhost:3000';
@@ -416,8 +424,11 @@ const resendVerifyEmail = (req, res) => {
         console.error('메일 재발송 오류:', mailErr);
         return res.status(500).json({ message: '메일 발송 중 오류가 발생했습니다.' });
       }
+    })
+    .catch(err => {
+      console.error('이메일 재발송 오류:', err);
+      res.status(500).json({ message: '메일 발송 중 오류가 발생했습니다.' });
     });
-  });
 };
 
 module.exports = {

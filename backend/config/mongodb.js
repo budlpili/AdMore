@@ -8,11 +8,11 @@ const connectMongoDB = async () => {
     console.log('연결 URI:', mongoURI.replace(/\/\/[^:]+:[^@]+@/, '//***:***@')); // 비밀번호 마스킹
     
     await mongoose.connect(mongoURI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
       maxPoolSize: 10,
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 45000,
+      bufferCommands: false,
+      bufferMaxEntries: 0
     });
     
     console.log('✅ MongoDB 연결 성공!');

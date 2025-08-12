@@ -41,6 +41,12 @@ const userSchema = new mongoose.Schema({
   },
   lastLogin: {
     type: Date
+  },
+  verifyToken: {
+    type: String
+  },
+  verifyExpires: {
+    type: Date
   }
 }, {
   timestamps: true
@@ -49,6 +55,11 @@ const userSchema = new mongoose.Schema({
 // 이메일로 사용자 찾기
 userSchema.statics.findByEmail = function(email) {
   return this.findOne({ email: email.toLowerCase() });
+};
+
+// 인증 토큰으로 사용자 찾기
+userSchema.statics.findByVerifyToken = function(token) {
+  return this.findOne({ verifyToken: token });
 };
 
 // 사용자 상태 업데이트
@@ -60,7 +71,40 @@ userSchema.methods.updateStatus = function(status) {
 // 이메일 인증 상태 업데이트
 userSchema.methods.verifyEmail = function() {
   this.emailVerified = true;
+  this.verifyToken = undefined;
+  this.verifyExpires = undefined;
   return this.save();
+};
+
+// 인증 토큰 업데이트
+userSchema.statics.updateVerifyToken = function(userId, token, expires) {
+  return this.findByIdAndUpdate(userId, {
+    verifyToken: token,
+    verifyExpires: expires
+  });
+};
+
+// 이메일 인증 완료
+userSchema.statics.updateEmailVerified = function(userId) {
+  return this.findByIdAndUpdate(userId, {
+    emailVerified: true,
+    verifyToken: undefined,
+    verifyExpires: undefined
+  });
+};
+
+// 마지막 로그인 시간 업데이트
+userSchema.statics.updateLastLogin = function(userId) {
+  return this.findByIdAndUpdate(userId, {
+    lastLogin: new Date()
+  });
+};
+
+// 비밀번호 업데이트
+userSchema.statics.updatePassword = function(userId, hashedPassword) {
+  return this.findByIdAndUpdate(userId, {
+    password: hashedPassword
+  });
 };
 
 module.exports = mongoose.model('User', userSchema);
