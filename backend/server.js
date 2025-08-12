@@ -96,17 +96,41 @@ app.use(cors({
       callback(new Error('CORS 정책에 의해 차단됨'));
     }
   },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  credentials: true
 }));
 
-// 미들웨어 설정
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // 정적 파일 제공
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// MongoDB 연결 초기화 후 라우트 로드
+// connectMongoDB().then(() => { // 이 부분은 위에서 처리되었으므로 제거
+//   console.log('MongoDB 연결 완료, 서버 시작 중...');
+  
+  // 라우트 로드 (MongoDB 연결 후)
+  const authRoutes = require('./routes/auth');
+  const userRoutes = require('./routes/users');
+  const productRoutes = require('./routes/products');
+  const orderRoutes = require('./routes/orders');
+  const reviewRoutes = require('./routes/reviews');
+  const categoryRoutes = require('./routes/categories');
+  const tagRoutes = require('./routes/tags');
+  const couponRoutes = require('./routes/coupons');
+  const customerServiceRoutes = require('./routes/customerService');
+
+  app.use('/api/auth', authRoutes);
+  app.use('/api/users', userRoutes);
+  app.use('/api/products', productRoutes);
+  app.use('/api/orders', orderRoutes);
+  app.use('/api/reviews', reviewRoutes);
+  app.use('/api/categories', categoryRoutes);
+  app.use('/api/tags', tagRoutes);
+  app.use('/api/coupons', couponRoutes);
+  app.use('/api/customer-service', customerServiceRoutes);
+
+// }); // 이 부분은 위에서 처리되었으므로 제거
 
 // WebSocket 연결 관리
 const connectedUsers = new Map(); // socketId -> userEmail

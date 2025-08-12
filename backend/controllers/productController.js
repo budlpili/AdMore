@@ -1,166 +1,132 @@
-const db = require('../config/database');
+const Product = require('../models/Product');
 
 // 모든 상품 조회
-const getAllProducts = (req, res) => {
-  const sql = 'SELECT * FROM products ORDER BY createdAt DESC';
-  
-  // 테이블 스키마 확인
-  db.all("PRAGMA table_info(products)", [], (err, columns) => {
-    if (err) {
-      console.error('테이블 스키마 조회 에러:', err);
-    } else {
-      console.log('products 테이블 스키마:', columns);
-    }
-  });
-  
-  db.all(sql, [], (err, products) => {
-    if (err) {
-      return res.status(500).json({ message: '상품 조회에 실패했습니다.' });
-    }
+const getAllProducts = async (req, res) => {
+  try {
+    const products = await Product.findActive();
     
-    // 태그를 배열로 변환
-    const processedProducts = products.map(product => ({
-      ...product,
-      tags: product.tags ? product.tags.split(',').filter(tag => tag.trim()) : []
-    }));
-    
-    res.json(processedProducts);
-  });
+    // 태그는 이미 배열 형태로 저장됨
+    res.json(products);
+  } catch (error) {
+    console.error('상품 조회 오류:', error);
+    res.status(500).json({ message: '상품 조회에 실패했습니다.' });
+  }
 };
 
 // 상품 상세 조회
-const getProductById = (req, res) => {
-  const { id } = req.params;
-  const sql = 'SELECT * FROM products WHERE id = ?';
-  
-  db.get(sql, [id], (err, product) => {
-    if (err) {
-      return res.status(500).json({ message: '상품 조회에 실패했습니다.' });
-    }
+const getProductById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const product = await Product.findById(id);
     
     if (!product) {
       return res.status(404).json({ message: '상품을 찾을 수 없습니다.' });
     }
     
-    // 태그를 배열로 변환
-    const processedProduct = {
-      ...product,
-      tags: product.tags ? product.tags.split(',').filter(tag => tag.trim()) : []
-    };
-    
-    res.json(processedProduct);
-  });
+    res.json(product);
+  } catch (error) {
+    console.error('상품 상세 조회 오류:', error);
+    res.status(500).json({ message: '상품 조회에 실패했습니다.' });
+  }
 };
 
 // 상품 생성 (관리자용)
-const createProduct = (req, res) => {
-  const {
-    name,
-    description,
-    detailedDescription,
-    price,
-    originalPrice,
-    price1Day,
-    price7Days,
-    price30Days,
-    discountRate,
-    category,
-    stock,
-    status,
-    tags,
-    specifications,
-    image,
-    background,
-    productNumber
-  } = req.body;
+const createProduct = async (req, res) => {
+  try {
+    const {
+      name,
+      description,
+      detailedDescription,
+      price,
+      originalPrice,
+      price1Day,
+      price7Days,
+      price30Days,
+      discountRate,
+      category,
+      stock,
+      status,
+      tags,
+      specifications,
+      image,
+      background,
+      productNumber
+    } = req.body;
 
-  console.log('상품 생성 요청 데이터:', req.body);
-  console.log('상품번호 확인:', productNumber);
-  console.log('상품번호 타입:', typeof productNumber);
+    console.log('상품 생성 요청 데이터:', req.body);
+    console.log('상품번호 확인:', productNumber);
+    console.log('상품번호 타입:', typeof productNumber);
 
-  // 가격을 숫자로 변환
-  const numericPrice = typeof price === 'string' ? 
-    (price ? parseFloat(price.replace(/[^\d.]/g, '')) || 0 : 0) : 
-    (parseFloat(price) || 0);
-  const numericOriginalPrice = typeof originalPrice === 'string' ? 
-    (originalPrice ? parseFloat(originalPrice.replace(/[^\d.]/g, '')) || 0 : 0) : 
-    (parseFloat(originalPrice) || 0);
-  const numericPrice1Day = parseFloat(price1Day) || 0;
-  const numericPrice7Days = parseFloat(price7Days) || 0;
-  const numericPrice30Days = parseFloat(price30Days) || 0;
-  const numericStock = parseInt(stock) || 0;
-  const numericDiscountRate = parseFloat(discountRate) || 0;
+    // 가격을 숫자로 변환
+    const numericPrice = typeof price === 'string' ? 
+      (price ? parseFloat(price.replace(/[^\d.]/g, '')) || 0 : 0) : 
+      (parseFloat(price) || 0);
+    const numericOriginalPrice = typeof originalPrice === 'string' ? 
+      (originalPrice ? parseFloat(originalPrice.replace(/[^\d.]/g, '')) || 0 : 0) : 
+      (parseFloat(originalPrice) || 0);
+    const numericPrice1Day = parseFloat(price1Day) || 0;
+    const numericPrice7Days = parseFloat(price7Days) || 0;
+    const numericPrice30Days = parseFloat(price30Days) || 0;
+    const numericStock = parseInt(stock) || 0;
+    const numericDiscountRate = parseFloat(discountRate) || 0;
 
-  // 이미지 경로 정리
-  let processedImage = image;
-  if (image && image.startsWith('data:image/')) {
-    // base64 이미지는 그대로 유지
-    processedImage = image;
-  } else if (image && !image.startsWith('/') && !image.startsWith('http')) {
-    // 파일명만 있는 경우 경로 추가
-    processedImage = `/images/${image}`;
-  }
-
-  let processedBackground = background;
-  if (background && background.startsWith('data:image/')) {
-    // base64 이미지는 그대로 유지
-    processedBackground = background;
-  } else if (background && !background.startsWith('/') && !background.startsWith('http')) {
-    // 파일명만 있는 경우 경로 추가
-    processedBackground = `/images/${background}`;
-  }
-
-  const sql = `
-    INSERT INTO products (
-      name, description, detailedDescription, price, originalPrice, price1Day, price7Days, price30Days,
-      discountRate, category, stock, status, tags, specifications, 
-      image, background, productNumber, createdAt, updatedAt
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', '+9 hours'), datetime('now', '+9 hours'))
-  `;
-
-  const params = [
-    name,
-    description,
-    detailedDescription,
-    numericPrice,
-    numericOriginalPrice,
-    numericPrice1Day,
-    numericPrice7Days,
-    numericPrice30Days,
-    numericDiscountRate,
-    category,
-    numericStock,
-    status || 'active',
-    Array.isArray(tags) ? tags.join(',') : tags,
-    specifications,
-    processedImage,
-    processedBackground,
-    productNumber || ''
-  ];
-
-  console.log('데이터베이스 저장 파라미터:', params);
-  console.log('productNumber 파라미터 위치:', params.length - 3); // productNumber는 17번째 파라미터
-
-  db.run(sql, params, function(err) {
-    if (err) {
-      return res.status(500).json({ message: '상품 생성에 실패했습니다.' });
+    // 이미지 경로 정리
+    let processedImage = image;
+    if (image && image.startsWith('data:image/')) {
+      // base64 이미지는 그대로 유지
+      processedImage = image;
+    } else if (image && !image.startsWith('/') && !image.startsWith('http')) {
+      // 파일명만 있는 경우 경로 추가
+      processedImage = `/uploads/${image}`;
     }
 
-    // 생성된 상품의 전체 데이터를 조회하여 반환
-    db.get('SELECT * FROM products WHERE id = ?', [this.lastID], (err, product) => {
-      if (err) {
-        return res.status(500).json({ message: '생성된 상품 조회에 실패했습니다.' });
+    // 태그 처리
+    let processedTags = [];
+    if (tags) {
+      if (Array.isArray(tags)) {
+        processedTags = tags.filter(tag => tag && tag.trim());
+      } else if (typeof tags === 'string') {
+        processedTags = tags.split(',').filter(tag => tag.trim());
       }
-      
-      // 태그를 배열로 변환
-      const processedProduct = {
-        ...product,
-        tags: product.tags ? product.tags.split(',').filter(tag => tag.trim()) : []
-      };
-      
-      res.status(201).json(processedProduct);
+    }
+
+    // 상품 생성
+    const product = new Product({
+      name,
+      description,
+      detailedDescription,
+      price: numericPrice,
+      originalPrice: numericOriginalPrice,
+      price1Day: numericPrice1Day,
+      price7Days: numericPrice7Days,
+      price30Days: numericPrice30Days,
+      discountRate: numericDiscountRate,
+      category,
+      stock: numericStock,
+      status: status || 'active',
+      tags: processedTags,
+      specifications,
+      image: processedImage,
+      background,
+      productNumber
     });
-  });
+
+    await product.save();
+    
+    console.log('상품 생성 성공:', product._id);
+    res.status(201).json({
+      message: '상품이 성공적으로 생성되었습니다.',
+      product: product
+    });
+  } catch (error) {
+    console.error('상품 생성 오류:', error);
+    
+    if (error.code === 11000 && error.keyPattern?.productNumber) {
+      return res.status(400).json({ message: '이미 존재하는 상품번호입니다.' });
+    }
+    
+    res.status(500).json({ message: '상품 생성에 실패했습니다.' });
+  }
 };
 
 // 상품 수정 (관리자용)
