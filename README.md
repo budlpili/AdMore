@@ -57,7 +57,7 @@ ADMORE는 소셜미디어 마케팅 서비스를 제공하는 풀스택 웹 애�
 ### Backend
 
 - **Node.js** + **Express.js**
-- **SQLite** - 데이터베이스
+- **MongoDB Atlas** - 클라우드 데이터베이스
 - **Socket.IO** - WebSocket 서버
 - **Nodemailer** - 이메일 발송
 - **JWT** - 인증 토큰
@@ -68,6 +68,7 @@ ADMORE는 소셜미디어 마케팅 서비스를 제공하는 풀스택 웹 애�
 - **ESLint** - 코드 품질
 - **Prettier** - 코드 포맷팅
 - **Git** - 버전 관리
+- **Docker** - 컨테이너화
 
 ## 🚀 설치 및 실행
 
@@ -75,6 +76,7 @@ ADMORE는 소셜미디어 마케팅 서비스를 제공하는 풀스택 웹 애�
 
 - Node.js 18+
 - npm 또는 yarn
+- MongoDB Atlas 계정 (프로덕션용)
 
 ### 1. 저장소 클론
 
@@ -102,7 +104,7 @@ cd ..
 #### Frontend (.env)
 
 ```bash
-REACT_APP_API_URL=http://localhost:5001
+REACT_APP_API_URL=http://localhost:5001/api
 REACT_APP_WS_URL=http://localhost:5001
 ```
 
@@ -112,7 +114,7 @@ REACT_APP_WS_URL=http://localhost:5001
 PORT=5001
 NODE_ENV=development
 JWT_SECRET=your_jwt_secret_key
-APP_BASE_URL=http://localhost:3000
+MONGODB_URI=mongodb://localhost:27017/admore
 
 # SMTP 설정 (Gmail)
 SMTP_HOST=smtp.gmail.com
@@ -122,68 +124,13 @@ SMTP_PASS=your_app_password
 MAIL_FROM=ADMore <your_email@gmail.com>
 ```
 
-### 5. 데이터베이스 초기화
-
-```bash
-cd backend
-node -e "
-const sqlite3 = require('sqlite3').verbose();
-const db = new sqlite3.Database('admore.db');
-db.serialize(() => {
-  // 데이터베이스 스키마 생성
-  db.run(\`CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    email TEXT UNIQUE NOT NULL,
-    password TEXT NOT NULL,
-    phone TEXT,
-    joinDate TEXT DEFAULT CURRENT_TIMESTAMP,
-    status TEXT DEFAULT 'active',
-    role TEXT DEFAULT 'user',
-    emailVerified INTEGER DEFAULT 0
-  )\`);
-
-  db.run(\`CREATE TABLE IF NOT EXISTS products (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    description TEXT,
-    price TEXT NOT NULL,
-    category TEXT NOT NULL,
-    image TEXT,
-    background TEXT,
-    rating REAL DEFAULT 0,
-    reviewCount INTEGER DEFAULT 0,
-    status TEXT DEFAULT 'active'
-  )\`);
-
-  db.run(\`CREATE TABLE IF NOT EXISTS orders (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    userId INTEGER,
-    productId INTEGER,
-    quantity INTEGER DEFAULT 1,
-    totalPrice TEXT,
-    paymentMethod TEXT,
-    status TEXT DEFAULT 'pending',
-    orderDate TEXT DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (userId) REFERENCES users (id),
-    FOREIGN KEY (productId) REFERENCES products (id)
-  )\`);
-
-  console.log('데이터베이스 초기화 완료');
-});
-db.close();
-"
-```
-
-### 6. 애플리케이션 실행
+### 5. 애플리케이션 실행
 
 #### 백엔드 서버 시작
 
 ```bash
 cd backend
 npm start
-# 또는
-node server.js
 ```
 
 #### 프론트엔드 개발 서버 시작 (새 터미널)
@@ -192,7 +139,7 @@ node server.js
 npm start
 ```
 
-### 7. 브라우저에서 확인
+### 6. 브라우저에서 확인
 
 - **프론트엔드**: http://localhost:3000
 - **백엔드 API**: http://localhost:5001
@@ -257,27 +204,21 @@ backend/
 
 ## 🚀 배포
 
-### 🏗️ 분리 배포 방식 (권장)
-
-ADMORE는 프론트엔드와 백엔드를 분리하여 배포하는 것을 권장합니다. 이는 확장성과 유지보수성을 높이고, 각각의 서비스에 최적화된 인프라를 사용할 수 있게 합니다.
-
-### 🚀 CloudType 풀스택 배포 (프론트엔드 + 백엔드)
-
-CloudType에서 프론트엔드와 백엔드를 함께 배포하는 방법입니다. 이 방식은 단일 서비스로 관리할 수 있어 간단하지만, 확장성에는 제한이 있을 수 있습니다.
-
-### 🏗️ CloudType 분리 배포 (프론트엔드 + 백엔드 분리)
+### 🏗️ CloudType 분리 배포 (권장)
 
 CloudType에서 프론트엔드와 백엔드를 별도의 프로젝트로 분리하여 배포하는 방법입니다. 이 방식은 각 서비스의 독립성을 보장하고 확장성을 높일 수 있습니다.
 
 #### **1단계: 백엔드 프로젝트 생성**
 
-##### **프로젝트 설정:**
+##### **프로젝트 설정**
+
 1. **프로젝트명**: `admore-backend`
 2. **Git URL**: `https://github.com/budlpili/AdMore.git`
 3. **브랜치**: `main`
 4. **빌드 타입**: `Dockerfile`
 
-##### **백엔드 전용 Dockerfile 사용:**
+##### **백엔드 전용 Dockerfile 사용**
+
 ```dockerfile
 # Dockerfile.backend 사용
 FROM node:18-alpine
@@ -292,7 +233,8 @@ EXPOSE 5001
 CMD ["npm", "start"]
 ```
 
-##### **빌드 설정:**
+##### **빌드 설정**
+
 ```bash
 # Install Command
 npm ci
@@ -307,10 +249,11 @@ npm start
 5001
 ```
 
-##### **환경변수 설정:**
+##### **환경변수 설정**
+
 ```bash
 # MongoDB Atlas 연결
-MONGODB_URI=mongodb+srv://admore_user:your_password@cluster0.xxxxx.mongodb.net/admore?retryWrites=true&w=majority
+MONGODB_URI=mongodb+srv://admore_user:your_password@cluster.mongodb.net/admore
 
 # 기본 설정
 NODE_ENV=production
@@ -323,21 +266,22 @@ ALLOWED_ORIGINS=https://admore-frontend.cloudtype.app,https://your-domain.com
 
 # 이메일 설정 (Gmail SMTP)
 SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
 SMTP_USER=budlpili@gmail.com
-SMTP_PASS=xhcg nwfi nwvx rouu
+SMTP_PASS=
 MAIL_FROM=ADMore <budlpili@gmail.com>
 ```
 
 #### **2단계: 프론트엔드 프로젝트 생성**
 
-##### **프로젝트 설정:**
+##### **프로젝트 설정**
+
 1. **프로젝트명**: `admore-frontend`
 2. **Git URL**: `https://github.com/budlpili/AdMore.git`
 3. **브랜치**: `main`
 4. **빌드 타입**: `Dockerfile`
 
-##### **프론트엔드 전용 Dockerfile 사용:**
+##### **프론트엔드 전용 Dockerfile 사용**
+
 ```dockerfile
 # Dockerfile.frontend 사용
 FROM node:18-alpine AS builder
@@ -354,7 +298,8 @@ EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
 ```
 
-##### **빌드 설정:**
+##### **빌드 설정**
+
 ```bash
 # Install Command
 npm ci
@@ -369,7 +314,8 @@ npm run build
 80
 ```
 
-##### **환경변수 설정:**
+##### **환경변수 설정**
+
 ```bash
 # 백엔드 API 연결
 REACT_APP_API_URL=https://admore-backend.cloudtype.app/api
@@ -385,12 +331,14 @@ PORT=80
 
 #### **3단계: 배포 순서 및 확인**
 
-##### **배포 순서:**
+##### **배포 순서**
+
 1. **백엔드 먼저 배포**: MongoDB Atlas 연결 및 API 서버 실행
 2. **프론트엔드 배포**: 백엔드 API 주소로 연결 설정
 3. **연결 테스트**: API 호출 및 WebSocket 연결 확인
 
-##### **연결 테스트:**
+##### **연결 테스트**
+
 ```bash
 # 백엔드 API 테스트
 curl https://admore-backend.cloudtype.app/api/health
@@ -404,49 +352,55 @@ wscat -c wss://admore-backend.cloudtype.app
 
 #### **4단계: 도메인 및 환경변수 관리**
 
-##### **백엔드 도메인:**
+##### **백엔드 도메인**
+
 - **CloudType 제공**: `https://admore-backend.cloudtype.app`
 - **커스텀 도메인**: `https://api.yourdomain.com` (선택사항)
 
-##### **프론트엔드 도메인:**
+##### **프론트엔드 도메인**
+
 - **CloudType 제공**: `https://admore-frontend.cloudtype.app`
 - **커스텀 도메인**: `https://yourdomain.com` (선택사항)
 
-##### **환경변수 동기화:**
+##### **환경변수 동기화**
+
 - **백엔드**: `FRONTEND_URL` 설정으로 CORS 허용
 - **프론트엔드**: `REACT_APP_API_URL` 설정으로 API 연결
 
-#### **장점:**
+#### **장점**
+
 - **독립성**: 각 서비스별 독립적 배포 및 관리
 - **확장성**: 백엔드와 프론트엔드별로 리소스 조정 가능
 - **유지보수성**: 각 서비스별로 다른 업데이트 주기 적용
 - **장애 격리**: 한 서비스의 문제가 다른 서비스에 영향 주지 않음
 
-#### **주의사항:**
+#### **주의사항**
+
 - **CORS 설정**: 백엔드에서 프론트엔드 도메인 허용 필요
 - **환경변수 관리**: 두 프로젝트의 환경변수 동기화 필요
 - **네트워크 지연**: 서비스 간 통신으로 인한 약간의 지연 가능성
 
-#### **모니터링:**
+#### **모니터링**
+
 - **백엔드**: API 응답 시간, MongoDB 연결 상태, 에러 로그
 - **프론트엔드**: 페이지 로딩 시간, API 호출 성공률, 사용자 경험
 - **통합**: 두 서비스 간의 연결 상태 및 성능 지표
 
 ### 🔧 분리 배포의 장점
 
-#### **확장성:**
+#### **확장성**
 
 - **백엔드**: 필요에 따라 CPU/메모리 확장
 - **프론트엔드**: CDN을 통한 글로벌 배포
 - **데이터베이스**: 독립적인 스케일링
 
-#### **유지보수성:**
+#### **유지보수성**
 
 - **백엔드**: API 버전 관리, 데이터베이스 마이그레이션
 - **프론트엔드**: UI/UX 개선, 성능 최적화
 - **독립적 배포**: 각각의 서비스별로 배포 일정 관리
 
-#### **비용 효율성:**
+#### **비용 효율성**
 
 - **백엔드**: 사용량 기반 과금
 - **프론트엔드**: 정적 호스팅으로 저비용
@@ -454,50 +408,34 @@ wscat -c wss://admore-backend.cloudtype.app
 
 ### 🚨 주의사항
 
-#### **CORS 설정:**
+#### **CORS 설정**
 
 - 백엔드에서 프론트엔드 도메인을 허용하도록 설정
 - `FRONTEND_URL` 환경변수로 동적 설정
 
-#### **환경변수 관리:**
+#### **환경변수 관리**
 
 - 프로덕션 환경변수는 절대 GitHub에 커밋하지 않음
 - 각 배포 플랫폼의 환경변수 설정 기능 사용
 
-#### **데이터베이스 백업:**
+#### **데이터베이스 백업**
 
 - 정기적인 데이터베이스 백업 설정
 - 마이그레이션 스크립트 준비
 
 ### 📱 모니터링 및 로그
 
-#### **백엔드 모니터링:**
+#### **백엔드 모니터링**
 
-- Railway 대시보드에서 로그 확인
+- CloudType 대시보드에서 로그 확인
 - 에러 알림 설정
 - 성능 메트릭 모니터링
 
-#### **프론트엔드 모니터링:**
+#### **프론트엔드 모니터링**
 
 - CloudType 대시보드에서 빌드 상태 확인
 - 사용자 접속 통계
 - 에러 로그 분석
-
----
-
-### CloudType 배포 (프론트엔드)
-
-1. **프로젝트 연결**: GitHub 저장소 연결
-2. **빌드 설정**: `npm run build`
-3. **환경변수**: API URL, JWT Secret 등 설정
-4. **배포**: 자동 빌드 및 배포
-
-### 백엔드 배포 (Railway/Render)
-
-1. **서비스 생성**: Railway 또는 Render 계정 생성
-2. **GitHub 연결**: 백엔드 코드 저장소 연결
-3. **환경변수**: 데이터베이스, SMTP 등 설정
-4. **배포**: 자동 빌드 및 배포
 
 ## 🤝 기여하기
 
