@@ -12,8 +12,8 @@
     "admore",
     "api",
     "express",
-    "sqlite",
-    "sqlite3"
+    "mongodb",
+    "mongoose"
   ],
   "author": "ADMore Team",
   "license": "MIT",
@@ -23,10 +23,10 @@
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.17.1",
     "multer": "^1.4.5-lts.1",
     "nodemailer": "^6.9.13",
     "socket.io": "^4.8.1",
-    "sqlite3": "^5.1.6",
     "ws": "^8.18.3"
   },
   "devDependencies": {
