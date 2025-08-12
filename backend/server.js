@@ -9,22 +9,11 @@ const fs = require('fs');
 const WebSocket = require('ws');
 require('dotenv').config();
 
-// MongoDB 연결
-const connectMongoDB = require('./config/mongodb');
-
-// 데이터베이스 연결
-// const db = require('./config/database'); // SQLite 제거
+// SQLite 데이터베이스 연결
+const db = require('./config/database');
 
 const app = express();
 const server = http.createServer(app);
-
-// MongoDB 연결 초기화
-connectMongoDB().then(() => {
-  console.log('MongoDB 연결 완료, 서버 시작 중...');
-}).catch(err => {
-  console.error('MongoDB 연결 실패:', err);
-  process.exit(1);
-});
 
 // 일반 WebSocket 서버 추가 (ws://localhost:3000/ws 요청 처리)
 const wss = new WebSocket.Server({ 
