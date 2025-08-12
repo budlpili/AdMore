@@ -1,6 +1,9 @@
 import { Product, Category, Tag, Order, User } from '../types';
 
+// 백엔드 API URL을 환경변수로 설정
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
+
+console.log('API Base URL:', API_BASE_URL);
 
 // API 요청 헬퍼 함수
 const apiRequest = async <T = any>(endpoint: string, options: RequestInit = {}): Promise<T> => {

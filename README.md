@@ -265,39 +265,61 @@ ADMORE는 프론트엔드와 백엔드를 분리하여 배포하는 것을 권�
 
 CloudType에서 프론트엔드와 백엔드를 함께 배포하는 방법입니다. 이 방식은 단일 서비스로 관리할 수 있어 간단하지만, 확장성에는 제한이 있을 수 있습니다.
 
-#### **프로젝트 설정:**
+### 🏗️ CloudType 분리 배포 (프론트엔드 + 백엔드 분리)
 
-1. **프로젝트명**: `admore-fullstack`
+CloudType에서 프론트엔드와 백엔드를 별도의 프로젝트로 분리하여 배포하는 방법입니다. 이 방식은 각 서비스의 독립성을 보장하고 확장성을 높일 수 있습니다.
+
+#### **1단계: 백엔드 프로젝트 생성**
+
+##### **프로젝트 설정:**
+1. **프로젝트명**: `admore-backend`
 2. **Git URL**: `https://github.com/budlpili/AdMore.git`
 3. **브랜치**: `main`
 4. **빌드 타입**: `Dockerfile`
 
-#### **빌드 설정:**
+##### **백엔드 전용 Dockerfile 사용:**
+```dockerfile
+# Dockerfile.backend 사용
+FROM node:18-alpine
+WORKDIR /app
+COPY backend/package*.json ./
+RUN npm ci --only=production
+COPY backend/ ./
+RUN mkdir -p uploads chat_exports
+ENV NODE_ENV=production
+ENV PORT=5001
+EXPOSE 5001
+CMD ["npm", "start"]
+```
 
+##### **빌드 설정:**
 ```bash
 # Install Command
 npm ci
 
 # Build Command
-npm run build
+# Dockerfile.backend를 사용하므로 별도 빌드 불필요
 
 # Start Command
 npm start
 
 # Port
-3000
+5001
 ```
 
-#### **환경변수 설정:**
-
+##### **환경변수 설정:**
 ```bash
 # MongoDB Atlas 연결
 MONGODB_URI=mongodb+srv://admore_user:your_password@cluster0.xxxxx.mongodb.net/admore?retryWrites=true&w=majority
 
 # 기본 설정
 NODE_ENV=production
-PORT=3000
+PORT=5001
 JWT_SECRET=admore_jwt_secret_key_2024_secure_version
+
+# 프론트엔드 도메인 허용
+FRONTEND_URL=https://admore-frontend.cloudtype.app
+ALLOWED_ORIGINS=https://admore-frontend.cloudtype.app,https://your-domain.com
 
 # 이메일 설정 (Gmail SMTP)
 SMTP_HOST=smtp.gmail.com
@@ -305,88 +327,34 @@ SMTP_PORT=587
 SMTP_USER=budlpili@gmail.com
 SMTP_PASS=xhcg nwfi nwvx rouu
 MAIL_FROM=ADMore <budlpili@gmail.com>
-
-# 앱 설정
-APP_BASE_URL=https://your-cloudtype-domain.com
-FRONTEND_URL=https://your-cloudtype-domain.com
 ```
 
-#### **배포 과정:**
-
-1. **GitHub 저장소 연결**: CloudType에서 GitHub 저장소 연결
-2. **Dockerfile 사용**: 자동으로 Dockerfile 기반 빌드
-3. **환경변수 설정**: MongoDB Atlas, SMTP 등 설정
-4. **자동 배포**: 코드 변경 시 자동 빌드 및 배포
-
-#### **장점:**
-
-- **단순성**: 하나의 서비스로 관리
-- **자동화**: GitHub 연동으로 자동 배포
-- **통합**: 프론트엔드와 백엔드가 같은 환경에서 실행
-
-#### **주의사항:**
-
-- **리소스 제한**: CloudType 프리티어 제한
-- **확장성**: 단일 서비스로 인한 확장 제한
-- **의존성**: 프론트엔드와 백엔드가 함께 재시작
-
-#### **1단계: 백엔드 배포 (Railway)**
-
-##### **Railway 계정 생성:**
-
-1. [railway.app](https://railway.app)에서 GitHub 계정으로 로그인
-2. "New Project" → "Deploy from GitHub repo" 선택
-3. `budlpili/AdMore` 저장소 연결
-
-##### **백엔드 서비스 설정:**
-
-```bash
-# Build Command
-npm install
-
-# Start Command
-cd backend && npm start
-
-# Root Directory
-backend/
-```
-
-##### **환경변수 설정:**
-
-```bash
-# 기본 설정
-NODE_ENV=production
-PORT=5001
-JWT_SECRET=admore_jwt_secret_key_2024_secure_version
-FRONTEND_URL=https://your-frontend-domain.com
-
-# 데이터베이스 (Railway PostgreSQL)
-DATABASE_URL=postgresql://username:password@host:port/database
-
-# 이메일 설정
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=budlpili@gmail.com
-SMTP_PASS=xhcg nwfi nwvx rouu
-MAIL_FROM=ADMore <budlpili@gmail.com>
-```
-
-##### **데이터베이스 설정:**
-
-1. Railway에서 PostgreSQL 서비스 생성
-2. `DATABASE_URL` 환경변수에 연결 정보 설정
-3. 백엔드 서비스와 데이터베이스 연결
-
-#### **2단계: 프론트엔드 배포 (CloudType)**
+#### **2단계: 프론트엔드 프로젝트 생성**
 
 ##### **프로젝트 설정:**
-
 1. **프로젝트명**: `admore-frontend`
 2. **Git URL**: `https://github.com/budlpili/AdMore.git`
 3. **브랜치**: `main`
+4. **빌드 타입**: `Dockerfile`
+
+##### **프론트엔드 전용 Dockerfile 사용:**
+```dockerfile
+# Dockerfile.frontend 사용
+FROM node:18-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+FROM nginx:alpine
+COPY --from=builder /app/build /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/nginx.conf
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
+```
 
 ##### **빌드 설정:**
-
 ```bash
 # Install Command
 npm ci
@@ -395,51 +363,74 @@ npm ci
 npm run build
 
 # Start Command
-npm start
+# Nginx가 자동으로 시작됨
 
 # Port
-3000
+80
 ```
 
 ##### **환경변수 설정:**
-
 ```bash
 # 백엔드 API 연결
-REACT_APP_API_URL=https://your-backend-railway-domain.com/api
-REACT_APP_WS_URL=https://your-backend-railway-domain.com
+REACT_APP_API_URL=https://admore-backend.cloudtype.app/api
+REACT_APP_WS_URL=https://admore-backend.cloudtype.app
+
+# Nginx 프록시 설정
+BACKEND_URL=https://admore-backend.cloudtype.app
 
 # 기타 설정
 NODE_ENV=production
-PORT=3000
+PORT=80
 ```
 
-##### **Health Check:**
+#### **3단계: 배포 순서 및 확인**
 
-```
-/
-```
-
-#### **3단계: 도메인 연결 및 테스트**
-
-##### **백엔드 도메인 확인:**
-
-1. Railway 대시보드에서 백엔드 서비스 도메인 확인
-2. `https://your-backend-railway-domain.com` 형태로 제공
-
-##### **프론트엔드 도메인 확인:**
-
-1. CloudType 대시보드에서 프론트엔드 도메인 확인
-2. `https://admore-frontend.cloudtype.app` 형태로 제공
+##### **배포 순서:**
+1. **백엔드 먼저 배포**: MongoDB Atlas 연결 및 API 서버 실행
+2. **프론트엔드 배포**: 백엔드 API 주소로 연결 설정
+3. **연결 테스트**: API 호출 및 WebSocket 연결 확인
 
 ##### **연결 테스트:**
-
 ```bash
 # 백엔드 API 테스트
-curl https://your-backend-railway-domain.com/api/health
+curl https://admore-backend.cloudtype.app/api/health
 
 # 프론트엔드 접속 테스트
 curl https://admore-frontend.cloudtype.app
+
+# WebSocket 연결 테스트
+wscat -c wss://admore-backend.cloudtype.app
 ```
+
+#### **4단계: 도메인 및 환경변수 관리**
+
+##### **백엔드 도메인:**
+- **CloudType 제공**: `https://admore-backend.cloudtype.app`
+- **커스텀 도메인**: `https://api.yourdomain.com` (선택사항)
+
+##### **프론트엔드 도메인:**
+- **CloudType 제공**: `https://admore-frontend.cloudtype.app`
+- **커스텀 도메인**: `https://yourdomain.com` (선택사항)
+
+##### **환경변수 동기화:**
+- **백엔드**: `FRONTEND_URL` 설정으로 CORS 허용
+- **프론트엔드**: `REACT_APP_API_URL` 설정으로 API 연결
+
+#### **장점:**
+- **독립성**: 각 서비스별 독립적 배포 및 관리
+- **확장성**: 백엔드와 프론트엔드별로 리소스 조정 가능
+- **유지보수성**: 각 서비스별로 다른 업데이트 주기 적용
+- **장애 격리**: 한 서비스의 문제가 다른 서비스에 영향 주지 않음
+
+#### **주의사항:**
+- **CORS 설정**: 백엔드에서 프론트엔드 도메인 허용 필요
+- **환경변수 관리**: 두 프로젝트의 환경변수 동기화 필요
+- **네트워크 지연**: 서비스 간 통신으로 인한 약간의 지연 가능성
+
+#### **모니터링:**
+- **백엔드**: API 응답 시간, MongoDB 연결 상태, 에러 로그
+- **프론트엔드**: 페이지 로딩 시간, API 호출 성공률, 사용자 경험
+- **통합**: 두 서비스 간의 연결 상태 및 성능 지표
 
 ### 🔧 분리 배포의 장점
 

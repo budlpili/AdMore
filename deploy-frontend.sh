@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# ADMORE 프론트엔드 배포 스크립트
+# ADMORE 프론트엔드 전용 배포 스크립트 (CloudType용)
 echo "🚀 ADMORE 프론트엔드 배포 시작..."
 
 # 1. 의존성 설치
@@ -33,12 +33,21 @@ if [ $? -eq 0 ]; then
     echo "📍 빌드 결과: build/ 디렉토리"
     echo "📍 파일 크기:"
     du -sh build/*
+    
+    # 4. Nginx 설정 파일 생성 (환경변수 치환)
+    echo "🌐 Nginx 설정 파일 생성 중..."
+    if [ -f "nginx.conf" ]; then
+        # 환경변수를 실제 값으로 치환
+        envsubst '$BACKEND_URL' < nginx.conf > nginx.conf.tmp
+        mv nginx.conf.tmp nginx.conf
+        echo "✅ Nginx 설정 파일 생성 완료"
+    fi
 else
     echo "❌ 빌드 실패!"
     exit 1
 fi
 
-# 4. 개발 서버 시작 (선택사항)
+# 5. 개발 서버 시작 (선택사항)
 read -p "개발 서버를 시작하시겠습니까? (y/n): " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then

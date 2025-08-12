@@ -1,0 +1,27 @@
+# Backend-only Dockerfile for CloudType
+FROM node:18-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY backend/package*.json ./
+
+# Install dependencies
+RUN npm ci --only=production
+
+# Copy backend source code
+COPY backend/ ./
+
+# Create necessary directories
+RUN mkdir -p uploads chat_exports
+
+# Set environment variables
+ENV NODE_ENV=production
+ENV PORT=5001
+
+# Expose port
+EXPOSE 5001
+
+# Start the backend server
+CMD ["npm", "start"]

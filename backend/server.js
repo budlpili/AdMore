@@ -62,6 +62,7 @@ const io = socketIo(server, {
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
+        console.log('Socket.IO CORS 차단된 도메인:', origin);
         callback(new Error('CORS 정책에 의해 차단됨'));
       }
     },
@@ -82,8 +83,11 @@ const io = socketIo(server, {
 const allowedOrigins = [
   'http://localhost:3000',
   'https://admore-frontend.cloudtype.app', // CloudType 프론트엔드 도메인
-  process.env.FRONTEND_URL // 환경변수로 프론트엔드 URL 설정
-].filter(Boolean);
+  process.env.FRONTEND_URL, // 환경변수로 프론트엔드 URL 설정
+  process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : [] // 여러 도메인 허용
+].filter(Boolean).flat();
+
+console.log('허용된 CORS 도메인:', allowedOrigins);
 
 app.use(cors({
   origin: function (origin, callback) {
@@ -91,6 +95,7 @@ app.use(cors({
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
+      console.log('CORS 차단된 도메인:', origin);
       callback(new Error('CORS 정책에 의해 차단됨'));
     }
   },
