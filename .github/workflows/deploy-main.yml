@@ -32,3 +32,4 @@ jobs:
         
         echo "배포 시작:"
         ctype apply -f admore-frontend.yaml
+        # Trigger workflow execution
