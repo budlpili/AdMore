@@ -1,0 +1,15 @@
+name: admore-frontend
+app: node@22
+options:
+  ports: "80"
+  healthz: /
+env:
+  - name: REACT_APP_API_URL
+    value: https://admore-backend.cloudtype.app
+  - name: REACT_APP_WS_URL
+    value: https://admore-backend.cloudtype.app
+buildenv: []
+context:
+  git:
+    url: https://github.com/budlpili/AdMore.git
+    ref: main

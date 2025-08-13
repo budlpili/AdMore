@@ -12,31 +12,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: Connect deploy key
-        uses: cloudtype-github-actions/connect@v1
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
         with:
-          token: ${{ secrets.CLOUDTYPE_TOKEN }}
-          ghtoken: ${{ secrets.GHP_TOKEN }}
+          node-version: "18"
 
-      - name: Deploy
-        uses: cloudtype-github-actions/deploy@v1
-        with:
-          token: ${{ secrets.CLOUDTYPE_TOKEN }}
-          project: budlpili/admore
-          stage: main
-          yaml: |
-            name: admore-frontend
-            app: node@22
-            options:
-              ports: "80"
-              healthz: /
-            env:
-              - name: REACT_APP_API_URL
-                value: https://admore-backend.cloudtype.app
-              - name: REACT_APP_WS_URL
-                value: https://admore-backend.cloudtype.app
-            buildenv: []
-            context:
-              git:
-                url: git@github.com:${{ github.repository }}.git
-                ref: ${{ github.ref }}
+      - name: Install CloudType CLI
+        run: npm install -g @cloudtype/cli
+
+      - name: Deploy to CloudType
+        run: |
+          ctype login --email ${{ secrets.CLOUDTYPE_EMAIL }} --password ${{ secrets.CLOUDTYPE_PASSWORD }}
+          ctype use budlpili/admore
+          ctype apply -f admore-frontend.yaml
+        env:
+          CLOUDTYPE_EMAIL: ${{ secrets.CLOUDTYPE_EMAIL }}
+          CLOUDTYPE_PASSWORD: ${{ secrets.CLOUDTYPE_PASSWORD }}
