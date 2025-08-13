@@ -1,30 +1,34 @@
-name: Deploy to cloudtype
+name: Deploy to CloudType
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: "18"
-
-      - name: Install CloudType CLI
-        run: npm install -g @cloudtype/cli
-
-      - name: Deploy to CloudType
-        run: |
-          ctype login --email ${{ secrets.CLOUDTYPE_EMAIL }} --password ${{ secrets.CLOUDTYPE_PASSWORD }}
-          ctype use budlpili/admore
-          ctype apply -f admore-frontend.yaml
-        env:
-          CLOUDTYPE_EMAIL: ${{ secrets.CLOUDTYPE_EMAIL }}
-          CLOUDTYPE_PASSWORD: ${{ secrets.CLOUDTYPE_PASSWORD }}
+    - uses: actions/checkout@v3
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+    
+    - name: Install CloudType CLI
+      run: |
+        npm install -g @cloudtype/cli
+        
+    - name: Deploy to CloudType
+      env:
+        CLOUDTYPE_TOKEN: ${{ secrets.CLOUDTYPE_TOKEN }}
+      run: |
+        echo "CloudType CLI 설치 확인:"
+        ctype --version
+        
+        echo "CloudType 토큰 로그인:"
+        ctype login -t "$CLOUDTYPE_TOKEN"
+        
+        echo "배포 시작:"
+        ctype apply -f admore-frontend.yaml
