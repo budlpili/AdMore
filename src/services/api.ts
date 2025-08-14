@@ -62,8 +62,41 @@ const apiRequest = async <T = any>(endpoint: string, options: RequestInit = {}):
     return responseData;
   } catch (error) {
     console.error('API 요청 오류:', error);
+    
+    // 백엔드 연결 실패 시 로컬 데이터 사용
+    if (error.message.includes('Failed to fetch') || error.message.includes('ERR_NAME_NOT_RESOLVED')) {
+      console.log('백엔드 연결 실패, 로컬 데이터 사용');
+      return getLocalData(endpoint);
+    }
+    
     throw error;
   }
+};
+
+// 로컬 데이터 반환 함수
+const getLocalData = (endpoint: string) => {
+  console.log('로컬 데이터 사용:', endpoint);
+  
+  // 상품 목록
+  if (endpoint.includes('/products')) {
+    return import('../data/products').then(module => {
+      const products = module.default;
+      return products.filter(product => product.status === 'active');
+    });
+  }
+  
+  // 카테고리 목록
+  if (endpoint.includes('/categories')) {
+    return import('../data/categories').then(module => module.default);
+  }
+  
+  // 태그 목록
+  if (endpoint.includes('/tags')) {
+    return import('../data/tags').then(module => module.default);
+  }
+  
+  // 기본값
+  return Promise.resolve([]);
 };
 
 // 인증 API에 관리자 로그인 추가
