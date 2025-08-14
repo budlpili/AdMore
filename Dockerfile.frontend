@@ -6,13 +6,16 @@ WORKDIR /app
 
 # package.json 복사 및 의존성 설치
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm ci
 
 # 소스 코드 복사
 COPY . .
 
 # React 앱 빌드
 RUN npm run build
+
+# 빌드 결과 확인
+RUN ls -la build/
 
 # Nginx 스테이지
 FROM nginx:alpine

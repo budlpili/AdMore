@@ -1,0 +1,11 @@
+name: admore-frontend-pro
+app: dockerfile
+dockerfile: Dockerfile.frontend
+ports: "80"
+healthz: /
+memory: "0.5GB"
+cpu: "0.5"
+branch: main
+env:
+  - REACT_APP_API_URL=https://admore-backend.budlpili.cloudtype.app
+  - REACT_APP_WS_URL=wss://admore-backend.budlpili.cloudtype.app

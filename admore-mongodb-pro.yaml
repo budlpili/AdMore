@@ -1,0 +1,20 @@
+# admore-mongodb-pro.yaml
+name: admore-mongodb-pro
+app: mongo@4.0
+options:
+  ports: "27017"
+  memory: "0.25GB"
+  cpu: "0.25"
+env:
+  - name: MONGO_INITDB_ROOT_USERNAME
+    value: "admin"
+  - name: MONGO_INITDB_ROOT_PASSWORD
+    value: "password123"
+  - name: MONGO_INITDB_DATABASE
+    value: "admore"
+buildenv: []
+context:
+  git:
+    url: https://github.com/budlpili/AdMore.git
+    branch: main
+

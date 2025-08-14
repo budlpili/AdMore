@@ -1,0 +1,9 @@
+name: admore-nginx-minimal
+app: nginx
+ports: "80"
+healthz: /
+memory: "0.1GB"
+cpu: "0.1"
+env:
+  - REACT_APP_API_URL=https://admore-backend.budlpili.cloudtype.app
+  - REACT_APP_WS_URL=wss://admore-backend.budlpili.cloudtype.app

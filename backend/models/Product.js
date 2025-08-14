@@ -72,7 +72,10 @@ const productSchema = new mongoose.Schema({
   productNumber: {
     type: String,
     unique: true,
-    trim: true
+    trim: true,
+    default: function() {
+      return 'PROD-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+    }
   },
   rating: {
     type: Number,

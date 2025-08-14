@@ -1,5 +1,5 @@
-# cloudtype-frontend.yaml
-name: admore-frontend-pro
+# admore-react-app.yaml
+name: admore-react-app
 app: dockerfile
 options:
   ports: "80"
@@ -17,3 +17,4 @@ context:
     url: https://github.com/budlpili/AdMore.git
     branch: main
     dockerfile: Dockerfile.frontend
+

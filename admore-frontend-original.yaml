@@ -1,11 +1,11 @@
-# cloudtype-frontend.yaml
-name: admore-frontend-pro
-app: dockerfile
+# cloudtype-frontend-original.yaml
+name: admore-frontend
+app: nginx
 options:
   ports: "80"
   healthz: /
-  memory: "0.5GB"
-  cpu: "0.5"
+  memory: "0.25GB"
+  cpu: "0.25"
 env:
   - name: REACT_APP_API_URL
     value: https://admore-backend.cloudtype.app
@@ -16,4 +16,4 @@ context:
   git:
     url: https://github.com/budlpili/AdMore.git
     branch: main
-    dockerfile: Dockerfile.frontend
+

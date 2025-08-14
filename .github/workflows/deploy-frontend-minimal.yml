@@ -1,0 +1,34 @@
+name: Deploy Frontend Minimal to CloudType
+
+on:
+  push:
+    branches: [main]
+    paths: ["src/**", "public/**", "package.json", "Dockerfile.frontend"]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+
+      - name: Install CloudType CLI
+        run: |
+          curl -fsSL https://cloudtype.com/install.sh | sh
+
+      - name: Login to CloudType
+        run: |
+          echo $CLOUDTYPE_TOKEN | ctype login -t
+
+      - name: Deploy Frontend Minimal
+        run: |
+          ctype apply -f admore-nginx-minimal.yaml
+        env:
+          CLOUDTYPE_TOKEN: ${{ secrets.CLOUDTYPE_TOKEN }}
