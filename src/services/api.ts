@@ -1,12 +1,20 @@
 import { Product, Category, Tag, Order, User } from '../types';
 
 // 백엔드 API URL을 환경변수로 설정
+// 임시로 로컬 데이터 사용 (백엔드 연결 문제 해결 시 제거)
+const USE_LOCAL_DATA = true; // 이 값을 false로 변경하면 백엔드 사용
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
 
 console.log('API Base URL:', API_BASE_URL);
 
 // API 요청 헬퍼 함수
 const apiRequest = async <T = any>(endpoint: string, options: RequestInit = {}): Promise<T> => {
+  // 임시로 로컬 데이터 사용
+  if (USE_LOCAL_DATA) {
+    console.log('로컬 데이터 모드 활성화, 백엔드 요청 건너뜀');
+    return getLocalData(endpoint);
+  }
+
   const url = `${API_BASE_URL}${endpoint}`;
   
   const config: RequestInit = {
@@ -64,9 +72,19 @@ const apiRequest = async <T = any>(endpoint: string, options: RequestInit = {}):
     console.error('API 요청 오류:', error);
     
     // 백엔드 연결 실패 시 로컬 데이터 사용
-    if (error.message.includes('Failed to fetch') || error.message.includes('ERR_NAME_NOT_RESOLVED')) {
+    if (error.message.includes('Failed to fetch') || 
+        error.message.includes('ERR_NAME_NOT_RESOLVED') ||
+        error.message.includes('NetworkError') ||
+        error.message.includes('TypeError')) {
       console.log('백엔드 연결 실패, 로컬 데이터 사용');
-      return getLocalData(endpoint);
+      try {
+        const localData = await getLocalData(endpoint);
+        console.log('로컬 데이터 반환 성공:', localData);
+        return localData;
+      } catch (localError) {
+        console.error('로컬 데이터 로드 실패:', localError);
+        throw error; // 원래 에러를 다시 던짐
+      }
     }
     
     throw error;
@@ -74,29 +92,41 @@ const apiRequest = async <T = any>(endpoint: string, options: RequestInit = {}):
 };
 
 // 로컬 데이터 반환 함수
-const getLocalData = (endpoint: string) => {
+const getLocalData = async (endpoint: string) => {
   console.log('로컬 데이터 사용:', endpoint);
   
-  // 상품 목록
-  if (endpoint.includes('/products')) {
-    return import('../data/products').then(module => {
-      const products = module.default;
+  try {
+    // 상품 목록
+    if (endpoint.includes('/products')) {
+      const productsModule = await import('../data/products');
+      const products = productsModule.default;
+      console.log('로컬 상품 데이터 로드:', products.length);
       return products.filter(product => product.status === 'active');
-    });
+    }
+    
+    // 카테고리 목록
+    if (endpoint.includes('/categories')) {
+      const categoriesModule = await import('../data/categories');
+      const categories = categoriesModule.default;
+      console.log('로컬 카테고리 데이터 로드:', categories.length);
+      return categories;
+    }
+    
+    // 태그 목록
+    if (endpoint.includes('/tags')) {
+      const tagsModule = await import('../data/tags');
+      const tags = tagsModule.default;
+      console.log('로컬 태그 데이터 로드:', tags.length);
+      return tags;
+    }
+    
+    // 기본값
+    console.log('로컬 데이터 없음, 빈 배열 반환');
+    return [];
+  } catch (error) {
+    console.error('로컬 데이터 로드 실패:', error);
+    return [];
   }
-  
-  // 카테고리 목록
-  if (endpoint.includes('/categories')) {
-    return import('../data/categories').then(module => module.default);
-  }
-  
-  // 태그 목록
-  if (endpoint.includes('/tags')) {
-    return import('../data/tags').then(module => module.default);
-  }
-  
-  // 기본값
-  return Promise.resolve([]);
 };
 
 // 인증 API에 관리자 로그인 추가
