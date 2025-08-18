@@ -17,7 +17,7 @@ import InquiryManagement from '../components/InquiryManagement';
 import CouponManagement from '../components/CouponManagement';
 import PointManagement from '../components/PointManagement';
 import Pagination from '../components/Pagination';
-import { products as initialProducts, getProducts, saveProducts, resetProducts } from '../data/products';
+import products, { getProducts, saveProducts, resetProducts } from '../data/products';
 import { mockReviews } from '../data/reviews-list';
 import { defaultUsers, User } from '../data/users';
 import { defaultOrderList, Order as OrderData } from '../data/orderdata';
@@ -521,12 +521,12 @@ const Admin: React.FC = () => {
       } else {
         // 백엔드에 데이터가 없으면 기본 데이터 사용
         console.log('백엔드에 상품 데이터가 없어 기본 데이터를 사용합니다.');
-        setProducts(initialProducts);
+        setProducts(products);
       }
     } catch (error) {
       console.error('상품 로드 에러:', error);
       // 에러 발생 시 기본 데이터 사용
-      setProducts(initialProducts);
+              setProducts(products);
     }
   };
 

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { products } from '../data/products';
+import products from '../data/products';
 
 const ReviewWritePage = () => {
   const navigate = useNavigate();

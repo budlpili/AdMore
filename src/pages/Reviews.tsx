@@ -3,7 +3,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faRotateRight, faStar, faClock, faPen, faComments } from '@fortawesome/free-solid-svg-icons';
 import { useNavigate } from 'react-router-dom';
 import { Review, mockReviews } from '../data/reviews-list';
-import { products } from '../data/products';
+import products from '../data/products';
 import { reviewsAPI } from '../services/api';
 
 // 이메일 마스킹 함수
