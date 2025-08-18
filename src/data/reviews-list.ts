@@ -14,7 +14,7 @@ export interface Review {
   background?: string; // 상품 배경 이미지 추가
 }
 
-export const mockReviews: Review[] = [
+const mockReviews: Review[] = [
   {
     id: 1,
     user: 'sol@example.com',
@@ -165,3 +165,6 @@ export const mockReviews: Review[] = [
     productId: 15
   }
 ]; 
+
+// default export 추가
+export default mockReviews;

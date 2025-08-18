@@ -25,7 +25,7 @@ export interface Order {
 }
 
 // 기본 주문 데이터
-export const defaultOrderList: Order[] = [
+const defaultOrderList: Order[] = [
   {
     orderId: '20240601-001',
     productId: 1,
@@ -159,3 +159,6 @@ export const defaultOrderList: Order[] = [
     userEmail: 'han@example.com',
   }
 ]; 
+
+// default export 추가
+export default defaultOrderList;
