@@ -9,11 +9,9 @@ console.log('API Base URL:', API_BASE_URL);
 
 // API 요청 헬퍼 함수
 const apiRequest = async <T = any>(endpoint: string, options: RequestInit = {}): Promise<T> => {
-  // 임시로 로컬 데이터 사용
-  if (USE_LOCAL_DATA) {
-    console.log('로컬 데이터 모드 활성화, 백엔드 요청 건너뜀');
-    return getLocalData(endpoint);
-  }
+  // 강제로 로컬 데이터 사용 (백엔드 연결 문제 해결 시 제거)
+  console.log('로컬 데이터 모드 강제 활성화, 백엔드 요청 건너뜀');
+  return getLocalData(endpoint);
 
   const url = `${API_BASE_URL}${endpoint}`;
   
@@ -118,6 +116,22 @@ const getLocalData = async (endpoint: string) => {
       const tags = tagsModule.default;
       console.log('로컬 태그 데이터 로드:', tags.length);
       return tags;
+    }
+    
+    // 주문 데이터
+    if (endpoint.includes('/orders')) {
+      const ordersModule = await import('../data/orderdata');
+      const orders = ordersModule.default;
+      console.log('로컬 주문 데이터 로드:', orders.length);
+      return orders;
+    }
+    
+    // 리뷰 데이터
+    if (endpoint.includes('/reviews')) {
+      const reviewsModule = await import('../data/reviews-list');
+      const reviews = reviewsModule.default;
+      console.log('로컬 리뷰 데이터 로드:', reviews.length);
+      return reviews;
     }
     
     // 기본값
