@@ -21,7 +21,7 @@ jobs:
 
       - name: Install CloudType CLI
         run: |
-          curl -fsSL https://cloudtype.com/install.sh | sh
+          npm install -g @cloudtype/cli
 
       - name: Login to CloudType
         run: |
@@ -29,6 +29,6 @@ jobs:
 
       - name: Deploy Frontend Minimal
         run: |
-          ctype apply -f admore-nginx-minimal.yaml
+          ctype apply -f admore-frontend.yaml
         env:
           CLOUDTYPE_TOKEN: ${{ secrets.CLOUDTYPE_TOKEN }}
