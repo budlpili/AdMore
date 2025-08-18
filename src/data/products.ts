@@ -1,6 +1,6 @@
 import { Product } from '../types';
 
-export const products: Product[] = [
+const products: Product[] = [
   {
     id: 1,
     name: '유튜브 마케팅 활성화',
@@ -290,6 +290,9 @@ export const products: Product[] = [
     updatedAt: '2024-01-01T00:00:00.000Z'
   },
 ];
+
+// default export 추가
+export default products;
 
 // localStorage 연동 함수들
 export const getProducts = (): Product[] => {
