@@ -11,7 +11,7 @@ console.log('API Base URL:', API_BASE_URL);
 const apiRequest = async <T = any>(endpoint: string, options: RequestInit = {}): Promise<T> => {
   // 강제로 로컬 데이터 사용 (백엔드 연결 문제 해결 시 제거)
   console.log('로컬 데이터 모드 강제 활성화, 백엔드 요청 건너뜀');
-  return getLocalData(endpoint);
+  return getLocalData<T>(endpoint);
 
   // 아래 코드는 실행되지 않음 (백엔드 연결 문제 해결 시 주석 해제)
   /*
@@ -93,7 +93,7 @@ const apiRequest = async <T = any>(endpoint: string, options: RequestInit = {}):
 };
 
 // 로컬 데이터 반환 함수
-const getLocalData = async (endpoint: string) => {
+const getLocalData = async <T>(endpoint: string): Promise<T> => {
   console.log('로컬 데이터 사용:', endpoint);
   
   try {
@@ -102,7 +102,7 @@ const getLocalData = async (endpoint: string) => {
       const productsModule = await import('../data/products');
       const products = productsModule.default;
       console.log('로컬 상품 데이터 로드:', products.length);
-      return products.filter(product => product.status === 'active');
+      return products.filter(product => product.status === 'active') as T;
     }
     
     // 카테고리 목록
@@ -110,7 +110,7 @@ const getLocalData = async (endpoint: string) => {
       const categoriesModule = await import('../data/categories');
       const categories = categoriesModule.default;
       console.log('로컬 카테고리 데이터 로드:', categories.length);
-      return categories;
+      return categories as T;
     }
     
     // 태그 목록
@@ -118,7 +118,7 @@ const getLocalData = async (endpoint: string) => {
       const tagsModule = await import('../data/tags');
       const tags = tagsModule.default;
       console.log('로컬 태그 데이터 로드:', tags.length);
-      return tags;
+      return tags as T;
     }
     
     // 주문 데이터
@@ -126,7 +126,7 @@ const getLocalData = async (endpoint: string) => {
       const ordersModule = await import('../data/orderdata');
       const orders = ordersModule.default;
       console.log('로컬 주문 데이터 로드:', orders.length);
-      return orders;
+      return orders as T;
     }
     
     // 리뷰 데이터
@@ -134,15 +134,15 @@ const getLocalData = async (endpoint: string) => {
       const reviewsModule = await import('../data/reviews-list');
       const reviews = reviewsModule.default;
       console.log('로컬 리뷰 데이터 로드:', reviews.length);
-      return reviews;
+      return reviews as T;
     }
     
     // 기본값
     console.log('로컬 데이터 없음, 빈 배열 반환');
-    return [];
+    return [] as T;
   } catch (error) {
     console.error('로컬 데이터 로드 실패:', error);
-    return [];
+    return [] as T;
   }
 };
 
