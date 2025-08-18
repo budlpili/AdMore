@@ -137,6 +137,27 @@ const getLocalData = async <T>(endpoint: string): Promise<T> => {
       return reviews as T;
     }
     
+    // 로그인 요청 처리 (임시)
+    if (endpoint.includes('/auth/login')) {
+      console.log('로컬 로그인 처리');
+      // 하드코딩된 사용자 정보 (임시)
+      const users = [
+        { email: 'admin@admore.com', password: 'admin123', name: '관리자', role: 'admin' },
+        { email: 'namare@kakao.com', password: 'namare123', name: '나마레', role: 'admin' },
+        { email: 'budlpili@gmail.com', password: 'budlpili123', name: '마레인정', role: 'user' }
+      ];
+      
+      const user = users.find(u => u.email === JSON.parse(options.body as string).email);
+      if (user) {
+        return {
+          token: 'temp_token_' + Date.now(),
+          user: { email: user.email, name: user.name, role: user.role }
+        } as T;
+      } else {
+        throw new Error('이메일 또는 비밀번호가 올바르지 않습니다.');
+      }
+    }
+    
     // 기본값
     console.log('로컬 데이터 없음, 빈 배열 반환');
     return [] as T;
