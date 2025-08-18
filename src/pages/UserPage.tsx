@@ -8,7 +8,7 @@ import CouponCard from '../components/CouponCard';
 import ProductCard from '../components/ProductCard';
 import { useDragScroll } from '../hooks/useDragScroll';
 import { ordersAPI, customerServiceAPI, couponsAPI, productAPI } from '../services/api';
-import { mockReviews } from '../data/reviews-list';
+import mockReviews from '../data/reviews-list';
 import { DUMMY_COUPONS, Coupon } from '../data/coupons';
 import { Order } from '../data/orderdata';
 import { Notice } from '../types';

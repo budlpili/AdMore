@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useReducer, useMemo } 
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faStar as faSolidStar, faStarHalfAlt, faStar as faRegularStar, faHeart as faSolidHeart, faHeart, faPen, faTrash } from '@fortawesome/free-solid-svg-icons';
-import { mockReviews } from '../data/reviews-list';
+import mockReviews from '../data/reviews-list';
 import products from '../data/products';
 import { addRecentProduct, updateRecentProduct } from '../utils/recentProducts';
 import MobileNavBar from '../components/MobileNavBar';

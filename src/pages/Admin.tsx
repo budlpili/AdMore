@@ -18,9 +18,9 @@ import CouponManagement from '../components/CouponManagement';
 import PointManagement from '../components/PointManagement';
 import Pagination from '../components/Pagination';
 import products, { getProducts, saveProducts, resetProducts } from '../data/products';
-import { mockReviews } from '../data/reviews-list';
+import mockReviews from '../data/reviews-list';
 import { defaultUsers, User } from '../data/users';
-import { defaultOrderList, Order as OrderData } from '../data/orderdata';
+import defaultOrderList, { Order as OrderData } from '../data/orderdata';
 import { Product } from '../types';
 import { useWebSocket } from '../hooks/useWebSocket';
 
