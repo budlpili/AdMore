@@ -9,6 +9,37 @@ console.log('API Base URL:', API_BASE_URL);
 
 // API 요청 헬퍼 함수
 const apiRequest = async <T = any>(endpoint: string, options: RequestInit = {}): Promise<T> => {
+  // 로그인 요청 특별 처리
+  if (endpoint.includes('/auth/login')) {
+    console.log('로그인 요청 감지, 로컬 로그인 처리');
+    try {
+      const body = JSON.parse(options.body as string);
+      const { email, password } = body;
+      
+      // 하드코딩된 사용자 정보 (임시)
+      const users = [
+        { email: 'admin@admore.com', password: 'admin123', name: '관리자', role: 'admin' },
+        { email: 'namare@kakao.com', password: 'namare123', name: '나마레', role: 'admin' },
+        { email: 'budlpili@gmail.com', password: 'budlpili123', name: '마레인정', role: 'user' }
+      ];
+      
+      const user = users.find(u => u.email === email && u.password === password);
+      if (user) {
+        console.log('로그인 성공:', user.email);
+        return {
+          token: 'temp_token_' + Date.now(),
+          user: { email: user.email, name: user.name, role: user.role }
+        } as T;
+      } else {
+        console.log('로그인 실패: 잘못된 이메일 또는 비밀번호');
+        throw new Error('이메일 또는 비밀번호가 올바르지 않습니다.');
+      }
+    } catch (error) {
+      console.error('로그인 처리 오류:', error);
+      throw new Error('로그인 처리 중 오류가 발생했습니다.');
+    }
+  }
+  
   // 강제로 로컬 데이터 사용 (백엔드 연결 문제 해결 시 제거)
   console.log('로컬 데이터 모드 강제 활성화, 백엔드 요청 건너뜀');
   return getLocalData<T>(endpoint);
@@ -137,26 +168,7 @@ const getLocalData = async <T>(endpoint: string): Promise<T> => {
       return reviews as T;
     }
     
-    // 로그인 요청 처리 (임시)
-    if (endpoint.includes('/auth/login')) {
-      console.log('로컬 로그인 처리');
-      // 하드코딩된 사용자 정보 (임시)
-      const users = [
-        { email: 'admin@admore.com', password: 'admin123', name: '관리자', role: 'admin' },
-        { email: 'namare@kakao.com', password: 'namare123', name: '나마레', role: 'admin' },
-        { email: 'budlpili@gmail.com', password: 'budlpili123', name: '마레인정', role: 'user' }
-      ];
-      
-      const user = users.find(u => u.email === JSON.parse(options.body as string).email);
-      if (user) {
-        return {
-          token: 'temp_token_' + Date.now(),
-          user: { email: user.email, name: user.name, role: user.role }
-        } as T;
-      } else {
-        throw new Error('이메일 또는 비밀번호가 올바르지 않습니다.');
-      }
-    }
+    
     
     // 기본값
     console.log('로컬 데이터 없음, 빈 배열 반환');
