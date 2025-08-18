@@ -13,6 +13,8 @@ const apiRequest = async <T = any>(endpoint: string, options: RequestInit = {}):
   console.log('로컬 데이터 모드 강제 활성화, 백엔드 요청 건너뜀');
   return getLocalData(endpoint);
 
+  // 아래 코드는 실행되지 않음 (백엔드 연결 문제 해결 시 주석 해제)
+  /*
   const url = `${API_BASE_URL}${endpoint}`;
   
   const config: RequestInit = {
@@ -87,6 +89,7 @@ const apiRequest = async <T = any>(endpoint: string, options: RequestInit = {}):
     
     throw error;
   }
+  */
 };
 
 // 로컬 데이터 반환 함수
