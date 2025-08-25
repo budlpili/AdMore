@@ -47,6 +47,12 @@ const userSchema = new mongoose.Schema({
   },
   verifyExpires: {
     type: Date
+  },
+  resetToken: {
+    type: String
+  },
+  resetExpires: {
+    type: Date
   }
 }, {
   timestamps: true
@@ -104,6 +110,28 @@ userSchema.statics.updateLastLogin = function(userId) {
 userSchema.statics.updatePassword = function(userId, hashedPassword) {
   return this.findByIdAndUpdate(userId, {
     password: hashedPassword
+  });
+};
+
+// 비밀번호 재설정 토큰으로 사용자 찾기
+userSchema.statics.findByResetToken = function(token) {
+  return this.findOne({ resetToken: token });
+};
+
+// 비밀번호 재설정 토큰 업데이트
+userSchema.statics.updateResetToken = function(userId, token, expires) {
+  return this.findByIdAndUpdate(userId, {
+    resetToken: token,
+    resetExpires: expires
+  });
+};
+
+// 비밀번호 업데이트 및 재설정 토큰 제거
+userSchema.statics.updatePasswordAndClearResetToken = function(userId, hashedPassword) {
+  return this.findByIdAndUpdate(userId, {
+    password: hashedPassword,
+    resetToken: undefined,
+    resetExpires: undefined
   });
 };
 

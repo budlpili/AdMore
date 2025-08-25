@@ -9,7 +9,7 @@ import { productAPI } from '../services/api';
 const FAVORITES_KEY = 'favorites';
 
 // 즐겨찾기 관련 유틸리티 함수들
-const getFavorites = (): number[] => {
+const getFavorites = (): (string | number)[] => {
   try {
     return JSON.parse(localStorage.getItem(FAVORITES_KEY) || '[]');
   } catch {
@@ -17,7 +17,7 @@ const getFavorites = (): number[] => {
   }
 };
 
-const addFavorite = (productId: number) => {
+const addFavorite = (productId: string | number) => {
   const favorites = getFavorites();
   if (!favorites.includes(productId)) {
     favorites.push(productId);
@@ -25,7 +25,7 @@ const addFavorite = (productId: number) => {
   }
 };
 
-const removeFavorite = (productId: number) => {
+const removeFavorite = (productId: string | number) => {
   const favorites = getFavorites();
   const updatedFavorites = favorites.filter(id => id !== productId);
   localStorage.setItem(FAVORITES_KEY, JSON.stringify(updatedFavorites));
@@ -53,7 +53,7 @@ const Products: React.FC = () => {
     '기타': { icon: faBlogger, color: 'text-gray-400' },
   };
 
-  const [favorites, setFavorites] = useState<number[]>([]);
+  const [favorites, setFavorites] = useState<(string | number)[]>([]);
 
   // 상품 데이터 로드
   const loadProducts = async () => {
@@ -85,7 +85,7 @@ const Products: React.FC = () => {
     setFavorites(savedFavorites);
   }, []);
 
-  const toggleFavorite = (id: number) => {
+  const toggleFavorite = (id: string | number) => {
     if (favorites.includes(id)) {
       removeFavorite(id);
       setFavorites(prev => prev.filter(fid => fid !== id));
@@ -265,7 +265,7 @@ const Products: React.FC = () => {
             <ProductCard
               key={product.id}
               product={product}
-              isFavorite={favorites.includes(product.id)}
+              isFavorite={favorites.includes(product._id || product.id || '')}
               onFavoriteToggle={toggleFavorite}
               categoryIcon={categoryIcon[product.category] || categoryIcon['기타']}
             />

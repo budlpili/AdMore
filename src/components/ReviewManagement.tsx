@@ -11,13 +11,16 @@ import {
   faTimes,
   faImage,
   faClock,
-  faRefresh
+  faRefresh,
+  faCaretUp,
+  faCaretDown
 } from '@fortawesome/free-solid-svg-icons';
 import { reviewsAPI } from '../services/api';
 import Pagination from './Pagination';
 
 interface Review {
   id: number;
+  _id?: string; // MongoDB 원본 ID 추가
   user: string;
   rating: number;
   content: string;
@@ -33,6 +36,7 @@ interface Review {
   orderId?: string;
   orderDate?: string;
   quantity?: number;
+  productImage?: string; // 추가된 필드
 }
 
 interface ReviewManagementProps {
@@ -47,9 +51,9 @@ const ReviewManagement: React.FC<ReviewManagementProps> = ({ reviews, onReviewsC
   const [currentPage, setCurrentPage] = useState(1);
   const [reviewsPerPage] = useState(10);
   
-  // 관리자 댓글 관련 상태
-  const [replyingTo, setReplyingTo] = useState<number | null>(null);
-  const [replyContent, setReplyContent] = useState('');
+  // 관리자 댓글 관련 상태 - 각 리뷰별로 독립적으로 관리
+  const [replyingTo, setReplyingTo] = useState<{ [key: number]: boolean }>({});
+  const [replyContents, setReplyContents] = useState<{ [key: number]: string }>({});
   const [isSubmittingReply, setIsSubmittingReply] = useState(false);
 
   // 새 리뷰 작성 관련 상태
@@ -63,12 +67,94 @@ const ReviewManagement: React.FC<ReviewManagementProps> = ({ reviews, onReviewsC
   });
   const [isSubmittingNewReview, setIsSubmittingNewReview] = useState(false);
   const [availableProducts, setAvailableProducts] = useState<any[]>([]);
+  const [selectedReviews, setSelectedReviews] = useState<number[]>([]);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isProductDropdownOpen, setIsProductDropdownOpen] = useState(false);
 
   // 컴포넌트 마운트 시 리뷰 데이터 새로고침
   useEffect(() => {
     handleRefreshReviews();
     loadAvailableProducts();
   }, []);
+
+  // replyingTo 상태 변경 시 디버깅
+  useEffect(() => {
+    console.log('replyingTo 상태 변경됨:', replyingTo);
+  }, [replyingTo]);
+
+  // 드롭다운 외부 클릭 시 닫기
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target.closest('.product-dropdown')) {
+        setIsProductDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // 체크박스 선택/해제 함수들
+  const handleSelectReview = (reviewId: number) => {
+    setSelectedReviews(prev => 
+      prev.includes(reviewId) 
+        ? prev.filter(id => id !== reviewId)
+        : [...prev, reviewId]
+    );
+  };
+
+  const handleSelectAllReviews = () => {
+    if (selectedReviews.length === currentReviews.length) {
+      setSelectedReviews([]);
+    } else {
+      setSelectedReviews(currentReviews.map(review => review.id));
+    }
+  };
+
+  const handleDeleteSelectedReviews = async () => {
+    if (selectedReviews.length === 0) {
+      alert('삭제할 리뷰를 선택해주세요.');
+      return;
+    }
+
+    if (!window.confirm(`선택된 ${selectedReviews.length}개의 리뷰를 삭제하시겠습니까?`)) {
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      // 선택된 리뷰들의 실제 ID를 찾기
+      const reviewsToDelete = reviews.filter(review => 
+        selectedReviews.includes(review.id)
+      );
+      
+      console.log('삭제할 리뷰들:', reviewsToDelete);
+      
+      const deletePromises = reviewsToDelete.map(review => {
+        console.log(`리뷰 ${review.id} 삭제 시도, 사용할 ID:`, review.id);
+        return reviewsAPI.delete(review.id);
+      });
+      
+      await Promise.all(deletePromises);
+      
+      // 삭제된 리뷰들을 제외한 새로운 리뷰 목록 생성
+      const updatedReviews = reviews.filter(review => 
+        !selectedReviews.includes(review.id)
+      );
+      
+      onReviewsChange(updatedReviews);
+      setSelectedReviews([]);
+      alert(`${selectedReviews.length}개의 리뷰가 삭제되었습니다.`);
+    } catch (error) {
+      console.error('리뷰 일괄 삭제 오류:', error);
+      alert('리뷰 삭제 중 오류가 발생했습니다. 자세한 내용은 콘솔을 확인해주세요.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   // 리뷰 통계 계산
   const calculateReviewStats = () => {
@@ -110,11 +196,54 @@ const ReviewManagement: React.FC<ReviewManagementProps> = ({ reviews, onReviewsC
     try {
       const response = await fetch('http://localhost:5001/api/products?status=active');
       if (response.ok) {
-        const products = await response.json();
-        setAvailableProducts(products);
+        const data = await response.json();
+        // 응답 구조에 따라 상품 데이터 추출
+        const products = data.products || data || [];
+        console.log('로드된 상품 데이터:', products);
+        
+        // 첫 번째 상품의 구조 확인
+        if (products.length > 0) {
+          console.log('첫 번째 상품 구조:', products[0]);
+          console.log('첫 번째 상품의 id 타입:', typeof products[0].id);
+          console.log('첫 번째 상품의 _id:', products[0]._id);
+        }
+        
+        // id 또는 _id가 있는 상품만 필터링 (MongoDB _id도 고려)
+        const validProducts = products.filter((product: any) => product && (product.id || product._id));
+        console.log('유효한 상품 데이터:', validProducts);
+        
+        // 상품 이미지 정보 확인
+        validProducts.forEach((product: any) => {
+          console.log(`상품 "${product.name}" 이미지 정보:`, {
+            id: product.id || product._id,
+            image: product.image,
+            background: product.background
+          });
+        });
+        
+        // 상품 데이터에 id 필드 추가 (MongoDB _id를 기반으로)
+        const productsWithId = validProducts.map((product: any, index: number) => {
+          let uniqueId: number;
+          if (product._id) {
+            const idStr = product._id.toString();
+            uniqueId = parseInt(idStr.slice(-8), 16);
+          } else if (product.id) {
+            uniqueId = parseInt(product.id.toString());
+          } else {
+            uniqueId = Date.now() + index;
+          }
+          
+          return {
+            ...product,
+            id: uniqueId
+          };
+        });
+        
+        setAvailableProducts(productsWithId);
       }
     } catch (error) {
       console.error('상품 목록 로드 중 오류:', error);
+      setAvailableProducts([]);
     }
   };
 
@@ -146,16 +275,65 @@ const ReviewManagement: React.FC<ReviewManagementProps> = ({ reviews, onReviewsC
   const handleRefreshReviews = async () => {
     try {
       const response = await reviewsAPI.getAll();
+      console.log('리뷰 새로고침 응답:', response);
+      
+      let reviewsData = [];
       if (response && Array.isArray(response)) {
-        const formattedReviews = response.map((review: any) => ({
-          id: review.id,
-          user: review.userEmail || review.user || '익명',
-          time: review.createdAt || review.time || new Date().toLocaleString(),
+        // 직접 배열인 경우
+        reviewsData = response;
+      } else if (response && response.success && Array.isArray(response.reviews)) {
+        // {success: true, reviews: [...]} 형태인 경우
+        reviewsData = response.reviews;
+      } else {
+        console.warn('예상하지 못한 리뷰 응답 구조:', response);
+        return;
+      }
+      
+      const formattedReviews = reviewsData.map((review: any, index: number) => {
+        // MongoDB _id를 기반으로 고유한 숫자 ID 생성
+        let uniqueId: number;
+        if (review._id) {
+          // MongoDB _id의 마지막 8자리를 숫자로 변환
+          const idStr = review._id.toString();
+          uniqueId = parseInt(idStr.slice(-8), 16);
+        } else if (review.id) {
+          uniqueId = parseInt(review.id.toString());
+        } else {
+          // fallback: 현재 시간 + 인덱스
+          uniqueId = Date.now() + index;
+        }
+        
+        return {
+          id: uniqueId,
+          _id: review._id, // MongoDB 원본 ID 저장
+          user: review.userEmail || review.userId || review.user || '익명',
+          time: (() => {
+            const date = review.createdAt || review.time || new Date();
+            const d = new Date(date);
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            const hours = String(d.getHours()).padStart(2, '0');
+            const minutes = String(d.getMinutes()).padStart(2, '0');
+            return `${year}-${month}-${day} ${hours}:${minutes}`;
+          })(),
           content: review.content,
           product: review.productName || review.product || '상품명 없음',
           rating: review.rating,
           reply: review.adminReply || review.reply,
-          replyTime: review.adminReplyTime || review.replyTime,
+          replyTime: (() => {
+            const replyDate = review.adminReplyTime || review.replyTime;
+            if (replyDate) {
+              const d = new Date(replyDate);
+              const year = d.getFullYear();
+              const month = String(d.getMonth() + 1).padStart(2, '0');
+              const day = String(d.getDate()).padStart(2, '0');
+              const hours = String(d.getHours()).padStart(2, '0');
+              const minutes = String(d.getMinutes()).padStart(2, '0');
+              return `${year}-${month}-${day} ${hours}:${minutes}`;
+            }
+            return undefined;
+          })(),
           productId: review.productId,
           category: review.category,
           tags: review.tags,
@@ -163,10 +341,13 @@ const ReviewManagement: React.FC<ReviewManagementProps> = ({ reviews, onReviewsC
           background: review.background,
           orderId: review.orderId,
           orderDate: review.orderDate,
-          quantity: review.quantity
-        }));
-        onReviewsChange(formattedReviews);
-      }
+          quantity: review.quantity,
+          productImage: review.productImage || review.image || review.background || null
+        };
+      });
+      
+      console.log('포맷된 리뷰 데이터:', formattedReviews);
+      onReviewsChange(formattedReviews);
     } catch (error) {
       console.error('리뷰 새로고침 중 오류:', error);
     }
@@ -176,29 +357,81 @@ const ReviewManagement: React.FC<ReviewManagementProps> = ({ reviews, onReviewsC
   const deleteReview = async (reviewId: number) => {
     if (window.confirm('이 리뷰를 삭제하시겠습니까?')) {
       try {
-        await reviewsAPI.delete(reviewId);
+        // 해당 리뷰의 MongoDB _id 찾기
+        const review = reviews.find(r => r.id === reviewId);
+        if (!review || !review._id) {
+          alert('리뷰를 찾을 수 없습니다.');
+          return;
+        }
+        
+        console.log(`리뷰 삭제 시도, MongoDB _id:`, review._id);
+        await reviewsAPI.delete(review._id);
         await handleRefreshReviews();
         alert('리뷰가 삭제되었습니다.');
       } catch (error) {
         console.error('리뷰 삭제 중 오류:', error);
-        alert('리뷰 삭제에 실패했습니다.');
+        alert('리뷰 삭제에 실패했습니다. 자세한 내용은 콘솔을 확인해주세요.');
       }
     }
   };
 
   // 관리자 댓글 작성
   const handleAddReply = async (reviewId: number) => {
-    if (!replyContent.trim()) {
+    console.log('댓글 작성 시도 - reviewId:', reviewId);
+    console.log('댓글 내용:', replyContents[reviewId]);
+    console.log('현재 reviews 상태:', reviews);
+    
+    // 해당 리뷰의 MongoDB _id 찾기
+    const review = reviews.find(r => r.id === reviewId);
+    if (!review) {
+      alert('리뷰를 찾을 수 없습니다.');
+      return;
+    }
+    
+    if (!replyContents[reviewId]?.trim()) {
       alert('댓글 내용을 입력해주세요.');
       return;
     }
 
     setIsSubmittingReply(true);
     try {
-      await reviewsAPI.addAdminReply(reviewId, replyContent);
-      setReplyContent('');
-      setReplyingTo(null);
-      await handleRefreshReviews();
+      // MongoDB _id를 사용하여 API 호출
+      const mongoId = review._id;
+      if (!mongoId) {
+        throw new Error('리뷰의 MongoDB ID를 찾을 수 없습니다.');
+      }
+      
+      console.log('API 호출 전 - MongoDB _id:', mongoId, 'adminReply:', replyContents[reviewId]);
+      const response = await reviewsAPI.addAdminReply(mongoId, replyContents[reviewId] || '');
+      console.log('API 응답:', response);
+      
+      // 성공 시 로컬 상태 즉시 업데이트
+      const currentTime = (() => {
+        const d = new Date();
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        const hours = String(d.getHours()).padStart(2, '0');
+        const minutes = String(d.getMinutes()).padStart(2, '0');
+        return `${year}-${month}-${day} ${hours}:${minutes}`;
+      })();
+      const updatedReviews = reviews.map(review => {
+        if (review.id === reviewId) {
+          return {
+            ...review,
+            reply: replyContents[reviewId],
+            replyTime: currentTime
+          };
+        }
+        return review;
+      });
+      
+      onReviewsChange(updatedReviews);
+      
+      // 폼 상태 초기화
+      setReplyContents(prev => ({ ...prev, [reviewId]: '' }));
+      setReplyingTo(prev => ({ ...prev, [reviewId]: false }));
+      
       alert('댓글이 작성되었습니다.');
     } catch (error) {
       console.error('댓글 작성 중 오류:', error);
@@ -216,8 +449,42 @@ const ReviewManagement: React.FC<ReviewManagementProps> = ({ reviews, onReviewsC
     }
 
     try {
-      await reviewsAPI.updateAdminReply(reviewId, newContent);
-      await handleRefreshReviews();
+      // 해당 리뷰의 MongoDB _id 찾기
+      const review = reviews.find(r => r.id === reviewId);
+      if (!review || !review._id) {
+        alert('리뷰를 찾을 수 없습니다.');
+        return;
+      }
+      
+      const response = await reviewsAPI.updateAdminReply(review._id, newContent);
+      
+      // 성공 시 로컬 상태 즉시 업데이트
+      const currentTime = (() => {
+        const d = new Date();
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        const hours = String(d.getHours()).padStart(2, '0');
+        const minutes = String(d.getMinutes()).padStart(2, '0');
+        return `${year}-${month}-${day} ${hours}:${minutes}`;
+      })();
+      const updatedReviews = reviews.map(review => {
+        if (review.id === reviewId) {
+          return {
+            ...review,
+            reply: newContent,
+            replyTime: currentTime
+          };
+        }
+        return review;
+      });
+      
+      onReviewsChange(updatedReviews);
+      
+      // 폼 상태 초기화
+      setReplyContents(prev => ({ ...prev, [reviewId]: '' }));
+      setReplyingTo(prev => ({ ...prev, [reviewId]: false }));
+      
       alert('댓글이 수정되었습니다.');
     } catch (error) {
       console.error('댓글 수정 중 오류:', error);
@@ -229,8 +496,29 @@ const ReviewManagement: React.FC<ReviewManagementProps> = ({ reviews, onReviewsC
   const handleDeleteReply = async (reviewId: number) => {
     if (window.confirm('이 댓글을 삭제하시겠습니까?')) {
       try {
-        await reviewsAPI.deleteAdminReply(reviewId);
-        await handleRefreshReviews();
+        // 해당 리뷰의 MongoDB _id 찾기
+        const review = reviews.find(r => r.id === reviewId);
+        if (!review || !review._id) {
+          alert('리뷰를 찾을 수 없습니다.');
+          return;
+        }
+        
+        await reviewsAPI.deleteAdminReply(review._id);
+        
+        // 성공 시 로컬 상태 즉시 업데이트
+        const updatedReviews = reviews.map(review => {
+          if (review.id === reviewId) {
+            return {
+              ...review,
+              reply: undefined,
+              replyTime: undefined
+            };
+          }
+          return review;
+        });
+        
+        onReviewsChange(updatedReviews);
+        
         alert('댓글이 삭제되었습니다.');
       } catch (error) {
         console.error('댓글 삭제 중 오류:', error);
@@ -260,15 +548,67 @@ const ReviewManagement: React.FC<ReviewManagementProps> = ({ reviews, onReviewsC
 
     setIsSubmittingNewReview(true);
     try {
+      // 선택된 상품 정보 찾기
+      const selectedProduct = availableProducts.find(p => 
+        p && (p.id || p._id) && (p.id || p._id).toString() === newReviewData.productId
+      );
+      
+      if (!selectedProduct) {
+        throw new Error('선택된 상품을 찾을 수 없습니다.');
+      }
+
       const reviewData = {
-        productId: parseInt(newReviewData.productId),
-        userEmail: newReviewData.userEmail.trim(),
-        rating: newReviewData.rating,
+        userId: newReviewData.userEmail.trim(), // 이메일을 userId로 사용
+        productId: newReviewData.productId, // 문자열 그대로 사용
+        product: selectedProduct.name || '상품명 없음', // 상품명 추가
         content: newReviewData.content.trim(),
-        orderId: newReviewData.orderId || null
+        rating: newReviewData.rating
       };
 
-      await reviewsAPI.create(reviewData);
+      console.log('전송할 리뷰 데이터:', reviewData);
+
+      const response = await reviewsAPI.create(reviewData);
+      console.log('리뷰 생성 응답:', response);
+      
+              // 새로 생성된 리뷰를 즉시 목록에 추가
+        if (response && response.review) {
+          // MongoDB _id를 기반으로 고유한 숫자 ID 생성
+          let uniqueId: number;
+          if (response.review._id) {
+            const idStr = response.review._id.toString();
+            uniqueId = parseInt(idStr.slice(-8), 16);
+          } else if (response.review.id) {
+            uniqueId = parseInt(response.review.id.toString());
+          } else {
+            uniqueId = Date.now();
+          }
+          
+          const newReview: Review = {
+            id: uniqueId,
+            user: newReviewData.userEmail.trim(),
+            time: (() => {
+              const d = new Date();
+              const year = d.getFullYear();
+              const month = String(d.getMonth() + 1).padStart(2, '0');
+              const day = String(d.getDate()).padStart(2, '0');
+              const hours = String(d.getHours()).padStart(2, '0');
+              const minutes = String(d.getMinutes()).padStart(2, '0');
+              return `${year}-${month}-${day} ${hours}:${minutes}`;
+            })(),
+            content: newReviewData.content.trim(),
+            product: selectedProduct.name || '상품명 없음',
+            rating: newReviewData.rating,
+            productId: parseInt(newReviewData.productId),
+            orderId: newReviewData.orderId || undefined,
+            productImage: selectedProduct.image || selectedProduct.background || null
+          };
+          
+          // 기존 리뷰 목록에 새 리뷰 추가
+          const updatedReviews = [newReview, ...reviews];
+          onReviewsChange(updatedReviews);
+          
+          console.log('새 리뷰가 목록에 추가됨:', newReview);
+        }
       
       // 폼 초기화
       setNewReviewData({
@@ -280,13 +620,10 @@ const ReviewManagement: React.FC<ReviewManagementProps> = ({ reviews, onReviewsC
       });
       setShowNewReviewForm(false);
       
-      // 리뷰 목록 새로고침
-      await handleRefreshReviews();
-      
       alert('리뷰가 성공적으로 작성되었습니다.');
     } catch (error) {
       console.error('리뷰 작성 중 오류:', error);
-      alert('리뷰 작성 중 오류가 발생했습니다.');
+      alert(`리뷰 작성 중 오류가 발생했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);
     } finally {
       setIsSubmittingNewReview(false);
     }
@@ -302,6 +639,7 @@ const ReviewManagement: React.FC<ReviewManagementProps> = ({ reviews, onReviewsC
       orderId: ''
     });
     setShowNewReviewForm(false);
+    setIsProductDropdownOpen(false);
   };
 
   // 정렬 함수들
@@ -356,23 +694,65 @@ const ReviewManagement: React.FC<ReviewManagementProps> = ({ reviews, onReviewsC
             </div>
 
             {/* 상품 선택 */}
-            <div>
-              
+            <div className="relative product-dropdown">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 상품 선택 *
               </label>
-              <select
-                value={newReviewData.productId}
-                onChange={(e) => setNewReviewData(prev => ({ ...prev, productId: e.target.value }))}
-                className="w-full p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+              <div
+                onClick={() => setIsProductDropdownOpen(!isProductDropdownOpen)}
+                className="w-full p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 cursor-pointer bg-white hover:bg-gray-50 transition-colors duration-200 flex items-center justify-between"
               >
-                <option value="">상품을 선택하세요</option>
-                {availableProducts.map((product) => (
-                  <option key={product.id} value={product.id}>
-                    {product.name}
-                  </option>
-                ))}
-              </select>
+                <span className={newReviewData.productId ? 'text-gray-900' : 'text-gray-500'}>
+                  {newReviewData.productId && availableProducts && availableProducts.length > 0
+                    ? availableProducts.find(p => p && (p.id || p._id) && (p.id || p._id).toString() === newReviewData.productId)?.name || '상품을 선택하세요'
+                    : '상품을 선택하세요'
+                  }
+                </span>
+                <FontAwesomeIcon 
+                  icon={isProductDropdownOpen ? faCaretUp : faCaretDown} 
+                  className="text-gray-400 text-sm transition-transform duration-200"
+                />
+              </div>
+              
+              {/* 드롭다운 메뉴 */}
+              {isProductDropdownOpen && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-md shadow-lg z-10 max-h-48 overflow-y-auto">
+                  <div
+                    onClick={() => {
+                      setNewReviewData(prev => ({ ...prev, productId: '' }));
+                      setIsProductDropdownOpen(false);
+                    }}
+                    className="px-3 py-2 text-sm text-gray-500 hover:bg-gray-100 cursor-pointer border-b border-gray-200"
+                  >
+                    상품을 선택하세요
+                  </div>
+                  {availableProducts && availableProducts.length > 0 ? (
+                    availableProducts.filter(product => product && (product.id || product._id)).map((product) => {
+                      const productId = product.id || product._id;
+                      return (
+                        <div
+                          key={productId}
+                          onClick={() => {
+                            if (productId) {
+                              setNewReviewData(prev => ({ ...prev, productId: productId.toString() }));
+                              setIsProductDropdownOpen(false);
+                            }
+                          }}
+                          className="px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                        >
+                          {product.name || '상품명 없음'}
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="px-3 py-2 text-sm text-gray-500 italic">
+                      로딩 중...
+                    </div>
+                  )}
+                </div>
+              )}
+              
+
             </div>
 
             {/* 주문번호 (선택사항) */}
@@ -585,8 +965,40 @@ const ReviewManagement: React.FC<ReviewManagementProps> = ({ reviews, onReviewsC
         </div>
       </div>
 
+      {/* 일괄 삭제 및 전체 선택 기능 */}
+      {currentReviews.length > 0 && (
+        <div className="flex items-center justify-between bg-gray-50 mb-2 h-10">
+          <div className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              checked={selectedReviews.length === currentReviews.length && currentReviews.length > 0}
+              onChange={handleSelectAllReviews}
+              className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
+            />
+            <span className="text-sm text-gray-700 font-medium">
+              전체 선택
+            </span>
+            {selectedReviews.length > 0 && (
+              <span className="text-sm text-orange-600 font-medium ml-2">
+                • {selectedReviews.length}개 선택됨
+              </span>
+            )}
+          </div>
+          {selectedReviews.length > 0 && (
+            <button
+              onClick={handleDeleteSelectedReviews}
+              disabled={isDeleting}
+              className="bg-red-500 hover:bg-red-600 disabled:bg-red-300 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200"
+            >
+              {isDeleting ? '삭제 중...' : `삭제하기`}
+            </button>
+          )}
+        </div>
+      )}
+
       {/* 리뷰 목록 */}
       <div className="space-y-4">
+        
         {currentReviews.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
             {searchTerm ? '검색 결과가 없습니다.' : '등록된 리뷰가 없습니다.'}
@@ -597,6 +1009,12 @@ const ReviewManagement: React.FC<ReviewManagementProps> = ({ reviews, onReviewsC
               {/* 작성자 정보 */}
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center space-x-3">
+                  <input
+                    type="checkbox"
+                    checked={selectedReviews.includes(review.id)}
+                    onChange={() => handleSelectReview(review.id)}
+                    className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500 mr-2"
+                  />
                   <span className="font-semibold text-blue-600 mr-2">{review.user}</span>
                   <div className="flex items-center">
                     {Array.from({ length: 5 }).map((_, i) => (
@@ -612,14 +1030,7 @@ const ReviewManagement: React.FC<ReviewManagementProps> = ({ reviews, onReviewsC
                   </div>
                   <span className="text-xs text-gray-400">{review.time}</span>
                 </div>
-                {/* 삭제 버튼 */}
-                <button
-                    onClick={() => deleteReview(review.id)}
-                    className="text-xs text-gray-400 hover:text-gray-800 p-2 rounded-lg hover:bg-gray-50 transition-colors duration-200"
-                    title="리뷰 삭제"
-                  >
-                    <FontAwesomeIcon icon={faTrash} />
-                  </button>
+                
               </div>
               
               <div className="text-sm mb-4 text-gray-900 font-normal">{review.content}</div>
@@ -637,10 +1048,10 @@ const ReviewManagement: React.FC<ReviewManagementProps> = ({ reviews, onReviewsC
                       {/* 관리자 댓글 버튼들 */}
                       <div className="flex space-x-2">
                         <button
-                          onClick={() => {
-                            setReplyingTo(review.id);
-                            setReplyContent(review.reply || '');
-                          }}
+                                                      onClick={() => {
+                              setReplyingTo(prev => ({ ...prev, [review.id]: true }));
+                              setReplyContents(prev => ({ ...prev, [review.id]: review.reply || '' }));
+                            }}
                           className="text-xs text-gray-400 hover:text-orange-800 font-medium flex items-center"
                           title="댓글 수정"
                         >
@@ -661,7 +1072,11 @@ const ReviewManagement: React.FC<ReviewManagementProps> = ({ reviews, onReviewsC
               )}
 
               {/* 관리자 댓글 작성/수정 폼 */}
-              {replyingTo === review.id && (
+              {(() => {
+                const isFormOpen = replyingTo[review.id];
+                console.log(`리뷰 ${review.id} 댓글 폼 상태:`, isFormOpen, '전체 상태:', replyingTo);
+                return isFormOpen;
+              })() && (
                 <div className="mb-3 p-3 bg-gray-50 rounded-lg">
                   <div className="flex items-start gap-2">
                     <div className="flex-1">
@@ -672,8 +1087,8 @@ const ReviewManagement: React.FC<ReviewManagementProps> = ({ reviews, onReviewsC
                         </span>
                       </div>
                       <textarea
-                        value={replyContent}
-                        onChange={(e) => setReplyContent(e.target.value)}
+                        value={replyContents[review.id] || ''}
+                        onChange={(e) => setReplyContents(prev => ({ ...prev, [review.id]: e.target.value }))}
                         placeholder={review.reply ? "댓글을 수정하세요..." : "고객님의 리뷰에 답변을 남겨주세요..."}
                         className="w-full text-sm border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-200 resize-none"
                         rows={3}
@@ -681,20 +1096,25 @@ const ReviewManagement: React.FC<ReviewManagementProps> = ({ reviews, onReviewsC
                       />
                       <div className="flex justify-between items-center mt-2">
                         <span className="text-xs text-gray-500">
-                          {replyContent.length}/300
+                          {(replyContents[review.id] || '').length}/300
                         </span>
                         <div className="flex space-x-2">
                           <button
                             onClick={() => {
-                              setReplyingTo(null);
-                              setReplyContent('');
+                              console.log('취소 버튼 클릭:', review.id);
+                              setReplyingTo(prev => {
+                                const newState = { ...prev, [review.id]: false };
+                                console.log('취소 후 replyingTo 상태:', newState);
+                                return newState;
+                              });
+                              setReplyContents(prev => ({ ...prev, [review.id]: '' }));
                             }}
                             className="px-3 py-1 border border-gray-300 text-gray-700 text-xs rounded hover:bg-gray-50"
                           >
                             취소
                           </button>
                           <button
-                            onClick={() => review.reply ? handleEditReply(review.id, replyContent) : handleAddReply(review.id)}
+                            onClick={() => review.reply ? handleEditReply(review.id, replyContents[review.id] || '') : handleAddReply(review.id)}
                             disabled={isSubmittingReply}
                             className={`px-3 py-1 text-xs rounded ${
                               isSubmittingReply 
@@ -712,10 +1132,23 @@ const ReviewManagement: React.FC<ReviewManagementProps> = ({ reviews, onReviewsC
               )}
 
               {/* 관리자 댓글 작성 버튼 (댓글이 없을 때만) */}
-              {!review.reply && replyingTo !== review.id && (
+              {!review.reply && !replyingTo[review.id] && (
                 <div className="flex items-center gap-2 mb-2">
                   <button
-                    onClick={() => setReplyingTo(review.id)}
+                    onClick={() => {
+                      console.log('댓글 작성 버튼 클릭 - review.id:', review.id);
+                      console.log('review 객체 전체:', review);
+                      console.log('현재 replyingTo 상태:', replyingTo);
+                      setReplyingTo(prev => {
+                        const newState = { ...prev, [review.id]: true };
+                        console.log('새로운 replyingTo 상태:', newState);
+                        return newState;
+                      });
+                      // 기존 댓글이 있다면 내용을 불러옴
+                      if (review.reply) {
+                        setReplyContents(prev => ({ ...prev, [review.id]: review.reply || '' }));
+                      }
+                    }}
                     className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 p-1 rounded hover:bg-blue-50 transition-colors duration-200"
                     title="댓글 작성"
                   >
@@ -726,65 +1159,75 @@ const ReviewManagement: React.FC<ReviewManagementProps> = ({ reviews, onReviewsC
               )}
 
               {/* 구매한 상품 정보 */}
-              <div className="text-sm text-gray-600 mt-4 border border-orange-200 p-2 rounded-lg">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-3">
-                    {/* 상품 이미지 */}
-                    <div className="w-16 h-12 bg-gray-200 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
-                      {review.image ? (
-                        <img 
-                          src={review.image} 
-                          alt={review.product} 
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.style.display = 'none';
-                            target.nextElementSibling?.classList.remove('hidden');
-                          }}
-                        />
-                      ) : review.background ? (
-                        <img 
-                          src={review.background} 
-                          alt={review.product} 
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.style.display = 'none';
-                            target.nextElementSibling?.classList.remove('hidden');
-                          }}
-                        />
-                      ) : null}
-                      <div className="hidden w-8 h-8 text-gray-400">
-                        <FontAwesomeIcon icon={faImage} />
-                      </div>
-                    </div>
+              {review.product && (
+                <div className="flex items-center space-x-3 border border-gray-200 rounded-lg p-2 mt-4">
+                  {(() => {
+                    // 상품 이미지 찾기: 먼저 review.productImage, 없으면 availableProducts에서 찾기
+                    let imageSrc = review.productImage;
+                    if (!imageSrc && availableProducts.length > 0) {
+                      const product = availableProducts.find(p => 
+                        p.name === review.product || 
+                        (p.id && p.id.toString() === review.productId?.toString()) ||
+                        (p._id && p._id.toString() === review.productId?.toString())
+                      );
+                      if (product) {
+                        imageSrc = product.image || product.background;
+                      }
+                    }
                     
-                    {/* 상품 정보 */}
-                    <div className="flex flex-col gap-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-gray-700 font-semibold text-sm">{review.product}</span>
-                      </div>
-                      {(review.category || review.tags) && (
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-gray-500">
-                            {review.category && review.tags ? `${review.category} | ${review.tags}` : review.category || review.tags}
-                          </span>
-                        </div>
-                      )}
-                      {/* 주문 정보 */}
-                      <div className="flex flex-col sm:flex-row gap-1 text-xs text-gray-600 font-semibold">
-                        <span>주문번호: {review.orderId || '없음'}</span>
-                        <span className="text-gray-400 text-[10px] sm:block hidden">|</span>
-                        <div className="flex items-center gap-1">
-                          <span>주문일: {review.orderDate ? new Date(review.orderDate).toLocaleDateString() : '없음'}</span>
-                          <span className="text-gray-400 text-[10px]">|</span>
-                          <span>수량: {review.quantity || '없음'}일</span>
-                        </div>
-                      </div>
+                    return imageSrc ? (
+                      <img 
+                        src={imageSrc} 
+                        alt={`${review.product} 이미지`}
+                        className="w-16 h-16 object-cover rounded-lg border border-gray-200"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          // 이미지 로드 실패 시 기본 아이콘 표시
+                          const fallback = target.nextElementSibling as HTMLElement;
+                          if (fallback) {
+                            fallback.style.display = 'flex';
+                          }
+                        }}
+                      />
+                    ) : null;
+                  })()}
+                  
+                  {/* 이미지가 없거나 로드 실패 시에만 기본 아이콘 표시 */}
+                  {(() => {
+                    // 상품 이미지 찾기: 먼저 review.productImage, 없으면 availableProducts에서 찾기
+                    let imageSrc = review.productImage;
+                    if (!imageSrc && availableProducts.length > 0) {
+                      const product = availableProducts.find(p => 
+                        p.name === review.product || 
+                        (p.id && p.id.toString() === review.productId?.toString()) ||
+                        (p._id && p._id.toString() === review.productId?.toString())
+                      );
+                      if (product) {
+                        imageSrc = product.image || product.background;
+                      }
+                    }
+                    return !imageSrc; // 이미지가 없을 때만 true 반환
+                  })() && (
+                    <div className="w-16 h-16 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center">
+                      <FontAwesomeIcon icon={faImage} className="text-gray-400 text-xl" />
                     </div>
+                  )}
+                  
+                  <div className="flex-1">
+                    <div className="text-sm font-medium text-gray-900">{review.product}</div>
+                    {review.orderId && (
+                      <div className="text-xs text-gray-500">주문번호: {review.orderId}</div>
+                    )}
+                    {review.orderDate && (
+                      <div className="text-xs text-gray-500">주문일: {new Date(review.orderDate).toLocaleDateString('ko-KR')}</div>
+                    )}
+                    {review.quantity && (
+                      <div className="text-xs text-gray-500">수량: {review.quantity} 일</div>
+                    )}
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           ))
         )}

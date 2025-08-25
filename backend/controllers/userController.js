@@ -133,7 +133,7 @@ const login = (req, res) => {
     .then(user => {
       if (!user) {
         console.log('[Login] 사용자 없음:', email);
-        return res.status(401).json({ message: '이메일 또는 비밀번호가 올바르지 않습니다.' });
+        return res.status(401).json({ message: '등록되지 않은 이메일입니다.' });
       }
 
       console.log('[Login] 사용자 정보:', {
@@ -172,7 +172,7 @@ const login = (req, res) => {
 
         if (!isMatch) {
           console.log('[Login] 비밀번호 불일치:', email);
-          return res.status(401).json({ message: '이메일 또는 비밀번호가 올바르지 않습니다.' });
+          return res.status(401).json({ message: '비밀번호가 일치하지 않습니다.' });
         }
 
         console.log('[Login] 로그인 성공:', email);
@@ -293,12 +293,53 @@ const verifyAdminPassword = (req, res) => {
 // 사용자 정보 조회
 const getProfile = (req, res) => {
   const userId = req.user.id;
+  const userEmail = req.user.email;
+
+  console.log('getProfile 호출됨 - userId:', userId, 'userEmail:', userEmail);
+
+  // temp_token_ 형태의 토큰인 경우에도 이메일 기반으로 사용자 정보 찾기 시도
+  if (userId === 'temp_user_id' && userEmail) {
+    console.log('temp_token이지만 이메일이 있음, 사용자 정보 찾기 시도:', userEmail);
+    
+    User.findOne({ email: userEmail })
+      .then(user => {
+        if (user) {
+          console.log('이메일로 사용자 찾음:', user.name);
+          res.json(user);
+        } else {
+          console.log('이메일로 사용자를 찾을 수 없음, 기본 정보 반환');
+          res.json({
+            _id: 'temp_user_id',
+            name: '임시 사용자',
+            email: userEmail,
+            role: 'user',
+            isVerified: true,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          });
+        }
+      })
+      .catch(err => {
+        console.error('이메일 기반 사용자 검색 오류:', err);
+        res.json({
+          _id: 'temp_user_id',
+          name: '임시 사용자',
+          email: userEmail,
+          role: 'user',
+          isVerified: true,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        });
+      });
+    return;
+  }
 
   User.findById(userId)
     .then(user => {
       if (!user) {
         return res.status(404).json({ message: '사용자를 찾을 수 없습니다.' });
       }
+      console.log('사용자 정보 조회 성공:', user.name);
       res.json(user);
     })
     .catch(err => {
@@ -310,8 +351,38 @@ const getProfile = (req, res) => {
 // 사용자 정보 수정
 const updateProfile = (req, res) => {
   const userId = req.user.id;
+  const userEmail = req.user.email;
   const { name, phone } = req.body;
 
+  console.log('updateProfile 호출됨 - userId:', userId, 'userEmail:', userEmail);
+
+  // temp_user_id인 경우 이메일로 사용자 찾기
+  if (userId === 'temp_user_id' && userEmail) {
+    console.log('temp_user_id로 프로필 업데이트 시도, 이메일로 사용자 찾기:', userEmail);
+    
+    User.findOne({ email: userEmail })
+      .then(user => {
+        if (!user) {
+          return res.status(404).json({ message: '사용자를 찾을 수 없습니다.' });
+        }
+
+        user.name = name;
+        if (phone) user.phone = phone;
+
+        return user.save();
+      })
+      .then(updatedUser => {
+        console.log('프로필 업데이트 성공:', updatedUser.name);
+        res.json({ message: '프로필이 업데이트되었습니다.' });
+      })
+      .catch(err => {
+        console.error('프로필 업데이트 오류:', err);
+        res.status(500).json({ message: '프로필 업데이트에 실패했습니다.' });
+      });
+    return;
+  }
+
+  // 일반적인 경우 (실제 ObjectId)
   User.findById(userId)
     .then(user => {
       if (!user) {
@@ -319,11 +390,12 @@ const updateProfile = (req, res) => {
       }
 
       user.name = name;
-      user.phone = phone;
+      if (phone) user.phone = phone;
 
       return user.save();
     })
     .then(updatedUser => {
+      console.log('프로필 업데이트 성공:', updatedUser.name);
       res.json({ message: '프로필이 업데이트되었습니다.' });
     })
     .catch(err => {
@@ -438,6 +510,164 @@ const resendVerifyEmail = (req, res) => {
     });
 };
 
+// 비밀번호 재설정 이메일 발송
+const requestPasswordReset = (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ message: '이메일이 필요합니다.' });
+
+  User.findByEmail(email)
+    .then(user => {
+      if (!user) {
+        return res.status(404).json({ message: '가입 정보를 찾을 수 없습니다.' });
+      }
+      if (user.emailVerified !== true) {
+        return res.status(400).json({ message: '이메일 인증이 완료되지 않은 계정입니다.' });
+      }
+
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      const resetExpires = new Date(Date.now() + 30 * 60 * 1000); // 30분
+
+      return User.updateResetToken(user._id, resetToken, resetExpires)
+        .then(() => ({ user, resetToken }));
+    })
+    .then(async ({ user, resetToken }) => {
+      try {
+        const transporter = await getMailTransporter();
+        const baseUrl = process.env.APP_BASE_URL || 'http://localhost:3000';
+        const resetUrl = `${baseUrl}/forgot-password?token=${resetToken}`;
+        
+        const info = await transporter.sendMail({
+          from: process.env.MAIL_FROM || process.env.SMTP_USER || 'ADMore <no-reply@admore.local>',
+          to: email,
+          subject: '애드모어 비밀번호 재설정',
+          html: `
+            <div style="font-family:Arial,sans-serif;font-size:14px;color:#111">
+              <h2>안녕하세요, ${user.name || ''}님!</h2>
+              <p>비밀번호 재설정을 요청하셨습니다. 아래 버튼을 눌러 새 비밀번호를 설정해주세요.</p>
+              <p>링크는 30분간 유효합니다.</p>
+              <p><a href="${resetUrl}" style="display:inline-block;padding:10px 16px;background:#f97316;color:#fff;border-radius:6px;text-decoration:none">비밀번호 재설정</a></p>
+              <p>버튼이 동작하지 않으면 링크를 복사하여 브라우저에 붙여넣기 해주세요:</p>
+              <p><a href="${resetUrl}">${resetUrl}</a></p>
+              <p>본인이 요청하지 않았다면 이 메일을 무시하셔도 됩니다.</p>
+            </div>
+          `,
+        });
+        
+        const preview = nodemailer.getTestMessageUrl(info);
+        if (preview) console.log('[Password Reset] Preview URL:', preview);
+        res.json({ message: '비밀번호 재설정 메일을 발송했습니다.' });
+      } catch (mailErr) {
+        console.error('비밀번호 재설정 메일 발송 오류:', mailErr);
+        res.status(500).json({ message: '메일 발송 중 오류가 발생했습니다.' });
+      }
+    })
+    .catch(err => {
+      console.error('비밀번호 재설정 요청 오류:', err);
+      res.status(500).json({ message: '비밀번호 재설정 요청 처리 중 오류가 발생했습니다.' });
+    });
+};
+
+// 비밀번호 재설정 토큰 확인
+const verifyResetToken = (req, res) => {
+  const { token } = req.query;
+  if (!token) return res.status(400).json({ message: '토큰이 필요합니다.' });
+
+  User.findByResetToken(token)
+    .then(user => {
+      if (!user) {
+        return res.status(400).json({ message: '유효하지 않은 토큰입니다.' });
+      }
+
+      if (user.resetExpires && new Date(user.resetExpires).getTime() < Date.now()) {
+        return res.status(400).json({ message: '토큰이 만료되었습니다.' });
+      }
+
+      res.json({ message: '유효한 토큰입니다.', email: user.email });
+    })
+    .catch(err => {
+      console.error('비밀번호 재설정 토큰 확인 오류:', err);
+      res.status(500).json({ message: '토큰 확인 중 오류가 발생했습니다.' });
+    });
+};
+
+// 새 비밀번호 설정
+const resetPassword = (req, res) => {
+  const { token, password } = req.body;
+  if (!token || !password) {
+    return res.status(400).json({ message: '토큰과 새 비밀번호가 필요합니다.' });
+  }
+
+  if (password.length < 6) {
+    return res.status(400).json({ message: '비밀번호는 최소 6자 이상이어야 합니다.' });
+  }
+
+  let foundUser; // 사용자 정보를 저장할 변수
+
+  User.findByResetToken(token)
+    .then(user => {
+      if (!user) {
+        return res.status(400).json({ message: '유효하지 않은 토큰입니다.' });
+      }
+
+      if (user.resetExpires && new Date(user.resetExpires).getTime() < Date.now()) {
+        return res.status(400).json({ message: '토큰이 만료되었습니다.' });
+      }
+
+      foundUser = user; // 사용자 정보 저장
+      return bcrypt.hash(password, 10);
+    })
+    .then(hashedPassword => {
+      if (!foundUser) {
+        throw new Error('사용자 정보를 찾을 수 없습니다.');
+      }
+      return User.updatePasswordAndClearResetToken(foundUser._id, hashedPassword);
+    })
+    .then(() => {
+      res.json({ message: '비밀번호가 성공적으로 변경되었습니다.' });
+    })
+    .catch(err => {
+      console.error('비밀번호 재설정 오류:', err);
+      res.status(500).json({ message: '비밀번호 재설정 중 오류가 발생했습니다.' });
+    });
+};
+
+// 회원 탈퇴
+const deleteAccount = (req, res) => {
+  const { password } = req.body;
+  const userId = req.user.id;
+  const userEmail = req.user.email;
+
+  if (!password) {
+    return res.status(400).json({ message: '비밀번호를 입력해주세요.' });
+  }
+
+  User.findById(userId)
+    .then(user => {
+      if (!user) {
+        return res.status(404).json({ message: '사용자를 찾을 수 없습니다.' });
+      }
+
+      // 비밀번호 확인
+      return bcrypt.compare(password, user.password);
+    })
+    .then(isMatch => {
+      if (!isMatch) {
+        return res.status(400).json({ message: '비밀번호가 일치하지 않습니다.' });
+      }
+
+      // 사용자 계정 삭제 (실제로는 상태만 변경하는 것이 좋음)
+      return User.findByIdAndDelete(userId);
+    })
+    .then(() => {
+      console.log(`회원 탈퇴 완료: ${userEmail}`);
+      res.json({ message: '회원 탈퇴가 완료되었습니다.' });
+    })
+    .catch(err => {
+      console.error('회원 탈퇴 오류:', err);
+      res.status(500).json({ message: '회원 탈퇴 처리 중 오류가 발생했습니다.' });
+    });
+};
+
 module.exports = {
   register,
   login,
@@ -449,5 +679,9 @@ module.exports = {
   logout,
   verifyEmail,
   resendVerifyEmail,
+  requestPasswordReset,
+  verifyResetToken,
+  resetPassword,
+  deleteAccount,
   getMailTransporter
 }; 

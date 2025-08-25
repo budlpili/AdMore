@@ -12,7 +12,7 @@ import { Product } from '../types';
 const FAVORITES_KEY = 'favorites';
 
 // 즐겨찾기 관련 유틸리티 함수들
-const getFavorites = (): number[] => {
+const getFavorites = (): (string | number)[] => {
   try {
     return JSON.parse(localStorage.getItem(FAVORITES_KEY) || '[]');
   } catch {
@@ -20,7 +20,7 @@ const getFavorites = (): number[] => {
   }
 };
 
-const addFavorite = (productId: number) => {
+const addFavorite = (productId: string | number) => {
   const favorites = getFavorites();
   if (!favorites.includes(productId)) {
     favorites.push(productId);
@@ -28,7 +28,7 @@ const addFavorite = (productId: number) => {
   }
 };
 
-const removeFavorite = (productId: number) => {
+const removeFavorite = (productId: string | number) => {
   const favorites = getFavorites();
   const updatedFavorites = favorites.filter(id => id !== productId);
   localStorage.setItem(FAVORITES_KEY, JSON.stringify(updatedFavorites));
@@ -92,7 +92,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ setIsChatOpen }) => {
   const [input, setInput] = useState('');
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-  const [favorites, setFavorites] = useState<number[]>([]);
+  const [favorites, setFavorites] = useState<(string | number)[]>([]);
   
   // 컴포넌트 마운트 시 즐겨찾기 로드
   useEffect(() => {
@@ -100,7 +100,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ setIsChatOpen }) => {
     setFavorites(savedFavorites);
   }, []);
 
-  const toggleFavorite = (id: number) => {
+  const toggleFavorite = (id: string | number) => {
     if (favorites.includes(id)) {
       removeFavorite(id);
       setFavorites(prev => prev.filter(fid => fid !== id));
@@ -1419,11 +1419,11 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ setIsChatOpen }) => {
           <div className="flex justify-end pb-1">
             <button
               className="text-base"
-              onClick={() => toggleFavorite(product.id)}
+              onClick={() => toggleFavorite(product._id || product.id || 0)}
             >
               <FontAwesomeIcon
-                icon={favorites.includes(product.id) ? faSolidHeart : faHeart}
-                className={`text-base ${favorites.includes(product.id) ? 'text-red-500' : 'text-gray-300'}`}
+                icon={favorites.includes(product._id || product.id || 0) ? faSolidHeart : faHeart}
+                className={`text-base ${favorites.includes(product._id || product.id || 0) ? 'text-red-500' : 'text-gray-300'}`}
               />
             </button>
           </div>
@@ -1533,7 +1533,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ setIsChatOpen }) => {
         type="product-detail"
         product={product}
         quantity={quantity}
-        favorites={favorites}
+        favorites={favorites as number[]}
         toggleFavorite={toggleFavorite}
       />
     </div>

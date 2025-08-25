@@ -34,7 +34,7 @@ export function removeRecentProduct(productId: number) {
   } catch {}
 }
 
-export function updateRecentProduct(productId: number, updatedProduct: Product) {
+export function updateRecentProduct(productId: string | number, updatedProduct: Product) {
   try {
     const list: Product[] = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
     const updatedList = list.map((p) => p.id === productId ? updatedProduct : p);

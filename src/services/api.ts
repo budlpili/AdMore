@@ -1,51 +1,13 @@
 import { Product, Category, Tag, Order, User } from '../types';
 
-// 백엔드 API URL을 환경변수로 설정
-// 임시로 로컬 데이터 사용 (백엔드 연결 문제 해결 시 제거)
-const USE_LOCAL_DATA = true; // 이 값을 false로 변경하면 백엔드 사용
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
+// 백엔드 API URL 설정
+const API_BASE_URL = 'http://localhost:5001/api';
 
 console.log('API Base URL:', API_BASE_URL);
 
 // API 요청 헬퍼 함수
-const apiRequest = async <T = any>(endpoint: string, options: RequestInit = {}): Promise<T> => {
-  // 로그인 요청 특별 처리
-  if (endpoint.includes('/auth/login')) {
-    console.log('로그인 요청 감지, 로컬 로그인 처리');
-    try {
-      const body = JSON.parse(options.body as string);
-      const { email, password } = body;
-      
-      // 하드코딩된 사용자 정보 (임시)
-      const users = [
-        { email: 'admin@admore.com', password: 'admin123', name: '관리자', role: 'admin' },
-        { email: 'namare@kakao.com', password: 'namare123', name: '나마레', role: 'admin' },
-        { email: 'budlpili@gmail.com', password: 'budlpili123', name: '마레인정', role: 'user' }
-      ];
-      
-      const user = users.find(u => u.email === email && u.password === password);
-      if (user) {
-        console.log('로그인 성공:', user.email);
-        return {
-          token: 'temp_token_' + Date.now(),
-          user: { email: user.email, name: user.name, role: user.role }
-        } as T;
-      } else {
-        console.log('로그인 실패: 잘못된 이메일 또는 비밀번호');
-        throw new Error('이메일 또는 비밀번호가 올바르지 않습니다.');
-      }
-    } catch (error) {
-      console.error('로그인 처리 오류:', error);
-      throw new Error('로그인 처리 중 오류가 발생했습니다.');
-    }
-  }
-  
-  // 강제로 로컬 데이터 사용 (백엔드 연결 문제 해결 시 제거)
-  console.log('로컬 데이터 모드 강제 활성화, 백엔드 요청 건너뜀');
-  return getLocalData<T>(endpoint);
-
-  // 아래 코드는 실행되지 않음 (백엔드 연결 문제 해결 시 주석 해제)
-  /*
+export const apiRequest = async <T = any>(endpoint: string, options: RequestInit = {}): Promise<T> => {
+  // 백엔드 API 요청 실행
   const url = `${API_BASE_URL}${endpoint}`;
   
   const config: RequestInit = {
@@ -65,19 +27,8 @@ const apiRequest = async <T = any>(endpoint: string, options: RequestInit = {}):
     };
   }
 
-  // console.log('=== API 요청 시작 ===');
-  // console.log('URL:', url);
-  // console.log('Method:', config.method || 'GET');
-  // console.log('Headers:', config.headers);
-  // console.log('Body:', config.body);
-
   try {
     const response = await fetch(url, config);
-    
-    // console.log('=== API 응답 ===');
-    // console.log('Status:', response.status);
-    // console.log('Status Text:', response.statusText);
-    // console.log('Headers:', response.headers);
     
     if (!response.ok) {
       // HTTP 에러 응답을 파싱하여 에러 객체 생성
@@ -97,30 +48,13 @@ const apiRequest = async <T = any>(endpoint: string, options: RequestInit = {}):
     }
     
     const responseData = await response.json();
-    // console.log('Success Response:', responseData);
     return responseData;
-  } catch (error) {
+  } catch (error: any) {
     console.error('API 요청 오류:', error);
     
-    // 백엔드 연결 실패 시 로컬 데이터 사용
-    if (error.message.includes('Failed to fetch') || 
-        error.message.includes('ERR_NAME_NOT_RESOLVED') ||
-        error.message.includes('NetworkError') ||
-        error.message.includes('TypeError')) {
-      console.log('백엔드 연결 실패, 로컬 데이터 사용');
-      try {
-        const localData = await getLocalData(endpoint);
-        console.log('로컬 데이터 반환 성공:', localData);
-        return localData;
-      } catch (localError) {
-        console.error('로컬 데이터 로드 실패:', localError);
-        throw error; // 원래 에러를 다시 던짐
-      }
-    }
-    
+    // 백엔드 연결 실패 시 에러를 그대로 던짐
     throw error;
   }
-  */
 };
 
 // 로컬 데이터 반환 함수
@@ -328,7 +262,7 @@ export const productsAPI = {
   },
 
   // 상품 수정 (별칭)
-  updateProduct: async (id: number, productData: Partial<Product>): Promise<Product> => {
+  updateProduct: async (id: string | number, productData: Partial<Product>): Promise<Product> => {
     return apiRequest<Product>(`/products/${id}`, {
       method: 'PUT',
       body: JSON.stringify(productData),
@@ -343,14 +277,14 @@ export const productsAPI = {
   },
 
   // 상품 삭제 (별칭)
-  deleteProduct: async (id: number): Promise<boolean> => {
+  deleteProduct: async (id: string | number): Promise<boolean> => {
     return apiRequest<boolean>(`/products/${id}`, {
       method: 'DELETE',
     });
   },
 
   // 상품 상태 토글 (별칭)
-  toggleProductStatus: async (id: number, status: string): Promise<boolean> => {
+  toggleProductStatus: async (id: string | number, status: string): Promise<boolean> => {
     return apiRequest<boolean>(`/products/${id}/status`, {
       method: 'PATCH',
       body: JSON.stringify({ status }),
@@ -366,9 +300,17 @@ export const ordersAPI = {
   // 주문 생성
   create: async (orderData: {
     productId: string;
+    product: string;
+    price: number;
+    originalPrice: number;
+    discountPrice: number;
     quantity: number;
     paymentMethod: string;
-    userInfo: {
+    request: string;
+    detail: string;
+    userName: string;
+    userEmail: string;
+    userInfo?: {
       name: string;
       email: string;
       phone: string;
@@ -381,8 +323,31 @@ export const ordersAPI = {
   },
 
   // 사용자 주문 목록 조회
-  getUserOrders: async () => {
-    const response = await apiRequest('/orders/user');
+  getUserOrders: async (userId?: string) => {
+    // userId가 제공되지 않으면 현재 로그인된 사용자의 ID를 가져옴
+    if (!userId) {
+      const userEmail = localStorage.getItem('userEmail');
+      if (userEmail && userEmail !== 'guest@example.com') {
+        // 사용자 이메일로 사용자 ID를 찾기 위해 백엔드 API 호출
+        try {
+          const usersResponse = await apiRequest('/users');
+          const user = usersResponse.users?.find((u: any) => u.email === userEmail);
+          if (user) {
+            userId = user._id;
+          }
+        } catch (error) {
+          console.error('사용자 ID 조회 실패:', error);
+          return { orders: [] };
+        }
+      }
+    }
+    
+    if (!userId) {
+      console.log('사용자 ID를 찾을 수 없습니다.');
+      return { orders: [] };
+    }
+    
+    const response = await apiRequest(`/orders/user/${userId}`);
     console.log('getUserOrders 응답:', response);
     // 전체 응답을 반환 (response.orders와 response.pagination 포함)
     return response;
@@ -413,16 +378,24 @@ export const ordersAPI = {
     });
   },
 
+  // 리뷰 상태 업데이트
+  updateReviewStatus: async (orderId: string, review: string) => {
+    return apiRequest(`/orders/${orderId}/review`, {
+      method: 'PUT',
+      body: JSON.stringify({ review }),
+    });
+  },
+
   // 결제 확인
   confirmPayment: async (orderId: string) => {
-    return apiRequest(`/orders/order/${orderId}/confirm`, {
+    return apiRequest(`/orders/${orderId}/confirm`, {
       method: 'PUT',
     });
   },
 
   // 결제 취소
   cancelPayment: async (orderId: string) => {
-    return apiRequest(`/orders/order/${orderId}/cancel`, {
+    return apiRequest(`/orders/${orderId}/cancel`, {
       method: 'PUT',
     });
   },
@@ -475,7 +448,7 @@ export const categoriesAPI = {
   },
 
   // 카테고리 수정 (별칭)
-  updateCategory: async (id: number, categoryData: Partial<Category>): Promise<Category> => {
+  updateCategory: async (id: string | number, categoryData: Partial<Category>): Promise<Category> => {
     return apiRequest<Category>(`/categories/${id}`, {
       method: 'PUT',
       body: JSON.stringify(categoryData),
@@ -490,7 +463,7 @@ export const categoriesAPI = {
   },
 
   // 카테고리 삭제 (별칭)
-  deleteCategory: async (id: number): Promise<boolean> => {
+  deleteCategory: async (id: string | number): Promise<boolean> => {
     return apiRequest<boolean>(`/categories/${id}`, {
       method: 'DELETE',
     });
@@ -542,7 +515,7 @@ export const tagsAPI = {
   },
 
   // 태그 수정 (별칭)
-  updateTag: async (id: number, tagData: Partial<Tag>): Promise<Tag> => {
+  updateTag: async (id: string | number, tagData: Partial<Tag>): Promise<Tag> => {
     return apiRequest<Tag>(`/tags/${id}`, {
       method: 'PUT',
       body: JSON.stringify(tagData),
@@ -557,7 +530,7 @@ export const tagsAPI = {
   },
 
   // 태그 삭제 (별칭)
-  deleteTag: async (id: number): Promise<boolean> => {
+  deleteTag: async (id: string | number): Promise<boolean> => {
     return apiRequest<boolean>(`/tags/${id}`, {
       method: 'DELETE',
     });
@@ -579,21 +552,27 @@ export const reviewsAPI = {
     method: 'PUT',
     body: JSON.stringify(data),
   }),
-  delete: (id: number) => apiRequest(`/reviews/${id}`, {
+  delete: (id: string | number) => apiRequest(`/reviews/${id}`, {
     method: 'DELETE',
   }),
   // 관리자 댓글 API
-  addAdminReply: (reviewId: number, adminReply: string) => 
+  addAdminReply: (reviewId: string | number, adminReply: string, adminEmail?: string) => 
     apiRequest(`/reviews/${reviewId}/admin-reply`, {
       method: 'POST',
-      body: JSON.stringify({ adminReply }),
+      body: JSON.stringify({ 
+        adminReply, 
+        adminEmail: adminEmail || localStorage.getItem('userEmail') || 'admin@admore.com' 
+      }),
     }),
-  updateAdminReply: (reviewId: number, adminReply: string) => 
+  updateAdminReply: (reviewId: string | number, adminReply: string, adminEmail?: string) => 
     apiRequest(`/reviews/${reviewId}/admin-reply`, {
       method: 'PUT',
-      body: JSON.stringify({ adminReply }),
+      body: JSON.stringify({ 
+        adminReply, 
+        adminEmail: adminEmail || localStorage.getItem('userEmail') || 'admin@admore.com' 
+      }),
     }),
-  deleteAdminReply: (reviewId: number) => 
+  deleteAdminReply: (reviewId: string | number) => 
     apiRequest(`/reviews/${reviewId}/admin-reply`, {
       method: 'DELETE',
     }),
@@ -626,27 +605,27 @@ export const usersAPI = {
 // 쿠폰 관리 API
 export const couponsAPI = {
   getAll: () => apiRequest('/coupons'),
-  getById: (id: number) => apiRequest(`/coupons/${id}`),
+  getById: (id: string | number) => apiRequest(`/coupons/${id}`),
   create: (data: any) => 
     apiRequest('/coupons', {
       method: 'POST',
       body: JSON.stringify(data)
     }),
-  update: (id: number, data: any) => 
+  update: (id: string | number, data: any) => 
     apiRequest(`/coupons/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data)
     }),
-  delete: (id: number) => 
+  delete: (id: string | number) => 
     apiRequest(`/coupons/${id}`, {
       method: 'DELETE'
     }),
-  send: (couponId: number, userIds: string[]) => 
+  send: (couponId: string | number, userIds: (string | number)[]) => 
     apiRequest('/coupons/send', {
       method: 'POST',
       body: JSON.stringify({ couponId, userIds })
     }),
-  getSends: (couponId: number) => apiRequest(`/coupons/sends/${couponId}`),
+  getSends: (couponId: string | number) => apiRequest(`/coupons/sends/${couponId}`),
   getUserCoupons: (userId: string) => apiRequest(`/coupons/user/${userId}`),
   useCoupon: (sendId: string) => 
     apiRequest(`/coupons/use/${sendId}`, {
@@ -658,18 +637,18 @@ export const couponsAPI = {
 export const customerServiceAPI = {
   // 공지사항 관련
   getNotices: () => apiRequest('/customer-service/notices'),
-  getNotice: (id: number) => apiRequest(`/customer-service/notices/${id}`),
+  getNotice: (id: string | number) => apiRequest(`/customer-service/notices/${id}`),
   createNotice: (data: { title: string; content: string; important?: boolean; author?: string }) => 
     apiRequest('/customer-service/notices', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  updateNotice: (id: number, data: { title: string; content: string; important?: boolean }) => 
+  updateNotice: (id: string | number, data: { title: string; content: string; important?: boolean }) => 
     apiRequest(`/customer-service/notices/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
-  deleteNotice: (id: number) => 
+  deleteNotice: (id: string | number) => 
     apiRequest(`/customer-service/notices/${id}`, {
       method: 'DELETE',
     }),

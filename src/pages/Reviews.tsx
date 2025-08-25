@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { Review } from '../data/reviews-list';
 import mockReviews from '../data/reviews-list';
 import products from '../data/products';
-import { reviewsAPI } from '../services/api';
+import { reviewsAPI, ordersAPI, productAPI } from '../services/api';
 
 // 이메일 마스킹 함수
 const maskEmail = (email: string): string => {
@@ -49,6 +49,7 @@ const Reviews: React.FC = () => {
   const [showReviews, setShowReviews] = useState(true);
   const [showReviewableDropdown, setShowReviewableDropdown] = useState(false);
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [availableProducts, setAvailableProducts] = useState<any[]>([]);
   const navigate = useNavigate();
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -57,22 +58,89 @@ const Reviews: React.FC = () => {
     const loadReviews = async () => {
       try {
         const response = await reviewsAPI.getAll();
+        console.log('백엔드 리뷰 응답:', response);
+        
+        // 백엔드 응답 구조에 따라 데이터 추출
+        let reviewsData;
+        if (response && response.success && Array.isArray(response.reviews)) {
+          // {success: true, reviews: [...]} 형태
+          reviewsData = response.reviews;
+        } else if (Array.isArray(response)) {
+          // 직접 배열 형태
+          reviewsData = response;
+        } else {
+          console.warn('예상하지 못한 리뷰 응답 구조:', response);
+          reviewsData = [];
+        }
+        
         // 백엔드 데이터를 Review 인터페이스에 맞게 변환
-        const formattedReviews = response.map((review: any) => ({
-          id: review.id,
-          user: review.userEmail || review.user || '익명',
-          time: review.createdAt || review.time || new Date().toLocaleString(),
-          content: review.content,
-          product: review.productName || review.product || '상품명 없음',
-          rating: review.rating,
-          reply: review.adminReply || review.reply,
-          replyTime: review.adminReplyTime || review.replyTime,
-          productId: review.productId,
-          category: review.category,
-          tags: review.tags,
-          image: review.image,
-          background: review.background
-        }));
+        const formattedReviews = reviewsData.map((review: any) => {
+          // 상품 데이터에서 매칭되는 상품 찾기
+          let matchingProduct = null;
+          if (review.productId && availableProducts.length > 0) {
+            matchingProduct = availableProducts.find((p: any) => 
+              p._id === review.productId || 
+              p.id === review.productId || 
+              p.name === review.product ||
+              p.name === review.productName
+            );
+          }
+          
+          return {
+            id: review.id || review._id,
+            user: review.userEmail || review.userId || review.user || '익명',
+            time: (() => {
+              const date = review.createdAt || review.time || new Date();
+              const d = new Date(date);
+              const year = d.getFullYear();
+              const month = String(d.getMonth() + 1).padStart(2, '0');
+              const day = String(d.getDate()).padStart(2, '0');
+              const hours = String(d.getHours()).padStart(2, '0');
+              const minutes = String(d.getMinutes()).padStart(2, '0');
+              return `${year}-${month}-${day} ${hours}:${minutes}`;
+            })(),
+            content: review.content,
+            product: review.productName || review.product || '상품명 없음',
+            productDescription: matchingProduct?.content || matchingProduct?.description || null,
+            rating: review.rating,
+            reply: review.adminReply || review.reply,
+            replyTime: (() => {
+              const replyDate = review.adminReplyTime || review.replyTime;
+              if (replyDate) {
+                const d = new Date(replyDate);
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                const hours = String(d.getHours()).padStart(2, '0');
+                const minutes = String(d.getMinutes()).padStart(2, '0');
+                return `${year}-${month}-${day} ${hours}:${minutes}`;
+              }
+              return undefined;
+            })(),
+            productId: review.productId,
+            category: matchingProduct?.category || review.category,
+            tags: matchingProduct?.tags || review.tags,
+            image: matchingProduct?.image || review.image,
+            background: matchingProduct?.background || review.background,
+            // 상품 이미지 우선순위: 1. 매칭된 상품의 image, 2. 매칭된 상품의 background, 3. 리뷰의 productImage
+            productImage: matchingProduct?.image || matchingProduct?.background || review.productImage || null
+          };
+        });
+        
+        console.log('포맷된 리뷰:', formattedReviews);
+        console.log('상품 데이터:', availableProducts);
+        // 이미지 매칭 디버깅
+        formattedReviews.forEach((review: any, index: number) => {
+          if (index < 3) { // 처음 3개만 로그
+            console.log(`리뷰 ${index + 1}:`, {
+              productId: review.productId,
+              productName: review.product,
+              productImage: review.productImage,
+              image: review.image,
+              background: review.background
+            });
+          }
+        });
         setReviews(formattedReviews);
       } catch (error) {
         console.error('리뷰 로드 중 오류:', error);
@@ -81,10 +149,36 @@ const Reviews: React.FC = () => {
       }
     };
     loadReviews();
+    
+    // 상품 데이터 로드
+    const loadProducts = async () => {
+      try {
+        const response = await productAPI.getAll();
+        console.log('상품 데이터 응답:', response);
+        
+        let productsData;
+        if (response && typeof response === 'object' && 'success' in response && response.success && 'products' in response && Array.isArray(response.products)) {
+          productsData = response.products;
+        } else if (Array.isArray(response)) {
+          productsData = response;
+        } else {
+          console.warn('예상하지 못한 상품 응답 구조:', response);
+          productsData = [];
+        }
+        
+        setAvailableProducts(productsData);
+      } catch (error) {
+        console.error('상품 로드 중 오류:', error);
+        setAvailableProducts([]);
+      }
+    };
+    
+    loadProducts();
+    
     // 페이지 포커스 시 데이터 재로드 제거 - 데이터 일관성 유지를 위해
     // window.addEventListener('focus', loadReviews);
     // return () => window.removeEventListener('focus', loadReviews);
-  }, []);
+  }, [availableProducts]);
 
   // 드롭다운 바깥 클릭 시 닫기
   useEffect(() => {
@@ -104,10 +198,9 @@ const Reviews: React.FC = () => {
     const loadOrders = async () => {
       try {
         // 백엔드에서 주문 데이터 가져오기
-        const response = await fetch('http://localhost:5001/api/orders/user');
-        if (response.ok) {
-          const data = await response.json();
-          const reviewables = data.orders.filter((o: any) => {
+        const response = await ordersAPI.getUserOrders();
+        if (response.success && response.orders) {
+          const reviewables = response.orders.filter((o: any) => {
             const isEligible = (o.status === '작업완료' || o.status === '구매완료') && o.review === '리뷰 작성하기';
             return isEligible;
           });
@@ -156,22 +249,76 @@ const Reviews: React.FC = () => {
     const loadReviews = async () => {
       try {
         const response = await reviewsAPI.getAll();
+        console.log('새로고침 - 백엔드 리뷰 응답:', response);
+        
+        // 백엔드 응답 구조에 따라 데이터 추출
+        let reviewsData;
+        if (response && response.success && Array.isArray(response.reviews)) {
+          // {success: true, reviews: [...]} 형태
+          reviewsData = response.reviews;
+        } else if (Array.isArray(response)) {
+          // 직접 배열 형태
+          reviewsData = response;
+        } else {
+          console.warn('새로고침 - 예상하지 못한 리뷰 응답 구조:', response);
+          reviewsData = [];
+        }
+        
         // 백엔드 데이터를 Review 인터페이스에 맞게 변환
-        const formattedReviews = response.map((review: any) => ({
-          id: review.id,
-          user: review.userEmail || review.user || '익명',
-          time: review.createdAt || review.time || new Date().toLocaleString(),
-          content: review.content,
-          product: review.productName || review.product || '상품명 없음',
-          rating: review.rating,
-          reply: review.adminReply || review.reply,
-          replyTime: review.adminReplyTime || review.replyTime,
-          productId: review.productId,
-          category: review.category,
-          tags: review.tags,
-          image: review.image,
-          background: review.background
-        }));
+        const formattedReviews = reviewsData.map((review: any) => {
+          // 상품 데이터에서 매칭되는 상품 찾기
+          let matchingProduct = null;
+          if (review.productId && availableProducts.length > 0) {
+            matchingProduct = availableProducts.find((p: any) => 
+              p._id === review.productId || 
+              p.id === review.productId || 
+              p.name === review.product ||
+              p.name === review.productName
+            );
+          }
+          
+          return {
+            id: review.id || review._id,
+            user: review.userEmail || review.userId || review.user || '익명',
+            time: (() => {
+              const date = review.createdAt || review.time || new Date();
+              const d = new Date(date);
+              const year = d.getFullYear();
+              const month = String(d.getMonth() + 1).padStart(2, '0');
+              const day = String(d.getDate()).padStart(2, '0');
+              const hours = String(d.getHours()).padStart(2, '0');
+              const minutes = String(d.getMinutes()).padStart(2, '0');
+              return `${year}-${month}-${day} ${hours}:${minutes}`;
+            })(),
+            content: review.content,
+            product: review.productName || review.product || '상품명 없음',
+            productDescription: matchingProduct?.content || matchingProduct?.description || null,
+            rating: review.rating,
+            reply: review.adminReply || review.reply,
+            replyTime: (() => {
+              const replyDate = review.adminReplyTime || review.replyTime;
+              if (replyDate) {
+                const d = new Date(replyDate);
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                const hours = String(d.getHours()).padStart(2, '0');
+                const minutes = String(d.getMinutes()).padStart(2, '0');
+                return `${year}-${month}-${day} ${hours}:${minutes}`;
+              }
+              return undefined;
+            })(),
+            productId: review.productId,
+            category: matchingProduct?.category || review.category,
+            tags: matchingProduct?.tags || review.tags,
+            image: matchingProduct?.image || review.image,
+            background: matchingProduct?.background || review.background,
+            // 상품 이미지 우선순위: 1. 매칭된 상품의 image, 2. 매칭된 상품의 background, 3. 리뷰의 productImage
+            productImage: matchingProduct?.image || matchingProduct?.background || review.productImage || null
+          };
+        });
+        
+        console.log('새로고침 - 포맷된 리뷰:', formattedReviews);
         setReviews(formattedReviews);
       } catch (error) {
         console.error('리뷰 로드 중 오류:', error);
@@ -184,10 +331,9 @@ const Reviews: React.FC = () => {
     const loadOrders = async () => {
       try {
         // 백엔드에서 주문 데이터 가져오기
-        const response = await fetch('http://localhost:5001/api/orders/user');
-        if (response.ok) {
-          const data = await response.json();
-          const reviewables = data.orders.filter((o: any) => {
+        const response = await ordersAPI.getUserOrders();
+        if (response.success && response.orders) {
+          const reviewables = response.orders.filter((o: any) => {
             const isEligible = (o.status === '작업완료' || o.status === '구매완료') && o.review === '리뷰 작성하기';
             return isEligible;
           });
@@ -495,21 +641,25 @@ const Reviews: React.FC = () => {
                       {/* 상품 이미지 */}
                       <div className="w-16 h-12 bg-gray-200 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
                         {(() => {
-                          if (review.image) {
+                          // 이미지 우선순위: productImage > image > background
+                          const imageSource = review.productImage || review.image || review.background;
+                          
+                          if (imageSource) {
+                            let imageSrc = imageSource;
+                            
                             // 이미지 경로 처리
-                            let imageSrc = review.image;
-                            if (review.image.startsWith('data:')) {
+                            if (imageSource.startsWith('data:')) {
                               // base64 이미지
-                              imageSrc = review.image;
-                            } else if (review.image.startsWith('http')) {
+                              imageSrc = imageSource;
+                            } else if (imageSource.startsWith('http')) {
                               // 외부 URL
-                              imageSrc = review.image;
-                            } else if (review.image.startsWith('/')) {
+                              imageSrc = imageSource;
+                            } else if (imageSource.startsWith('/')) {
                               // 절대 경로
-                              imageSrc = review.image;
+                              imageSrc = imageSource;
                             } else {
-                              // 상대 경로
-                              imageSrc = `/images/${review.image}`;
+                              // 상대 경로 - images 폴더에서 찾기
+                              imageSrc = `/images/${imageSource}`;
                             }
                             
                             return (
@@ -519,38 +669,15 @@ const Reviews: React.FC = () => {
                                 className="w-full h-full object-cover"
                                 onError={(e) => {
                                   const target = e.currentTarget as HTMLImageElement;
+                                  console.log('이미지 로드 실패:', imageSrc);
                                   target.style.display = 'none';
-                                  const fallback = target.nextElementSibling as HTMLElement;
-                                  if (fallback) {
-                                    fallback.style.display = 'flex';
-                                  }
-                                }}
-                              />
-                            );
-                          } else if (review.background) {
-                            // 배경 이미지 경로 처리
-                            let backgroundSrc = review.background;
-                            if (review.background.startsWith('data:')) {
-                              backgroundSrc = review.background;
-                            } else if (review.background.startsWith('http')) {
-                              backgroundSrc = review.background;
-                            } else if (review.background.startsWith('/')) {
-                              backgroundSrc = review.background;
-                            } else {
-                              backgroundSrc = `/images/${review.background}`;
-                            }
-                            
-                            return (
-                              <img 
-                                src={backgroundSrc}
-                                alt={review.product}
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                  const target = e.currentTarget as HTMLImageElement;
-                                  target.style.display = 'none';
-                                  const fallback = target.nextElementSibling as HTMLElement;
-                                  if (fallback) {
-                                    fallback.style.display = 'flex';
+                                  // 다음 형제 요소(폴백 아이콘)를 표시
+                                  const parent = target.parentElement;
+                                  if (parent) {
+                                    const fallbackIcon = parent.querySelector('.fallback-icon') as HTMLElement;
+                                    if (fallbackIcon) {
+                                      fallbackIcon.style.display = 'flex';
+                                    }
                                   }
                                 }}
                               />
@@ -558,14 +685,15 @@ const Reviews: React.FC = () => {
                           }
                           
                           // 이미지가 없는 경우 기본 아이콘 표시
-                          return (
-                            <div className="w-full h-full flex items-center justify-center bg-gray-100">
-                              <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                              </svg>
-                            </div>
-                          );
+                          return null;
                         })()}
+                        
+                        {/* 폴백 아이콘 - 이미지 로드 실패 시 표시 */}
+                        <div className="fallback-icon w-full h-full flex items-center justify-center bg-gray-100" style={{ display: (!review.productImage && !review.image && !review.background) ? 'flex' : 'none' }}>
+                          <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                        </div>
                       </div>
                       
                       {/* 상품 정보 */}
@@ -576,6 +704,7 @@ const Reviews: React.FC = () => {
                         >
                           <span className="text-gray-700 font-semibold text-sm hover:text-orange-600">{review.product}</span>
                         </div>
+                        
                         {(review.category || review.tags) && (
                           <div 
                             className="flex items-center gap-2 cursor-pointer hover:text-orange-600 transition-colors"

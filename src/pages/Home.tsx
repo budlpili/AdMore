@@ -20,7 +20,7 @@ const categoryIcon: Record<string, { icon: IconDefinition; color: string }> = {
 const FAVORITES_KEY = 'favorites';
 
 // 즐겨찾기 관련 유틸리티 함수들
-const getFavorites = (): number[] => {
+const getFavorites = (): (string | number)[] => {
   try {
     return JSON.parse(localStorage.getItem(FAVORITES_KEY) || '[]');
   } catch {
@@ -28,7 +28,7 @@ const getFavorites = (): number[] => {
   }
 };
 
-const addFavorite = (productId: number) => {
+const addFavorite = (productId: string | number) => {
   const favorites = getFavorites();
   if (!favorites.includes(productId)) {
     favorites.push(productId);
@@ -36,7 +36,7 @@ const addFavorite = (productId: number) => {
   }
 };
 
-const removeFavorite = (productId: number) => {
+const removeFavorite = (productId: string | number) => {
   const favorites = getFavorites();
   const updatedFavorites = favorites.filter(id => id !== productId);
   localStorage.setItem(FAVORITES_KEY, JSON.stringify(updatedFavorites));
@@ -67,7 +67,7 @@ const getSlidesToShow = () => {
 const Home: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('전체');
   const [slideIndex, setSlideIndex] = useState(0);
-  const [favorites, setFavorites] = useState<number[]>([]);
+  const [favorites, setFavorites] = useState<(string | number)[]>([]);
   const [slidesToShow, setSlidesToShow] = useState(getSlidesToShow());
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -160,7 +160,7 @@ const Home: React.FC = () => {
   const handlePrev = () => setSlideIndex(idx => Math.max(0, idx - 1));
   const handleNext = () => setSlideIndex(idx => Math.min(maxIndex, idx + 1));
 
-  const toggleFavorite = (id: number) => {
+  const toggleFavorite = (id: string | number) => {
     if (favorites.includes(id)) {
       removeFavorite(id);
       setFavorites(prev => prev.filter(fid => fid !== id));
@@ -239,9 +239,9 @@ const Home: React.FC = () => {
             >
               {topProducts.map((product, idx) => (
                 <ProductCard
-                  key={product.id}
+                  key={product._id || product.id}
                   product={product}
-                  isFavorite={favorites.includes(product.id)}
+                  isFavorite={favorites.includes(product._id || product.id || '')}
                   onFavoriteToggle={toggleFavorite}
                   categoryIcon={categoryIcon[product.category]}
                   cardWidthPx={cardWidthPx}
@@ -292,9 +292,9 @@ const Home: React.FC = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 sm:gap-6">
           {filteredProducts.map((product) => (
             <ProductCard
-              key={product.id}
+              key={product._id || product.id}
               product={product}
-              isFavorite={favorites.includes(product.id)}
+              isFavorite={favorites.includes(product._id || product.id || '')}
               onFavoriteToggle={toggleFavorite}
               categoryIcon={categoryIcon[product.category]}
             />

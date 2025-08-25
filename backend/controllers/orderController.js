@@ -1,4 +1,6 @@
-const db = require('../config/database');
+const Order = require('../models/Order');
+const Product = require('../models/Product');
+const User = require('../models/User');
 
 // 주문번호 생성 함수
 const generateOrderId = () => {
@@ -16,34 +18,44 @@ const generateOrderId = () => {
 };
 
 // 주문 생성
-const createOrder = (req, res) => {
-  // 테스트용: 인증이 없을 때는 기본 사용자 ID 사용
-  const userId = req.user ? req.user.id : 1;
-  const {
-    productId,
-    product,
-    detail,
-    quantity,
-    price,
-    originalPrice,
-    discountPrice,
-    request,
-    paymentMethod,
-    paymentNumber,
-    userName,
-    userEmail
-  } = req.body;
+const createOrder = async (req, res) => {
+  try {
+    // 사용자 이메일로 사용자 ID 찾기
+    let userId = '507f1f77bcf86cd799439011'; // 기본 ObjectId
+    
+    if (req.body.userEmail) {
+      try {
+        const user = await User.findOne({ email: req.body.userEmail });
+        if (user) {
+          userId = user._id;
+        }
+      } catch (userError) {
+        console.log('사용자 ID 찾기 실패, 기본값 사용:', userError);
+      }
+    }
+    const {
+      productId,
+      product,
+      detail,
+      quantity,
+      price,
+      originalPrice,
+      discountPrice,
+      request,
+      paymentMethod,
+      paymentNumber,
+      userName,
+      userEmail
+    } = req.body;
 
-  if (!productId || !price) {
-    return res.status(400).json({ message: '필수 필드가 누락되었습니다.' });
-  }
+    console.log('받은 주문 데이터:', req.body);
 
-  // 먼저 상품 정보를 데이터베이스에서 가져오기
-  db.get('SELECT * FROM products WHERE id = ?', [productId], (err, productData) => {
-    if (err) {
-      return res.status(500).json({ message: '상품 정보 조회 중 오류가 발생했습니다.' });
+    if (!productId || !price) {
+      return res.status(400).json({ message: '필수 필드가 누락되었습니다.' });
     }
 
+    // 먼저 상품 정보를 데이터베이스에서 가져오기
+    const productData = await Product.findById(productId);
     if (!productData) {
       return res.status(404).json({ message: '상품을 찾을 수 없습니다.' });
     }
@@ -54,443 +66,385 @@ const createOrder = (req, res) => {
     const actualProductNumber = productData.productNumber || `P${productId.toString().padStart(3, '0')}`;
 
     const orderId = generateOrderId();
-    const currentDate = new Date().toISOString().slice(0, 19).replace('T', ' ');
+    const currentDate = new Date();
     
     // 신용카드 결제의 경우 결제일을 현재 시간으로 설정, 가상계좌는 '-'
-    const paymentDate = paymentMethod === 'card' ? currentDate : '-';
+    const paymentDate = paymentMethod === 'card' ? currentDate.toISOString().slice(0, 19).replace('T', ' ') : '-';
     
-    const sql = `
-      INSERT INTO orders (
-        orderId, userId, productId, product, detail, quantity, price, 
-        originalPrice, discountPrice, request, date, paymentMethod, 
-        paymentNumber, userName, userEmail, status, confirmStatus, paymentDate, productNumber
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
-    
-    const params = [
-      orderId, userId, productId, actualProductName, actualProductDescription, 
-      quantity, price, originalPrice, discountPrice, request, currentDate, 
-      paymentMethod, paymentNumber, userName, userEmail, '대기중', '구매확정전', paymentDate, actualProductNumber
-    ];
+    // 주문 생성
+    const order = new Order({
+      orderId,
+      userId,
+      productId,
+      product: actualProductName,
+      detail: actualProductDescription,
+      quantity: quantity || 1,
+      price,
+      originalPrice,
+      discountPrice,
+      request,
+      date: currentDate,
+      paymentMethod,
+      paymentNumber,
+      userName,
+      userEmail,
+      status: '대기중',
+      confirmStatus: '구매확정전',
+      paymentDate,
+      productNumber: actualProductNumber
+    });
 
-    db.run(sql, params, function(err) {
-      if (err) {
-        console.error('주문 생성 오류:', err);
-        return res.status(500).json({ message: '주문 생성 중 오류가 발생했습니다.' });
-      }
+    await order.save();
 
-      res.status(201).json({
-        message: '주문이 성공적으로 생성되었습니다.',
+    res.status(201).json({
+      message: '주문이 성공적으로 생성되었습니다.',
+      orderId: orderId,
+      order: {
+        id: order._id,
         orderId: orderId,
-        order: {
-          id: this.lastID,
-          orderId: orderId,
-          productId: productId,
-          product: actualProductName,
-          detail: actualProductDescription,
-          quantity: quantity,
-          price: price,
-          status: '대기중',
-          confirmStatus: '구매확정전',
-          date: currentDate,
-          paymentDate: paymentDate
-        }
-      });
-    });
-  });
-};
-
-// 사용자 주문 목록 조회
-const getUserOrders = (req, res) => {
-  // 테스트용: 인증이 없을 때는 모든 주문 반환
-  const userId = req.user ? req.user.id : null;
-  const { status, startDate, endDate, page = 1, limit = 10 } = req.query;
-  
-  let sql = 'SELECT * FROM orders';
-  const params = [];
-
-  // userId가 있으면 해당 사용자의 주문만 필터링
-  if (userId) {
-    sql += ' WHERE userId = ?';
-    params.push(userId);
-  }
-
-  if (status && status !== '전체 상태') {
-    const whereClause = userId ? ' AND' : ' WHERE';
-    if (status === '가상계좌발급') {
-      sql += `${whereClause} paymentMethod = "가상계좌" AND (paymentDate IS NULL OR paymentDate = "-")`;
-    } else if (status === '작업완료') {
-      sql += `${whereClause} status = "작업완료" AND confirmStatus != "구매완료"`;
-    } else if (status === '구매완료') {
-      sql += `${whereClause} status = "작업완료" AND confirmStatus = "구매완료"`;
-    } else {
-      sql += `${whereClause} status = ?`;
-      params.push(status);
-    }
-  }
-
-  if (startDate) {
-    const whereClause = sql.includes('WHERE') ? ' AND' : ' WHERE';
-    sql += `${whereClause} date >= ?`;
-    params.push(startDate);
-  }
-
-  if (endDate) {
-    const whereClause = sql.includes('WHERE') ? ' AND' : ' WHERE';
-    sql += `${whereClause} date <= ?`;
-    params.push(endDate);
-  }
-
-  sql += ' ORDER BY date DESC';
-
-  // 전체 개수 조회
-  db.get(sql.replace('*', 'COUNT(*) as count'), params, (err, countResult) => {
-    if (err) {
-      return res.status(500).json({ message: '주문 조회 중 오류가 발생했습니다.' });
-    }
-
-    // 페이지네이션 적용
-    const offset = (page - 1) * limit;
-    sql += ' LIMIT ? OFFSET ?';
-    params.push(limit, offset);
-
-    db.all(sql, params, (err, orders) => {
-      if (err) {
-        return res.status(500).json({ message: '주문 조회 중 오류가 발생했습니다.' });
+        productId: productId,
+        product: actualProductName,
+        detail: actualProductDescription,
+        quantity: quantity || 1,
+        price: price,
+        status: '대기중',
+        confirmStatus: '구매확정전',
+        date: currentDate,
+        paymentDate: paymentDate
       }
-
-      res.json({
-        orders,
-        pagination: {
-          currentPage: parseInt(page),
-          totalPages: Math.ceil(countResult.count / limit),
-          totalItems: countResult.count,
-          itemsPerPage: parseInt(limit)
-        }
-      });
     });
-  });
-};
-
-// 주문 상세 조회
-const getOrderById = (req, res) => {
-  const { id } = req.params;
-  // 테스트용: 인증이 없을 때는 userId 체크를 건너뜀
-  const userId = req.user ? req.user.id : null;
-
-  let sql = 'SELECT * FROM orders WHERE id = ?';
-  let params = [id];
-  
-  if (userId) {
-    sql += ' AND userId = ?';
-    params.push(userId);
+  } catch (error) {
+    console.error('주문 생성 오류:', error);
+    res.status(500).json({ message: '주문 생성 중 오류가 발생했습니다.' });
   }
-  
-  db.get(sql, params, (err, order) => {
-    if (err) {
-      return res.status(500).json({ message: '주문 조회 중 오류가 발생했습니다.' });
-    }
-
-    if (!order) {
-      return res.status(404).json({ message: '주문을 찾을 수 없습니다.' });
-    }
-
-    res.json(order);
-  });
-};
-
-// 주문 상태 업데이트 (orderId로)
-const updateOrderStatusByOrderId = (req, res) => {
-  const { orderId } = req.params;
-  const { status, paymentDate, confirmStatus } = req.body;
-
-  // 업데이트할 필드들을 동적으로 구성
-  const updateFields = [];
-  const params = [];
-
-  if (status !== undefined) {
-    updateFields.push('status = ?');
-    params.push(status);
-  }
-
-  if (paymentDate !== undefined) {
-    updateFields.push('paymentDate = ?');
-    params.push(paymentDate);
-  }
-
-  if (confirmStatus !== undefined) {
-    updateFields.push('confirmStatus = ?');
-    params.push(confirmStatus);
-  }
-
-  if (updateFields.length === 0) {
-    return res.status(400).json({ message: '업데이트할 필드가 없습니다.' });
-  }
-
-  params.push(orderId);
-
-  const sql = `UPDATE orders SET ${updateFields.join(', ')} WHERE orderId = ?`;
-
-  db.run(sql, params, function(err) {
-    if (err) {
-      console.error('주문 상태 업데이트 오류:', err);
-      return res.status(500).json({ message: '주문 상태 업데이트 중 오류가 발생했습니다.' });
-    }
-
-    if (this.changes === 0) {
-      return res.status(404).json({ message: '해당 주문을 찾을 수 없습니다.' });
-    }
-
-    res.json({ 
-      message: '주문 상태가 성공적으로 업데이트되었습니다.',
-      changes: this.changes
-    });
-  });
-};
-
-// 주문 요청사항 업데이트
-const updateOrderRequestByOrderId = (req, res) => {
-  const { orderId } = req.params;
-  const { request } = req.body;
-
-  if (!request) {
-    return res.status(400).json({ message: '요청사항이 필요합니다.' });
-  }
-
-  const sql = 'UPDATE orders SET request = ? WHERE orderId = ?';
-  
-  db.run(sql, [request, orderId], function(err) {
-    if (err) {
-      console.error('요청사항 업데이트 오류:', err);
-      return res.status(500).json({ message: '요청사항 업데이트에 실패했습니다.' });
-    }
-
-    if (this.changes === 0) {
-      return res.status(404).json({ message: '주문을 찾을 수 없습니다.' });
-    }
-
-    res.json({ message: '요청사항이 업데이트되었습니다.' });
-  });
-};
-
-// 주문 리뷰 상태 업데이트
-const updateOrderReviewByOrderId = (req, res) => {
-  const { orderId } = req.params;
-  const { review } = req.body;
-
-  if (!review) {
-    return res.status(400).json({ message: '리뷰 상태가 필요합니다.' });
-  }
-
-  const sql = 'UPDATE orders SET review = ? WHERE orderId = ?';
-  
-  db.run(sql, [review, orderId], function(err) {
-    if (err) {
-      console.error('리뷰 상태 업데이트 오류:', err);
-      return res.status(500).json({ message: '리뷰 상태 업데이트에 실패했습니다.' });
-    }
-
-    if (this.changes === 0) {
-      return res.status(404).json({ message: '주문을 찾을 수 없습니다.' });
-    }
-
-    res.json({ message: '리뷰 상태가 업데이트되었습니다.' });
-  });
-};
-
-// 주문 상태 업데이트 (관리자용) - id로 찾기
-const updateOrderStatus = (req, res) => {
-  const { id } = req.params;
-  const { status, paymentDate, confirmStatus } = req.body;
-
-  let sql = 'UPDATE orders SET updatedAt = datetime("now", "localtime")';
-  const params = [];
-
-  if (status) {
-    sql += ', status = ?';
-    params.push(status);
-  }
-
-  if (paymentDate !== undefined) {
-    sql += ', paymentDate = ?';
-    params.push(paymentDate);
-  }
-
-  if (confirmStatus) {
-    sql += ', confirmStatus = ?';
-    params.push(confirmStatus);
-  }
-
-  sql += ' WHERE id = ?';
-  params.push(id);
-
-  db.run(sql, params, function(err) {
-    if (err) {
-      return res.status(500).json({ message: '주문 상태 업데이트에 실패했습니다.' });
-    }
-
-    if (this.changes === 0) {
-      return res.status(404).json({ message: '주문을 찾을 수 없습니다.' });
-    }
-
-    res.json({ message: '주문 상태가 업데이트되었습니다.' });
-  });
-};
-
-// 구매확정 처리
-const confirmPurchase = (req, res) => {
-  const { orderId } = req.params;
-  // 테스트용: 인증이 없을 때는 userId 체크를 건너뜀
-  const userId = req.user ? req.user.id : null;
-
-  let sql = 'UPDATE orders SET confirmStatus = "구매완료" WHERE orderId = ?';
-  let params = [orderId];
-  
-  if (userId) {
-    sql += ' AND userId = ?';
-    params.push(userId);
-  }
-  
-  db.run(sql, params, function(err) {
-    if (err) {
-      return res.status(500).json({ message: '구매확정 처리에 실패했습니다.' });
-    }
-
-    if (this.changes === 0) {
-      return res.status(404).json({ message: '주문을 찾을 수 없습니다.' });
-    }
-
-    res.json({ message: '구매확정이 완료되었습니다.' });
-  });
 };
 
 // 모든 주문 조회 (관리자용)
-const getAllOrders = (req, res) => {
-  const { status, search, page = 1, limit = 10 } = req.query;
-  
-  let sql = 'SELECT o.*, u.name as userName, u.email as userEmail FROM orders o LEFT JOIN users u ON o.userId = u.id WHERE 1=1';
-  const params = [];
-
-  if (status && status !== 'all') {
-    if (status === '가상계좌발급') {
-      sql += ' AND o.paymentMethod = "가상계좌" AND (o.paymentDate IS NULL OR o.paymentDate = "-")';
-    } else if (status === '작업완료') {
-      sql += ' AND o.status = "작업완료" AND o.confirmStatus != "구매완료"';
-    } else if (status === '구매완료') {
-      sql += ' AND o.status = "작업완료" AND o.confirmStatus = "구매완료"';
-    } else {
-      sql += ' AND o.status = ?';
-      params.push(status);
-    }
+const getAllOrders = async (req, res) => {
+  try {
+    const orders = await Order.find()
+      .populate('userId', 'name email')
+      .populate('productId', 'name productNumber')
+      .sort({ createdAt: -1 });
+    
+    res.json(orders);
+  } catch (error) {
+    console.error('주문 조회 오류:', error);
+    res.status(500).json({ message: '주문 조회에 실패했습니다.' });
   }
-
-  if (search) {
-    sql += ' AND (o.product LIKE ? OR o.orderId LIKE ? OR u.name LIKE ?)';
-    params.push(`%${search}%`, `%${search}%`, `%${search}%`);
-  }
-
-  sql += ' ORDER BY o.date DESC';
-
-  // 전체 개수 조회
-  db.get(sql.replace('o.*, u.name as userName, u.email as userEmail', 'COUNT(*) as count'), params, (err, countResult) => {
-    if (err) {
-      return res.status(500).json({ message: '주문 조회 중 오류가 발생했습니다.' });
-    }
-
-    // 페이지네이션 적용
-    const offset = (page - 1) * limit;
-    sql += ' LIMIT ? OFFSET ?';
-    params.push(limit, offset);
-
-    db.all(sql, params, (err, orders) => {
-      if (err) {
-        return res.status(500).json({ message: '주문 조회 중 오류가 발생했습니다.' });
-      }
-
-      res.json({
-        orders,
-        pagination: {
-          currentPage: parseInt(page),
-          totalPages: Math.ceil(countResult.count / limit),
-          totalItems: countResult.count,
-          itemsPerPage: parseInt(limit)
-        }
-      });
-    });
-  });
 };
 
-// 주문 삭제 (테스트용)
-const deleteOrder = (req, res) => {
-  const { id } = req.params;
-  
-  const sql = 'DELETE FROM orders WHERE id = ?';
-  
-  db.run(sql, [id], function(err) {
-    if (err) {
-      return res.status(500).json({ message: '주문 삭제에 실패했습니다.' });
-    }
-
-    if (this.changes === 0) {
-      return res.status(404).json({ message: '주문을 찾을 수 없습니다.' });
-    }
-
-    res.json({ message: '주문이 삭제되었습니다.' });
-  });
-};
-
-// orderId로 주문 삭제
-const deleteOrderByOrderId = (req, res) => {
-  const { orderId } = req.params;
-  
-  const sql = 'DELETE FROM orders WHERE orderId = ?';
-  
-  db.run(sql, [orderId], function(err) {
-    if (err) {
-      console.error('주문 삭제 오류:', err);
-      return res.status(500).json({ message: '주문 삭제에 실패했습니다.' });
-    }
-
-    if (this.changes === 0) {
-      return res.status(404).json({ message: '주문을 찾을 수 없습니다.' });
-    }
-
-    res.json({ message: '주문이 삭제되었습니다.' });
-  });
-};
-
-// 기존 신용카드 주문들의 결제일 업데이트 (테스트용)
-const updateExistingCardPayments = (req, res) => {
-  const sql = `
-    UPDATE orders 
-    SET paymentDate = date 
-    WHERE paymentMethod = 'card' AND (paymentDate IS NULL OR paymentDate = '-')
-  `;
-  
-  db.run(sql, function(err) {
-    if (err) {
-      console.error('결제일 업데이트 오류:', err);
-      return res.status(500).json({ message: '결제일 업데이트 중 오류가 발생했습니다.' });
+// 사용자별 주문 조회
+const getUserOrders = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    // userId로 사용자 정보를 먼저 조회
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: '사용자를 찾을 수 없습니다.' });
     }
     
-    res.json({ 
-      message: '기존 신용카드 주문들의 결제일이 업데이트되었습니다.',
-      updatedCount: this.changes 
+    // userEmail으로 주문 검색
+    const orders = await Order.find({ userEmail: user.email })
+      .populate('productId', 'name productNumber image')
+      .sort({ createdAt: -1 });
+    
+    res.json({
+      orders: orders,
+      total: orders.length,
+      user: {
+        id: user._id,
+        email: user.email,
+        name: user.name
+      }
     });
-  });
+  } catch (error) {
+    console.error('사용자 주문 조회 오류:', error);
+    res.status(500).json({ message: '사용자 주문 조회에 실패했습니다.' });
+  }
 };
 
-module.exports = { 
-  createOrder, 
-  getUserOrders, 
-  getOrderById, 
-  updateOrderStatusByOrderId, 
-  updateOrderStatus, 
-  confirmPurchase, 
-  getAllOrders, 
+// 주문 상세 조회
+const getOrderById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const order = await Order.findById(id)
+      .populate('userId', 'name email phone')
+      .populate('productId', 'name productNumber image description');
+    
+    if (!order) {
+      return res.status(404).json({ message: '주문을 찾을 수 없습니다.' });
+    }
+    
+    res.json(order);
+  } catch (error) {
+    console.error('주문 상세 조회 오류:', error);
+    res.status(500).json({ message: '주문 조회에 실패했습니다.' });
+  }
+};
+
+// 주문 상태 변경
+const updateOrderStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!status || !['대기중', '처리중', '진행 중', '작업완료', '작업취소', '완료', '취소'].includes(status)) {
+      return res.status(400).json({ message: '유효하지 않은 상태입니다.' });
+    }
+
+    let updatedOrder;
+    
+    // MongoDB ObjectId인지 확인
+    if (id.match(/^[0-9a-fA-F]{24}$/)) {
+      // MongoDB ObjectId인 경우
+      updatedOrder = await Order.findByIdAndUpdate(
+        id,
+        { status },
+        { new: true }
+      );
+    } else {
+      // orderId인 경우
+      updatedOrder = await Order.findOneAndUpdate(
+        { orderId: id },
+        { status },
+        { new: true }
+      );
+    }
+
+    if (!updatedOrder) {
+      return res.status(404).json({ message: '주문을 찾을 수 없습니다.' });
+    }
+
+    res.json({ message: '주문 상태가 변경되었습니다.', order: updatedOrder });
+  } catch (error) {
+    console.error('주문 상태 변경 오류:', error);
+    res.status(500).json({ message: '주문 상태 변경에 실패했습니다.' });
+  }
+};
+
+// 구매확정 상태 변경
+const updateConfirmStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { confirmStatus } = req.body;
+
+    if (!confirmStatus || !['구매확정전', '구매확정', '구매완료'].includes(confirmStatus)) {
+      return res.status(400).json({ message: '유효하지 않은 구매확정 상태입니다.' });
+    }
+
+    let updatedOrder;
+    
+    // MongoDB ObjectId인지 확인
+    if (id.match(/^[0-9a-fA-F]{24}$/)) {
+      // MongoDB ObjectId인 경우
+      updatedOrder = await Order.findByIdAndUpdate(
+        id,
+        { confirmStatus },
+        { new: true }
+      );
+    } else {
+      // orderId인 경우
+      updatedOrder = await Order.findOneAndUpdate(
+        { orderId: id },
+        { confirmStatus },
+        { new: true }
+      );
+    }
+
+    if (!updatedOrder) {
+      return res.status(404).json({ message: '주문을 찾을 수 없습니다.' });
+    }
+
+    res.json({ message: '구매확정 상태가 변경되었습니다.', order: updatedOrder });
+  } catch (error) {
+    console.error('구매확정 상태 변경 오류:', error);
+    res.status(500).json({ message: '구매확정 상태 변경에 실패했습니다.' });
+  }
+};
+
+// 주문 삭제
+const deleteOrder = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // MongoDB ObjectId인지 확인
+    let deletedOrder;
+    
+    if (id.match(/^[0-9a-fA-F]{24}$/)) {
+      // MongoDB ObjectId인 경우
+      deletedOrder = await Order.findByIdAndDelete(id);
+    } else {
+      // orderId인 경우
+      deletedOrder = await Order.findOneAndDelete({ orderId: id });
+    }
+    
+    if (!deletedOrder) {
+      return res.status(404).json({ message: '주문을 찾을 수 없습니다.' });
+    }
+
+    res.json({ message: '주문이 삭제되었습니다.' });
+  } catch (error) {
+    console.error('주문 삭제 오류:', error);
+    res.status(500).json({ message: '주문 삭제에 실패했습니다.' });
+  }
+};
+
+// 주문 통계
+const getOrderStats = async (req, res) => {
+  try {
+    const totalOrders = await Order.countDocuments();
+    const pendingOrders = await Order.countDocuments({ status: '대기중' });
+    const processingOrders = await Order.countDocuments({ status: '처리중' });
+    const completedOrders = await Order.countDocuments({ status: '완료' });
+    const cancelledOrders = await Order.countDocuments({ status: '취소' });
+
+    const stats = {
+      total: totalOrders,
+      pending: pendingOrders,
+      processing: processingOrders,
+      completed: completedOrders,
+      cancelled: cancelledOrders
+    };
+
+    res.json(stats);
+  } catch (error) {
+    console.error('주문 통계 조회 오류:', error);
+    res.status(500).json({ message: '주문 통계 조회에 실패했습니다.' });
+  }
+};
+
+// 요청사항 수정
+const updateRequest = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { request } = req.body;
+
+    if (!request) {
+      return res.status(400).json({ message: '요청사항을 입력해주세요.' });
+    }
+
+    let updatedOrder;
+    
+    // MongoDB ObjectId인지 확인
+    if (id.match(/^[0-9a-fA-F]{24}$/)) {
+      // MongoDB ObjectId인 경우
+      updatedOrder = await Order.findByIdAndUpdate(
+        id,
+        { request },
+        { new: true }
+      );
+    } else {
+      // orderId인 경우
+      updatedOrder = await Order.findOneAndUpdate(
+        { orderId: id },
+        { request },
+        { new: true }
+      );
+    }
+
+    if (!updatedOrder) {
+      return res.status(404).json({ message: '요청사항이 수정되었습니다.' });
+    }
+
+    res.json({ message: '요청사항이 수정되었습니다.', order: updatedOrder });
+  } catch (error) {
+    console.error('요청사항 수정 오류:', error);
+    res.status(500).json({ message: '요청사항 수정에 실패했습니다.' });
+  }
+};
+
+// 결제일 업데이트
+const updatePaymentDate = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { paymentDate } = req.body;
+
+    if (!paymentDate) {
+      return res.status(400).json({ message: '결제일을 입력해주세요.' });
+    }
+
+    let updatedOrder;
+    
+    // MongoDB ObjectId인지 확인
+    if (id.match(/^[0-9a-fA-F]{24}$/)) {
+      // MongoDB ObjectId인 경우
+      updatedOrder = await Order.findByIdAndUpdate(
+        id,
+        { paymentDate },
+        { new: true }
+      );
+    } else {
+      // orderId인 경우
+      updatedOrder = await Order.findOneAndUpdate(
+        { orderId: id },
+        { paymentDate },
+        { new: true }
+      );
+    }
+
+    if (!updatedOrder) {
+      return res.status(404).json({ message: '주문을 찾을 수 없습니다.' });
+    }
+
+    res.json({ message: '결제일이 업데이트되었습니다.', order: updatedOrder });
+  } catch (error) {
+    console.error('결제일 업데이트 오류:', error);
+    res.status(500).json({ message: '결제일 업데이트에 실패했습니다.' });
+  }
+};
+
+// 리뷰 상태 업데이트
+const updateReviewStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { review } = req.body;
+
+    if (!review) {
+      return res.status(400).json({ message: '리뷰 상태를 입력해주세요.' });
+    }
+
+    let updatedOrder;
+    
+    // MongoDB ObjectId인지 확인
+    if (id.match(/^[0-9a-fA-F]{24}$/)) {
+      // MongoDB ObjectId인 경우
+      updatedOrder = await Order.findByIdAndUpdate(
+        id,
+        { review },
+        { new: true }
+      );
+    } else {
+      // orderId인 경우
+      updatedOrder = await Order.findOneAndUpdate(
+        { orderId: id },
+        { review },
+        { new: true }
+      );
+    }
+
+    if (!updatedOrder) {
+      return res.status(404).json({ message: '주문을 찾을 수 없습니다.' });
+    }
+
+    res.json({ message: '리뷰 상태가 업데이트되었습니다.', order: updatedOrder });
+  } catch (error) {
+    console.error('리뷰 상태 업데이트 오류:', error);
+    res.status(500).json({ message: '리뷰 상태 업데이트에 실패했습니다.' });
+  }
+};
+
+module.exports = {
+  createOrder,
+  getAllOrders,
+  getUserOrders,
+  getOrderById,
+  updateOrderStatus,
+  updateConfirmStatus,
+  updateRequest,
+  updatePaymentDate,
+  updateReviewStatus,
   deleteOrder,
-  deleteOrderByOrderId,
-  updateExistingCardPayments,
-  updateOrderRequestByOrderId,
-  updateOrderReviewByOrderId
+  getOrderStats
 }; 

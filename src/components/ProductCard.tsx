@@ -8,7 +8,7 @@ import { IconDefinition } from '@fortawesome/free-brands-svg-icons';
 interface ProductCardProps {
   product: Product;
   isFavorite: boolean;
-  onFavoriteToggle: (id: number) => void;
+  onFavoriteToggle: (id: string | number) => void;
   categoryIcon: { icon: IconDefinition; color: string };
   cardWidthPx?: number;
   linkTo?: string;
@@ -26,20 +26,20 @@ const ProductCard: React.FC<ProductCardProps> = ({
   const safeCategoryIcon = categoryIcon || { icon: faPlayCircle, color: 'text-gray-400' };
   return (
     <Link
-      to={linkTo || `/products/${product.id}`}
+      to={linkTo || `/products/${product._id || product.id}`}
       className="relative bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition duration-300 flex-1 cursor-pointer group"
       style={cardWidthPx ? { minWidth: `${cardWidthPx}px`, maxWidth: `${cardWidthPx}px` } : {}}
       onClick={() => {
-        console.log('상품 카드 클릭:', product.id, product.name);
+        console.log('상품 카드 클릭:', product._id || product.id, product.name);
         console.log('상품 전체 정보:', product);
-        console.log('이동할 경로:', linkTo || `/products/${product.id}`);
+        console.log('이동할 경로:', linkTo || `/products/${product._id || product.id}`);
       }}
     >
       {/* 즐겨찾기 버튼 */}
       <button
         className="absolute top-4 right-4 z-10 bg-black/30 rounded-full w-8 h-8 border border-gray-50
           flex items-center justify-center"
-        onClick={e => { e.preventDefault(); onFavoriteToggle(product.id); }}
+        onClick={e => { e.preventDefault(); onFavoriteToggle(product._id || product.id || ''); }}
       >
         <FontAwesomeIcon
           icon={isFavorite ? faSolidHeart : faHeart}

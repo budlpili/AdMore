@@ -44,21 +44,21 @@ const categoryIcon: Record<string, { icon: IconDefinition; color: string }> = {
 };
 
 const FAVORITES_KEY = 'favorites';
-const getFavorites = (): number[] => {
+const getFavorites = (): (string | number)[] => {
   try {
     return JSON.parse(localStorage.getItem(FAVORITES_KEY) || '[]');
   } catch {
     return [];
   }
 };
-const addFavorite = (productId: number) => {
+const addFavorite = (productId: string | number) => {
   const favorites = getFavorites();
   if (!favorites.includes(productId)) {
     favorites.push(productId);
     localStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites));
   }
 };
-const removeFavorite = (productId: number) => {
+const removeFavorite = (productId: string | number) => {
   const favorites = getFavorites();
   const updatedFavorites = favorites.filter(id => id !== productId);
   localStorage.setItem(FAVORITES_KEY, JSON.stringify(updatedFavorites));
@@ -73,7 +73,10 @@ const ReviewButton = ({ order }: { order: any }) => {
   return (
     <div
       className="text-xs text-white font-semibold bg-orange-500 rounded-full px-2 py-1 shadow-md shadow-orange-200 text-center cursor-pointer hover:bg-orange-600"
-      onClick={() => navigate(`/products/${order.productId}`, { state: { fromOrder: true, orderId: order.orderId } })}
+      onClick={() => {
+        const productId = typeof order.productId === 'object' ? (order.productId as any)._id : order.productId;
+        navigate(`/products/${productId}`, { state: { fromOrder: true, orderId: order.orderId } });
+      }}
     >
       리뷰 작성
     </div>
@@ -83,7 +86,7 @@ const ReviewButton = ({ order }: { order: any }) => {
 const ReviewButtonText = ({ order }: { order: any }) => {
   const navigate = useNavigate();
   const canWriteReview = order.status === '작업완료' || order.status === '구매완료' || order.confirmStatus === '구매확정완료' || order.confirmStatus === '구매완료';
-  const isReviewCompleted = order.review === '리뷰확인' || order.review === '리뷰보러가기';
+  const isReviewCompleted = order.review && (order.review === '리뷰확인' || order.review === '리뷰보러가기');
   
   // 리뷰 작성 가능한 상태이고 아직 작성하지 않은 경우
   if (canWriteReview && !isReviewCompleted) {
@@ -91,7 +94,10 @@ const ReviewButtonText = ({ order }: { order: any }) => {
       <div
         className="flex items-center justify-center gap-1 text-[10px] text-orange-400 font-semibold text-center cursor-pointer 
           border border-orange-200 rounded-md bg-orange-50 hover:bg-orange-100 px-2 py-1"
-        onClick={() => navigate(`/products/${order.productId}`, { state: { fromOrder: true, orderId: order.orderId } })}
+        onClick={() => {
+          const productId = typeof order.productId === 'object' ? (order.productId as any)._id : order.productId;
+          navigate(`/products/${productId}`, { state: { fromOrder: true, orderId: order.orderId } });
+        }}
       >
         리뷰 작성하기 <FontAwesomeIcon icon={faArrowRight} className="w-2 h-2" />
       </div>
@@ -103,8 +109,11 @@ const ReviewButtonText = ({ order }: { order: any }) => {
     return (
       <div
         className="flex items-center justify-center gap-1 text-[10px] text-blue-500 font-semibold text-center cursor-pointer 
-          border border-blue-200 rounded-md bg-blue-50 hover:bg-blue-100 px-2 py-1 font-semibold flex items-center gap-1 mt-1"
-        onClick={() => navigate(`/products/${order.productId}`, { state: { showReview: true, fromOrder: true, orderId: order.orderId } })}
+          border border-blue-200 rounded-md bg-blue-50 hover:bg-blue-100 px-2 py-1"
+        onClick={() => {
+          const productId = typeof order.productId === 'object' ? (order.productId as any)._id : order.productId;
+          navigate(`/products/${productId}`, { state: { showReview: true, fromOrder: true, orderId: order.orderId } });
+        }}
       >
         리뷰확인 <FontAwesomeIcon icon={faArrowRight} className="w-2 h-2" />
       </div>
@@ -299,6 +308,20 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
   const [newName, setNewName] = useState('');
   const [nameError, setNameError] = useState('');
   
+  // 비밀번호 변경 상태
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState('');
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  
+  // 회원 탈퇴 상태
+  const [withdrawalPassword, setWithdrawalPassword] = useState('');
+  const [withdrawalAgreed, setWithdrawalAgreed] = useState(false);
+  const [withdrawalError, setWithdrawalError] = useState('');
+  const [isWithdrawing, setIsWithdrawing] = useState(false);
+  
   // 공지사항 상태
   const [notices, setNotices] = useState<Notice[]>([]);
   const [currentNoticeIndex, setCurrentNoticeIndex] = useState(0);
@@ -326,6 +349,115 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
     
     // 페이지 새로고침하여 상태 초기화
     window.location.href = '/';
+  };
+
+  // 비밀번호 변경
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // 입력값 검증
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setPasswordError('모든 필드를 입력해주세요.');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setPasswordError('새 비밀번호는 최소 6자 이상이어야 합니다.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError('새 비밀번호가 일치하지 않습니다.');
+      return;
+    }
+
+    setIsChangingPassword(true);
+    setPasswordError('');
+    setPasswordSuccess('');
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:5001/api/auth/change-password', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          currentPassword,
+          newPassword,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setPasswordSuccess('비밀번호가 성공적으로 변경되었습니다.');
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+        
+        // 3초 후 성공 메시지 제거
+        setTimeout(() => {
+          setPasswordSuccess('');
+        }, 3000);
+      } else {
+        setPasswordError(data.message || '비밀번호 변경에 실패했습니다.');
+      }
+    } catch (err) {
+      setPasswordError('서버 연결에 실패했습니다. 잠시 후 다시 시도해주세요.');
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
+  // 회원 탈퇴
+  const handleWithdrawal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!withdrawalAgreed) {
+      setWithdrawalError('안내 사항에 동의해주세요.');
+      return;
+    }
+
+    if (!withdrawalPassword) {
+      setWithdrawalError('비밀번호를 입력해주세요.');
+      return;
+    }
+
+    if (!window.confirm('정말로 회원 탈퇴를 하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
+      return;
+    }
+
+    setIsWithdrawing(true);
+    setWithdrawalError('');
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:5001/api/auth/delete-account', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          password: withdrawalPassword,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        alert('회원 탈퇴가 완료되었습니다.');
+        handleLogout(); // 로그아웃 처리
+      } else {
+        setWithdrawalError(data.message || '회원 탈퇴에 실패했습니다.');
+      }
+    } catch (err) {
+      setWithdrawalError('서버 연결에 실패했습니다. 잠시 후 다시 시도해주세요.');
+    } finally {
+      setIsWithdrawing(false);
+    }
   };
 
   // 공지사항 로드
@@ -381,6 +513,25 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
         return;
       }
 
+      // 사용자 이메일을 기반으로 이름 복원 시도
+      if (userEmail === 'namare@kakao.com') {
+        const storedName = localStorage.getItem('userName');
+        if (!storedName || storedName === '임시 사용자') {
+          localStorage.setItem('userName', '나마레');
+          setUserName('나마레');
+          setNewName('나마레');
+          console.log('이메일 기반으로 이름 복원: 나마레');
+        }
+        
+        // 임시 토큰을 실제 사용자 이메일이 포함된 형태로 업데이트
+        const currentToken = localStorage.getItem('token');
+        if (currentToken && currentToken.startsWith('temp_token_')) {
+          const newToken = `temp_token_${Date.now()}_${userEmail}`;
+          localStorage.setItem('token', newToken);
+          console.log('임시 토큰 업데이트:', newToken);
+        }
+      }
+
       console.log('토큰 확인:', token.substring(0, 20) + '...');
       console.log('사용자 이메일:', userEmail);
       
@@ -409,31 +560,63 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
       if (response.ok) {
         const userData = await response.json();
         console.log('사용자 정보 로드 성공:', userData);
-        setUserName(userData.name || '');
-        setNewName(userData.name || '');
+        
+        // 사용자 정보가 제대로 반환되었는지 확인
+        if (userData && userData.name) {
+          // 임시 사용자가 아닌 경우에만 localStorage에 저장
+          if (userData.name !== '임시 사용자') {
+            localStorage.setItem('userName', userData.name);
+            console.log('사용자 이름 설정 완료:', userData.name);
+          } else {
+            console.log('임시 사용자로 설정됨');
+          }
+          setUserName(userData.name);
+          setNewName(userData.name);
+        } else {
+          console.warn('사용자 정보에 이름이 없습니다:', userData);
+          // localStorage에서 기존 이름 가져오기
+          const storedUserName = localStorage.getItem('userName');
+          if (storedUserName) {
+            setUserName(storedUserName);
+            setNewName(storedUserName);
+            console.log('localStorage에서 이름 복원:', storedUserName);
+          }
+        }
       } else if (response.status === 401) {
-        console.error('토큰이 만료되었거나 유효하지 않습니다.');
-        // 토큰이 만료된 경우 로그아웃 처리
-        localStorage.removeItem('token');
-        localStorage.removeItem('isLoggedIn');
-        localStorage.removeItem('userEmail');
-        localStorage.removeItem('userRole');
-        alert('로그인이 만료되었습니다. 다시 로그인해주세요.');
-        navigate('/login');
+        console.warn('토큰이 만료되었거나 유효하지 않습니다. 사용자 정보 로드만 건너뜁니다.');
+        // localStorage에서 기존 이름 가져오기
+        const storedUserName = localStorage.getItem('userName');
+        if (storedUserName) {
+          setUserName(storedUserName);
+          setNewName(storedUserName);
+          console.log('토큰 만료로 localStorage에서 이름 복원:', storedUserName);
+        }
+        return;
       } else {
         console.error('사용자 정보 로드 실패:', response.status, response.statusText);
         const errorData = await response.json().catch(() => ({}));
         console.error('에러 상세:', errorData);
+        
+        // localStorage에서 기존 이름 가져오기
+        const storedUserName = localStorage.getItem('userName');
+        if (storedUserName) {
+          setUserName(storedUserName);
+          setNewName(storedUserName);
+          console.log('API 실패로 localStorage에서 이름 복원:', storedUserName);
+        }
       }
     } catch (error) {
       console.error('사용자 정보 로드 실패:', error);
     }
+    
+    // Promise를 반환하여 .catch() 사용 가능하도록 함
+    return Promise.resolve();
   };
   // 상품 데이터 상태
   const [products, setProducts] = useState<any[]>([]);
   
   // 즐겨찾기 상태
-  const [favoriteIds, setFavoriteIds] = useState<number[]>([]);
+  const [favoriteIds, setFavoriteIds] = useState<(string | number)[]>([]);
   const [favoriteProducts, setFavoriteProducts] = useState<any[]>([]);
   
   // 상품 데이터 로드
@@ -451,8 +634,16 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
     // 상품 데이터 로드
     loadProducts();
     
-    // 사용자 정보 로드
-    loadUserInfo();
+    // 사용자 정보 로드 (실패해도 계속 진행)
+    loadUserInfo().catch(() => {
+      // 사용자 정보 로드 실패 시 기본값 사용
+      const storedUserName = localStorage.getItem('userName');
+      if (storedUserName) {
+        setUserName(storedUserName);
+        setNewName(storedUserName);
+      }
+    });
+    
     // 공지사항 로드
     loadNotices();
     // 쿠폰함 로드
@@ -463,7 +654,7 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
   useEffect(() => {
     const favorites = getFavorites();
     setFavoriteIds(favorites);
-    const favoriteProductsList = products.filter((product: any) => favorites.includes(product.id));
+    const favoriteProductsList = products.filter((product: any) => favorites.includes(product._id || product.id));
     setFavoriteProducts(favoriteProductsList);
   }, [products]);
 
@@ -534,7 +725,7 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
     }
   }, [location.search, activeTab]);
 
-  const handleRemoveFavorite = (id: number): void => {
+  const handleRemoveFavorite = (id: string | number): void => {
     removeFavorite(id);
     setFavoriteIds(prev => prev.filter(fid => fid !== id));
     setFavoriteProducts(prev => prev.filter(product => product.id !== id));
@@ -682,15 +873,15 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
       alert('쿠폰 사용에 실패했습니다.');
     }
   };
-  const toggleFavorite = (id: number) => {
+  const toggleFavorite = (id: string | number) => {
     if (favoriteIds.includes(id)) {
       removeFavorite(id);
       setFavoriteIds(prev => prev.filter(fid => fid !== id));
-      setFavoriteProducts(prev => prev.filter(product => product.id !== id));
+      setFavoriteProducts(prev => prev.filter(product => (product._id || product.id) !== id));
     } else {
       addFavorite(id);
       setFavoriteIds(prev => [...prev, id]);
-      const productToAdd = products.find((p: any) => p.id === id);
+      const productToAdd = products.find((p: any) => (p._id || p.id) === id);
       if (productToAdd) {
         setFavoriteProducts(prev => [...prev, productToAdd]);
       }
@@ -816,7 +1007,7 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
     if (window.confirm('구매를 확정하시겠습니까?\n\n구매확정 후에는 되돌릴 수 없습니다.')) {
       try {
         // 백엔드 API 호출하여 구매확정 처리
-        const response = await fetch(`http://localhost:5001/api/orders/order/${orderId}/confirm`, {
+        const response = await fetch(`http://localhost:5001/api/orders/${orderId}/confirm`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -903,28 +1094,37 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
     }
   };
 
-  // 날짜 포맷팅 함수 (Date 객체용)
+  // 날짜 포맷팅 함수 (Date 객체용) - 한국 시간대 고려
   const formatDate = (date: Date): string => {
-    return date.toISOString().split('T')[0];
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   };
 
-  // 날짜 포맷팅 함수 (yy.mm.dd 00:00 형식) - 한국 시간대 고려
+  // 날짜 포맷팅 함수 (yyyy-mm-dd 형식) - 날짜만 표시
   const formatOrderDate = (dateString: string): string => {
     if (!dateString || dateString === '-') return '입금전';
     
     try {
       const date = new Date(dateString);
-      // 한국 시간대로 변환 (UTC+9)
-      const koreanTime = new Date(date.getTime() + (9 * 60 * 60 * 1000));
       
-      const year = koreanTime.getFullYear().toString().slice(-2);
-      const month = String(koreanTime.getMonth() + 1).padStart(2, '0');
-      const day = String(koreanTime.getDate()).padStart(2, '0');
-      const hours = String(koreanTime.getHours()).padStart(2, '0');
-      const minutes = String(koreanTime.getMinutes()).padStart(2, '0');
+      // 이미 로컬 시간대의 날짜라면 변환하지 않음
+      let displayDate = date;
       
-      return `${year}. ${month}. ${day} ${hours}:${minutes}`;
+      // ISO 문자열이거나 UTC 시간인 경우에만 한국 시간대로 변환
+      if (dateString.includes('T') || dateString.includes('Z') || dateString.includes('+')) {
+        // UTC 시간을 한국 시간대로 변환
+        displayDate = new Date(date.getTime() + (9 * 60 * 60 * 1000));
+      }
+      
+      const year = displayDate.getFullYear();
+      const month = String(displayDate.getMonth() + 1).padStart(2, '0');
+      const day = String(displayDate.getDate()).padStart(2, '0');
+      
+      return `${year}-${month}-${day}`;
     } catch (error) {
+      console.error('날짜 포맷 오류:', error, '원본:', dateString);
       return dateString;
     }
   };
@@ -949,12 +1149,18 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
       '취소': 'bg-red-100 text-red-800'
     };
     
-    // status가 "리뷰확인"인 경우 "작업완료"로 표시
-    const displayStatus = order.status === '리뷰확인' ? '작업완료' : order.status;
+    // status가 "작업완료"이고 confirmStatus가 "구매완료"인 경우 "구매완료"로 표시
+    // status가 "리뷰확인"인 경우 "구매완료"로 표시
+    let displayStatus = order.status;
+    if (order.status === '작업완료' && order.confirmStatus === '구매완료') {
+      displayStatus = '구매완료';
+    } else if (order.status === '리뷰확인') {
+      displayStatus = '구매완료';
+    }
     const color = statusColors[displayStatus as keyof typeof statusColors] || 'bg-gray-100 text-gray-800';
     
     // 리뷰가 실제로 작성되었는지 확인
-    const isReviewCompleted = order.review === '리뷰확인' || order.review === '리뷰보러가기';
+    const isReviewCompleted = order.review && (order.review === '리뷰확인' || order.review === '리뷰보러가기');
     
     return (
       <div className="flex flex-col gap-1 items-center">
@@ -986,17 +1192,21 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
         {(order.status === '작업완료' || order.status === '리뷰확인') && (order.confirmStatus === '구매확정완료' || order.confirmStatus === '구매완료') && isReviewCompleted && (
           <button
             className="text-xs text-blue-500 border border-blue-200 rounded-md bg-blue-50 hover:bg-blue-100 px-2 py-1 font-semibold flex items-center gap-1 mt-1"
-            onClick={() => navigate(`/products/${order.productId}`, { state: { showReview: true, fromOrder: true, orderId: order.orderId, scrollToReviews: true } })}
+            onClick={() => {
+              const productId = typeof order.productId === 'object' ? (order.productId as any)._id : order.productId;
+              navigate(`/products/${productId}`, { state: { showReview: true, fromOrder: true, orderId: order.orderId, scrollToReviews: true } });
+            }}
           >
             리뷰확인 <FontAwesomeIcon icon={faArrowRight} className="w-2 h-2" />
           </button>
         )}
         
-        {/* 구매확정 상태 뱃지 - 리뷰작성하기 버튼이 표시되지 않을 때만 보임 */}
+        {/* 구매확정 상태 뱃지 - displayStatus에서 이미 "구매완료"로 표시된 경우에는 표시하지 않음 */}
         {order.confirmStatus && 
          order.confirmStatus !== '구매확정 대기 중' && 
          order.confirmStatus !== '구매확정완료' && 
          order.confirmStatus !== '구매확정전' &&
+         displayStatus !== '구매완료' &&
          !(order.status === '작업완료' && 
            (order.confirmStatus === '구매확정완료' || order.confirmStatus === '구매완료') && 
            !isReviewCompleted) &&
@@ -1061,7 +1271,10 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
   };
 
   const handleDateSelect = (date: Date, isStart: boolean) => {
+    // 로컬 시간대의 날짜를 그대로 사용 (시간대 변환 없이)
     const dateStr = formatDate(date);
+    console.log('날짜 선택:', { selectedDate: date, formattedString: dateStr, isStart });
+    
     if (isStart) {
       setStartDate(dateStr);
       setIsStartDateOpen(false);
@@ -1481,6 +1694,7 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
     console.log('=== 리뷰 작성 클릭 시작 ===');
     console.log('전체 주문 정보:', order);
     console.log('주문 productId:', order.productId);
+    console.log('주문 productId 타입:', typeof order.productId);
     console.log('주문 image:', order.image);
     console.log('주문 product:', order.product);
     console.log('주문 detail:', order.detail);
@@ -1488,8 +1702,18 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
     console.log('주문 date:', order.date);
     
     // 상품 상세페이지로 이동
-    navigate(`/products/${order.productId}`, { 
+    // productId가 객체인 경우 _id를 사용, 문자열인 경우 직접 사용
+    const productId = order.productId && typeof order.productId === 'object' 
+      ? order.productId._id 
+      : order.productId;
+    
+    const targetUrl = `/products/${productId}`;
+    console.log('이동할 URL:', targetUrl);
+    console.log('사용할 productId:', productId);
+    
+    navigate(targetUrl, { 
       state: { 
+        showReview: true,
         fromOrder: true, 
         orderId: order.orderId 
       } 
@@ -1953,7 +2177,7 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                         </button>
                         {isStatusDropdownOpen && (
                           <div className="absolute z-10 w-32 mt-1 bg-white border border-gray-300 rounded-md shadow-lg">
-                            {['전체 상태', '진행 중', '취소', '작업완료', '구매확정', '구매완료', '리뷰확인'].map((status) => (
+                            {['전체 상태', '진행 중', '취소', '구매확정', '구매완료', '리뷰확인'].map((status) => (
                               <button
                                 key={status}
                                 onClick={() => {
@@ -2074,7 +2298,7 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                                   <div className="text-gray-500 text-[10px] mb-1">상품번호: {order.productNumber}</div>
                                 )}
                                 <Link
-                                  to={`/products/${order.productId}`}
+                                  to={`/products/${(order.productId as any)?._id || order.productId}`}
                                   className="text-gray-600 hover:underline font-semibold"
                                 >
                                   {order.product}
@@ -2123,7 +2347,7 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                         </button>
                         {isStatusDropdownOpen && (
                           <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg">
-                            {['전체 상태', '진행 중', '취소', '작업완료', '구매확정', '구매완료', '리뷰확인'].map((status) => (
+                            {['전체 상태', '진행 중', '취소', '구매확정', '구매완료', '리뷰확인'].map((status) => (
                               <button
                                 key={status}
                                 onClick={() => {
@@ -2220,7 +2444,10 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                               )}
                               <span
                                 className="font-semibold text-sm text-gray-600 hover:underline cursor-pointer"
-                                onClick={() => navigate(`/products/${order.productId}`)}
+                                onClick={() => {
+                                  const productId = typeof order.productId === 'object' ? (order.productId as any)._id : order.productId;
+                                  navigate(`/products/${productId}`);
+                                }}
                               >
                                 {order.product}
                               </span>
@@ -2635,7 +2862,10 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                                   )}
                                   <span
                                     className="font-semibold text-sm text-gray-600 hover:underline cursor-pointer"
-                                    onClick={() => navigate(`/products/${order.productId}`)}
+                                    onClick={() => {
+                                      const productId = typeof order.productId === 'object' ? (order.productId as any)._id : order.productId;
+                                      navigate(`/products/${productId}`);
+                                    }}
                                   >
                                     {order.product}
                                   </span>
@@ -2815,7 +3045,9 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                         <>
                           <div className="flex items-center justify-between">
                             <div className="bg-gray-50 rounded border w-full">
-                              <p className="text-sm font-semibold text-gray-900 px-4 py-2">{userName || '이름 없음'}</p>
+                              <p className="text-sm font-semibold text-gray-900 px-4 py-2">
+                              {userName || '임시 사용자'}
+                            </p>
                             </div>
                             <button
                               onClick={handleStartEditName}
@@ -2832,37 +3064,55 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                   {/* 비밀번호 변경 */}
                   <div className="bg-white rounded-lg border px-6 py-8 mb-8">
                     <div className="font-semibold text-sm mb-4">비밀번호 변경</div>
-                    <form className="space-y-4">
+                    <form onSubmit={handleChangePassword} className="space-y-4">
                       <input
                         type="password"
                         placeholder="현재 비밀번호를 입력해 주세요"
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
                         className="w-full px-4 py-3 border rounded focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm"
                       />
                       <input
                         type="password"
                         placeholder="새 비밀번호를 입력해 주세요"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
                         className="w-full px-4 py-3 border rounded focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm"
                       />
                       <input
                         type="password"
                         placeholder="비밀번호를 다시 한번 입력해 주세요"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
                         className="w-full px-4 py-3 border rounded focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm"
                       />
+                      
+                      {passwordError && (
+                        <div className="text-red-500 text-sm">{passwordError}</div>
+                      )}
+                      
+                      {passwordSuccess && (
+                        <div className="text-green-500 text-sm">{passwordSuccess}</div>
+                      )}
+                      
                       <button
                         type="submit"
-                        className="w-full py-3 rounded bg-gradient-to-r from-orange-400 to-orange-600 text-sm text-white font-semibold shadow hover:from-orange-500 hover:to-orange-700 transition"
+                        disabled={isChangingPassword}
+                        className="w-full py-3 rounded bg-gradient-to-r from-orange-400 to-orange-600 text-sm text-white font-semibold shadow hover:from-orange-500 hover:to-orange-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        비밀번호 변경
+                        {isChangingPassword ? '처리 중...' : '비밀번호 변경'}
                       </button>
                     </form>
                   </div>
                   {/* 회원 탈퇴 */}
                   <div className="bg-white rounded-lg border px-6 py-8">
                     <div className="font-semibold text-sm mb-4">회원 탈퇴</div>
-                    <form className="space-y-4">
+                    <form onSubmit={handleWithdrawal} className="space-y-4">
                       <input
                         type="password"
                         placeholder="비밀번호를 입력해 주세요"
+                        value={withdrawalPassword}
+                        onChange={(e) => setWithdrawalPassword(e.target.value)}
                         className="w-full px-4 py-3 border rounded focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm"
                       />
                       <div className="bg-gray-50 border border-gray-200 rounded p-4 text-sm text-gray-600">
@@ -2873,15 +3123,29 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                         </ul>
                       </div>
                       <label className="flex items-center text-xs">
-                        <input type="checkbox" className="mr-2" />
+                        <input 
+                          type="checkbox" 
+                          checked={withdrawalAgreed}
+                          onChange={(e) => setWithdrawalAgreed(e.target.checked)}
+                          className="mr-2" 
+                        />
                         안내 사항을 모두 확인하였으며, 이에 동의합니다.
                       </label>
+                      
+                      {withdrawalError && (
+                        <div className="text-red-500 text-sm">{withdrawalError}</div>
+                      )}
+                      
                       <button
                         type="submit"
-                        className="w-full py-3 rounded bg-gray-200 text-gray-400 font-semibold cursor-not-allowed text-sm"
-                        disabled
+                        disabled={!withdrawalAgreed || isWithdrawing}
+                        className={`w-full py-3 rounded text-sm font-semibold transition ${
+                          withdrawalAgreed && !isWithdrawing
+                            ? 'bg-red-500 text-white hover:bg-red-600'
+                            : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                        }`}
                       >
-                        탈퇴 하기
+                        {isWithdrawing ? '처리 중...' : '탈퇴 하기'}
                       </button>
                     </form>
                   </div>

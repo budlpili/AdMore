@@ -78,7 +78,8 @@ const Login: React.FC = () => {
           } else if (error.message) {
             setErrors({ general: error.message });
           } else {
-            setErrors({ general: '이메일 또는 비밀번호가 올바르지 않습니다.' });
+            // 백엔드에서 구체적인 메시지를 받지 못한 경우 기본 메시지
+            setErrors({ general: '로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요.' });
           }
         })
         .finally(() => {
@@ -118,7 +119,7 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12">
+    <div className="min-h-[calc(100vh-200px)] bg-gray-50 py-12">
       <div className="max-w-md mx-auto">
         <div className="bg-white rounded-lg shadow-md p-8">
           {/* Header */}
@@ -192,13 +193,12 @@ const Login: React.FC = () => {
               {/* Password Recovery Link */}
               <div className="mt-2 text-left flex flex-row justify-start gap-2">
                 <p className="text-xs text-gray-600">비밀번호를 잊으셨나요?</p>
-                <button
-                  type="button"
-                  onClick={() => setShowPasswordRecovery(true)}
+                <Link
+                  to="/forgot-password"
                   className="text-xs text-blue-600 hover:text-blue-700 hover:underline transition-colors"
                 >
                   비밀번호 찾기
-                </button>
+                </Link>
               </div>
 
             </div>

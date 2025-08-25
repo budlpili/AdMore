@@ -115,7 +115,7 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
   const [backendCategories, setBackendCategories] = useState<Category[]>([]);
   const [productCategories, setProductCategories] = useState<string[]>([]);
   const [isCategoryManagementModalOpen, setIsCategoryManagementModalOpen] = useState(false);
-  const [editingCategory, setEditingCategory] = useState<{ id: number; name: string } | null>(null);
+  const [editingCategory, setEditingCategory] = useState<{ id: string | number; name: string } | null>(null);
   const [editingCategoryValue, setEditingCategoryValue] = useState('');
   const [newTag, setNewTag] = useState('');
   const [customTags, setCustomTags] = useState<string[]>([]);
@@ -133,7 +133,7 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [adminPassword, setAdminPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
-  const [editingBackendTag, setEditingBackendTag] = useState<{ id: number; name: string } | null>(null);
+  const [editingBackendTag, setEditingBackendTag] = useState<{ id: string | number; name: string } | null>(null);
   const [editingBackendTagValue, setEditingBackendTagValue] = useState('');
   
 
@@ -687,7 +687,7 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
         console.log('상세 설명 타입:', typeof updateData.detailedDescription);
         console.log('상세 설명 길이:', updateData.detailedDescription?.length);
         
-        const updatedProduct = await productAPI.updateProduct(editingProduct.id, updateData);
+        const updatedProduct = await productAPI.updateProduct(editingProduct._id || editingProduct.id || 0, updateData);
         
         if (updatedProduct) {
           console.log('수정된 상품:', updatedProduct);
@@ -747,7 +747,7 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
     }
   };
 
-  const deleteProduct = async (productId: number) => {
+  const deleteProduct = async (productId: string | number) => {
     if (window.confirm('정말로 이 상품을 삭제하시겠습니까?')) {
       try {
         const success = await productAPI.deleteProduct(productId);
@@ -765,9 +765,9 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
     }
   };
 
-  const toggleProductStatus = async (productId: number) => {
+  const toggleProductStatus = async (productId: string | number) => {
     try {
-      const product = products.find(p => p.id === productId);
+              const product = products.find(p => (p._id || p.id) === productId);
       if (!product) return;
       
       const newStatus = product.status === 'active' ? 'inactive' : 'active' as 'active' | 'inactive';
@@ -1034,7 +1034,7 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
   };
 
   // 카테고리 수정 시작
-  const startEditCategory = (category: { id: number; name: string }) => {
+  const startEditCategory = (category: { id: string | number; name: string }) => {
     setEditingCategory(category);
     setEditingCategoryValue(category.name);
     setIsCategoryManagementModalOpen(true);
@@ -1077,7 +1077,7 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
   };
 
   // 카테고리 삭제
-  const deleteCategory = async (category: { id: number; name: string }) => {
+  const deleteCategory = async (category: { id: string | number; name: string }) => {
     if (!window.confirm(`카테고리 "${category.name}"를 삭제하시겠습니까?`)) {
       return;
     }
@@ -1098,7 +1098,7 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
   };
 
   // 백엔드 태그 수정 시작
-  const startEditBackendTag = (tag: { id: number; name: string }) => {
+  const startEditBackendTag = (tag: { id: string | number; name: string }) => {
     setEditingBackendTag(tag);
     setEditingBackendTagValue(tag.name);
     setIsTagManagementModalOpen(true);
@@ -1139,7 +1139,7 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
   };
 
   // 백엔드 태그 삭제
-  const deleteBackendTag = async (tag: { id: number; name: string }) => {
+  const deleteBackendTag = async (tag: { id: string | number; name: string }) => {
     if (!window.confirm(`태그 "${tag.name}"를 삭제하시겠습니까?`)) {
       return;
     }
@@ -1372,7 +1372,7 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {currentProducts.map((product) => (
-                    <tr key={product.id} className="hover:bg-gray-50">
+                    <tr key={product._id || product.id || Math.random()} className="hover:bg-gray-50">
                       <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-xs text-gray-500 font-bold">
                         <div className="flex flex-col items-center gap-2">
                           <FontAwesomeIcon 
@@ -1434,7 +1434,7 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
                             return tagsArray.length > 0 ? (
                               <>
                                 {tagsArray.slice(0, 3).map((tag: string, index: number) => (
-                                  <span key={index} className="px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-xs">
+                                  <span key={`${tag}-${index}-${Math.random()}`} className="px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-xs">
                                     {tag}
                                   </span>
                                 ))}
@@ -1524,7 +1524,7 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
                             <FontAwesomeIcon icon={faEdit} />
                           </button>
                           <button
-                            onClick={() => toggleProductStatus(product.id)}
+                            onClick={() => toggleProductStatus(product._id || product.id || 0)}
                             className={`text-xs px-2 py-1 rounded border transition-colors ${
                               product.status === 'active' 
                                 ? 'text-yellow-600 border-yellow-300 hover:bg-yellow-50' 
@@ -1535,7 +1535,7 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
                             {product.status === 'active' ? '비활성화' : '활성화'}
                           </button>
                           <button
-                            onClick={() => deleteProduct(product.id)}
+                            onClick={() => deleteProduct(product._id || product.id || 0)}
                             className="text-red-600 hover:text-red-900 text-xs px-2 py-1 rounded border border-red-300 hover:bg-red-50"
                             title="삭제"
                           >
@@ -2443,17 +2443,17 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
               ) : (
                 <div className="space-y-2 max-h-40 overflow-y-auto">
                   {backendCategories.map(category => (
-                    <div key={category.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                    <div key={category._id || category.id || Math.random()} className="flex items-center justify-between p-2 bg-gray-50 rounded">
                       <span className="text-sm text-gray-900">{category.name}</span>
                       <div className="flex gap-1">
                         <button 
-                          onClick={() => startEditCategory(category)} 
+                          onClick={() => startEditCategory({ id: category._id || category.id || 0, name: category.name })} 
                           className="px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600"
                         >
                           수정
                         </button>
                         <button 
-                          onClick={() => deleteCategory(category)} 
+                          onClick={() => deleteCategory({ id: category._id || category.id || 0, name: category.name })} 
                           className="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600"
                         >
                           삭제
@@ -2544,17 +2544,17 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
                 <div className="space-y-2 max-h-40 overflow-y-auto">
                   {/* 백엔드 태그들 */}
                   {backendTags.map(tag => (
-                    <div key={`backend-${tag.id}`} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                    <div key={`backend-${tag._id || tag.id || Math.random()}`} className="flex items-center justify-between p-2 bg-gray-50 rounded">
                       <span className="text-sm text-gray-900">{tag.name}</span>
                       <div className="flex gap-1">
                         <button 
-                          onClick={() => startEditBackendTag(tag)} 
+                                                      onClick={() => startEditBackendTag({ id: tag._id || tag.id || 0, name: tag.name })} 
                           className="px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600"
                         >
                           수정
                         </button>
                         <button 
-                          onClick={() => deleteBackendTag(tag)} 
+                                                      onClick={() => deleteBackendTag({ id: tag._id || tag.id || 0, name: tag.name })} 
                           className="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600"
                         >
                           삭제
@@ -2565,7 +2565,7 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
                   
                   {/* 상품 태그들 (백엔드에 저장되지 않은 태그들) */}
                   {productTags.filter(tag => !backendTags.some(backendTag => backendTag.name === tag)).map(tag => (
-                    <div key={`product-${tag}`} className="flex items-center justify-between p-2 bg-yellow-50 rounded border-l-4 border-yellow-400">
+                    <div key={`product-${tag}-${Math.random()}`} className="flex items-center justify-between p-2 bg-yellow-50 rounded border-l-4 border-yellow-400">
                       <span className="text-sm text-gray-900">{tag} <span className="text-xs text-yellow-600">(상품 태그)</span></span>
                       <div className="flex gap-1">
                         <button 

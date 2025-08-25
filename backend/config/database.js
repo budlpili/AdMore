@@ -1,19 +1,43 @@
-// 임시 SQLite 데이터베이스 설정 (에러 방지용)
-// 실제로는 MongoDB를 사용합니다
+// MongoDB 데이터베이스 설정
+const mongoose = require('mongoose');
 
-const mockDb = {
-  get: (sql, params, callback) => {
-    console.log('SQLite 호출됨 (MongoDB로 전환 필요):', sql);
-    callback(null, null);
-  },
-  all: (sql, params, callback) => {
-    console.log('SQLite 호출됨 (MongoDB로 전환 필요):', sql);
-    callback(null, []);
-  },
-  run: (sql, params, callback) => {
-    console.log('SQLite 호출됨 (MongoDB로 전환 필요):', sql);
-    if (callback) callback(null);
+// MongoDB 연결 함수
+const connectToMongoDB = async () => {
+  try {
+    const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/admore';
+    await mongoose.connect(mongoURI);
+    console.log('✅ MongoDB 연결 성공!');
+    return true;
+  } catch (error) {
+    console.error('❌ MongoDB 연결 실패:', error);
+    return false;
   }
 };
 
-module.exports = mockDb;
+// MongoDB 모델들을 export
+const Product = require('../models/Product');
+const User = require('../models/User');
+const Order = require('../models/Order');
+const Coupon = require('../models/Coupon');
+const Review = require('../models/Review');
+const Category = require('../models/Category');
+const Tag = require('../models/Tag');
+const Notice = require('../models/Notice'); // Added
+const ChatMessage = require('../models/ChatMessage'); // Added
+const Privacy = require('../models/Privacy'); // Added
+const Terms = require('../models/Terms'); // Added
+
+module.exports = {
+  connectToMongoDB,
+  Product,
+  User,
+  Order,
+  Coupon,
+  Review,
+  Category,
+  Tag,
+  Notice, // Added
+  ChatMessage, // Added
+  Privacy, // Added
+  Terms // Added
+};

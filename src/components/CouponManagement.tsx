@@ -7,34 +7,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import Pagination from './Pagination';
 import { usersAPI, couponsAPI } from '../services/api';
-
-interface Coupon {
-  id: number;
-  code: string;
-  name: string;
-  description: string;
-  brand: string;
-  discountType: 'percentage' | 'fixed';
-  discountValue: number;
-  minAmount: number;
-  maxDiscount?: number;
-  startDate: string;
-  endDate: string;
-  usageLimit: number;
-  usedCount: number;
-  used_count?: number;
-  sent_count?: number;
-  status: 'active' | 'inactive' | 'expired';
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface User {
-  id: string;
-  email: string;
-  name: string;
-  status: string;
-}
+import { Coupon, User } from '../types';
 
 const CouponManagement: React.FC = () => {
   const [coupons, setCoupons] = useState<Coupon[]>([]);
@@ -54,7 +27,7 @@ const CouponManagement: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [isSendModalOpen, setIsSendModalOpen] = useState(false);
   const [selectedCoupon, setSelectedCoupon] = useState<Coupon | null>(null);
-  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  const [selectedUsers, setSelectedUsers] = useState<(string | number)[]>([]);
   const [userSearchTerm, setUserSearchTerm] = useState('');
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
 
@@ -139,7 +112,7 @@ const CouponManagement: React.FC = () => {
         const activeUsers = response.users
           .filter((user: any) => user.status === 'active')
           .map((user: any) => ({
-            id: user.id.toString(),
+            id: (user._id || user.id || '').toString(),
             email: user.email,
             name: user.name,
             status: user.status
@@ -199,12 +172,12 @@ const CouponManagement: React.FC = () => {
     setIsFormOpen(true);
   };
 
-  const handleDeleteCoupon = async (couponId: number) => {
+  const handleDeleteCoupon = async (couponId: string | number) => {
     if (window.confirm('정말로 이 쿠폰을 삭제하시겠습니까?')) {
       try {
         const response = await couponsAPI.delete(couponId);
         if (response.success) {
-          setCoupons(prev => prev.filter(coupon => coupon.id !== couponId));
+          setCoupons(prev => prev.filter(coupon => (coupon._id || coupon.id || 0) !== couponId));
           alert('쿠폰이 삭제되었습니다.');
         } else {
           alert('쿠폰 삭제에 실패했습니다.');
@@ -222,10 +195,10 @@ const CouponManagement: React.FC = () => {
     try {
       if (editingCoupon) {
         // 수정
-        const response = await couponsAPI.update(editingCoupon.id, formData);
+        const response = await couponsAPI.update(editingCoupon._id || editingCoupon.id || 0, formData);
         if (response.success) {
           setCoupons(prev => prev.map(coupon => 
-            coupon.id === editingCoupon.id ? { ...coupon, ...formData } : coupon
+            (coupon._id || coupon.id || 0) === (editingCoupon._id || editingCoupon.id || 0) ? { ...coupon, ...formData } : coupon
           ));
           alert('쿠폰이 수정되었습니다.');
         } else {
@@ -351,7 +324,7 @@ const CouponManagement: React.FC = () => {
     }
   };
 
-  const toggleUserSelection = (userId: string) => {
+  const toggleUserSelection = (userId: string | number) => {
     setSelectedUsers(prev => 
       prev.includes(userId) 
         ? prev.filter(id => id !== userId)
@@ -363,7 +336,7 @@ const CouponManagement: React.FC = () => {
     if (selectedUsers.length === filteredUsers.length) {
       setSelectedUsers([]);
     } else {
-      setSelectedUsers(filteredUsers.map(user => user.id));
+      setSelectedUsers(filteredUsers.map(user => (user._id || user.id || '').toString()));
     }
   };
 
@@ -379,10 +352,10 @@ const CouponManagement: React.FC = () => {
     }
 
     try {
-      const response = await couponsAPI.send(selectedCoupon.id, selectedUsers);
+      const response = await couponsAPI.send(selectedCoupon._id || selectedCoupon.id || 0, selectedUsers);
       if (response.success) {
         const selectedUserNames = users
-          .filter(user => selectedUsers.includes(user.id))
+          .filter(user => selectedUsers.includes((user._id || user.id || '').toString()))
           .map(user => user.name)
           .join(', ');
 
@@ -526,7 +499,7 @@ const CouponManagement: React.FC = () => {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {currentCoupons.map((coupon) => (
-                <tr key={coupon.id} className="hover:bg-gray-50">
+                <tr key={coupon._id || coupon.id || Math.random()} className="hover:bg-gray-50">
                   <td className="px-6 py-4">
                     <div>
                       <div className="text-sm font-medium text-gray-900">{coupon.brand}</div>
@@ -566,18 +539,18 @@ const CouponManagement: React.FC = () => {
                   </td>
                   <td className="px-6 py-4">
                     <div className="text-sm text-gray-900">
-                      {coupon.used_count || 0} / {coupon.usageLimit || '무제한'}
+                      {coupon.usedCount || 0} / {coupon.usageLimit || '무제한'}
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
                       <div 
                         className="bg-blue-600 h-2 rounded-full" 
                         style={{ 
-                          width: `${coupon.usageLimit > 0 ? ((coupon.used_count || 0) / coupon.usageLimit) * 100 : 0}%` 
+                          width: `${coupon.usageLimit > 0 ? ((coupon.usedCount || 0) / coupon.usageLimit) * 100 : 0}%` 
                         }}
                       ></div>
                     </div>
                     <div className="text-xs text-gray-500 mt-1">
-                      발송: {coupon.sent_count || 0}개
+                      발송: {coupon.usedCount || 0}개
                     </div>
                   </td>
                   <td className="px-6 py-4">
@@ -600,7 +573,7 @@ const CouponManagement: React.FC = () => {
                         <FontAwesomeIcon icon={faEdit} />
                       </button>
                       <button
-                        onClick={() => handleDeleteCoupon(coupon.id)}
+                        onClick={() => handleDeleteCoupon(coupon._id || coupon.id || 0)}
                         className="text-red-600 hover:text-red-900"
                         title="삭제"
                       >
@@ -1004,14 +977,14 @@ const CouponManagement: React.FC = () => {
                     <div
                       key={user.id}
                       className={`flex items-center p-3 border-b border-gray-200 last:border-b-0 hover:bg-gray-50 cursor-pointer ${
-                        selectedUsers.includes(user.id) ? 'bg-blue-50' : ''
+                        selectedUsers.includes((user._id || user.id || '').toString()) ? 'bg-blue-50' : ''
                       }`}
-                      onClick={() => toggleUserSelection(user.id)}
+                                              onClick={() => toggleUserSelection((user._id || user.id || '').toString())}
                     >
                       <input
                         type="checkbox"
-                        checked={selectedUsers.includes(user.id)}
-                        onChange={() => toggleUserSelection(user.id)}
+                        checked={selectedUsers.includes((user._id || user.id || '').toString())}
+                        onChange={() => toggleUserSelection((user._id || user.id || '').toString())}
                         className="mr-3"
                       />
                       <div className="flex-1">

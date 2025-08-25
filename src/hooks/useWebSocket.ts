@@ -56,7 +56,7 @@ export const useWebSocket = ({
       return socketRef.current;
     }
 
-    const wsUrl = process.env.REACT_APP_WS_URL || 'http://localhost:5001';
+    const wsUrl = 'http://localhost:5001';
     console.log('=== WebSocket 연결 시도 시작 ===');
     console.log('연결 대상:', wsUrl);
     console.log('사용자 이메일:', userEmail);
@@ -65,6 +65,7 @@ export const useWebSocket = ({
     connectionAttemptedRef.current = true;
 
     const socket = io(wsUrl, {
+      path: '/socket.io/',
       transports: ['polling', 'websocket'],
       autoConnect: true,
       timeout: 15000,

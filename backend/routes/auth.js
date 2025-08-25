@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { register, login, adminLogin, verifyAdminPassword, getProfile, updateProfile, changePassword, logout, verifyEmail, resendVerifyEmail } = require('../controllers/userController');
+const { register, login, adminLogin, verifyAdminPassword, getProfile, updateProfile, changePassword, logout, verifyEmail, resendVerifyEmail, requestPasswordReset, verifyResetToken, resetPassword, deleteAccount } = require('../controllers/userController');
 const { auth } = require('../middleware/auth');
 
 // 회원가입
@@ -30,6 +30,14 @@ router.post('/logout', auth, logout);
 // 이메일 인증 확인
 router.get('/verify-email', verifyEmail);
 router.post('/resend-verify', resendVerifyEmail);
+
+// 비밀번호 재설정
+router.post('/request-password-reset', requestPasswordReset);
+router.get('/verify-reset-token', verifyResetToken);
+router.post('/reset-password', resetPassword);
+
+// 회원 탈퇴 (인증 필요)
+router.delete('/delete-account', auth, deleteAccount);
 
 // 이메일 인증 코드 요청
 router.post('/request-verification', async (req, res) => {

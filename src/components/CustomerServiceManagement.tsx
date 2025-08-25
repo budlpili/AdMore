@@ -16,26 +16,8 @@ import CodeBlock from '@tiptap/extension-code-block';
 import HorizontalRule from '@tiptap/extension-horizontal-rule';
 import Pagination from './Pagination';
 import { customerServiceAPI } from '../services/api';
+import { Notice, ChatMessage } from '../types';
 import '../css/ProductManagement.css';
-
-interface ChatMessage {
-  id: string;
-  user: string;
-  message: string;
-  timestamp: string;
-  type: 'user' | 'admin';
-  productInfo?: string;
-}
-
-interface Notice {
-  id: number;
-  title: string;
-  content: string;
-  important: boolean;
-  createdAt: string;
-  updatedAt: string;
-  author: string;
-}
 
 interface CustomerServiceManagementProps {
   chatMessages: ChatMessage[];
@@ -279,7 +261,7 @@ const CustomerServiceManagement: React.FC<CustomerServiceManagementProps> = ({
     setShowNoticeForm(true);
   };
 
-  const handleDeleteNotice = async (id: number) => {
+  const handleDeleteNotice = async (id: string | number) => {
     if (window.confirm('정말로 이 공지사항을 삭제하시겠습니까?')) {
       try {
         await customerServiceAPI.deleteNotice(id);
@@ -304,9 +286,9 @@ const CustomerServiceManagement: React.FC<CustomerServiceManagementProps> = ({
     if (editingNotice) {
       // 수정
       try {
-        await customerServiceAPI.updateNotice(editingNotice.id, noticeForm);
+        await customerServiceAPI.updateNotice(editingNotice._id || editingNotice.id || 0, noticeForm);
         const updatedNotices = notices.map(notice => 
-          notice.id === editingNotice.id 
+          (notice._id || notice.id) === (editingNotice._id || editingNotice.id) 
             ? { ...notice, ...noticeForm, updatedAt: now }
             : notice
         );
@@ -612,7 +594,7 @@ const CustomerServiceManagement: React.FC<CustomerServiceManagementProps> = ({
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                       {currentNotices.map((notice, index) => (
-                        <tr key={notice.id} className="hover:bg-gray-50">
+                        <tr key={notice._id || notice.id || Math.random()} className="hover:bg-gray-50">
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {notices.length - (indexOfFirstNotice + index)}
                           </td>
@@ -652,7 +634,7 @@ const CustomerServiceManagement: React.FC<CustomerServiceManagementProps> = ({
                                 <FontAwesomeIcon icon={faEdit} className="text-sm" />
                               </button>
                               <button
-                                onClick={() => handleDeleteNotice(notice.id)}
+                                onClick={() => handleDeleteNotice(notice._id || notice.id || 0)}
                                 className="text-red-600 hover:text-red-900"
                                 title="삭제"
                               >

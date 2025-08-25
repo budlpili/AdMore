@@ -12,6 +12,7 @@ export interface Review {
   tags?: string; // 태그 추가
   image?: string; // 상품 이미지 추가
   background?: string; // 상품 배경 이미지 추가
+  productImage?: string; // 상품 이미지 (MongoDB에서)
 }
 
 const mockReviews: Review[] = [

@@ -80,6 +80,7 @@ const io = socketIo(server, {
 const allowedOrigins = [
   'http://localhost:3000',
   'https://admore-frontend.cloudtype.app', // CloudType 프론트엔드 도메인
+  'https://web-admore-react-frontend-me83wyv0a5a64d5a.sel5.cloudtype.app', // CloudType 프론트엔드 도메인
   process.env.FRONTEND_URL, // 환경변수로 프론트엔드 URL 설정
   process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : [] // 여러 도메인 허용
 ].filter(Boolean).flat();
@@ -358,6 +359,7 @@ app.use('/api/reviews', require('./routes/reviews'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/customer-service', require('./routes/customerService'));
 app.use('/api/coupons', require('./routes/coupons'));
+app.use('/api/migration', require('./routes/migration'));
 
 // 채팅 관련 API
 app.get('/api/chat/messages', (req, res) => {

@@ -1,5 +1,6 @@
 export interface Product {
-  id: number;
+  id?: number;
+  _id?: string;
   name: string;
   description?: string;
   discountRate?: number;
@@ -28,7 +29,8 @@ export interface Product {
 }
 
 export interface Notice {
-  id: number;
+  id?: number;
+  _id?: string;
   title: string;
   content: string;
   important: boolean;
@@ -62,7 +64,8 @@ export interface FormErrors {
 }
 
 export interface Category {
-  id: number;
+  id?: number;
+  _id?: string;
   name: string;
   description?: string;
   path?: string;
@@ -76,7 +79,8 @@ export interface NavigationCategory {
 }
 
 export interface Tag {
-  id: number;
+  id?: number;
+  _id?: string;
   name: string;
   color?: string;
   createdAt?: string;
@@ -84,7 +88,9 @@ export interface Tag {
 }
 
 export interface Order {
-  id: number;
+  id?: number;
+  _id?: string;
+  orderId?: string;
   productId: string;
   quantity: number;
   paymentMethod: string;
@@ -100,11 +106,15 @@ export interface Order {
 }
 
 export interface User {
-  id: number;
+  id?: number;
+  _id?: string;
   email: string;
   name: string;
   phone?: string;
   role?: string;
+  status?: string;
+  joinDate?: string;
+  emailVerified?: number;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -117,8 +127,10 @@ export interface ChatMessage {
   type: 'user' | 'admin';
 }
 
+// MongoDB 호환 Coupon 인터페이스
 export interface Coupon {
-  id: number;
+  id?: number;
+  _id?: string;
   code: string;
   name: string;
   description: string;
@@ -134,4 +146,16 @@ export interface Coupon {
   status: 'active' | 'inactive' | 'expired';
   createdAt?: string;
   updatedAt?: string;
-} 
+}
+
+// MongoDB에서 사용되는 Coupon 타입
+export interface MongoDBCoupon extends Omit<Coupon, 'id'> {
+  _id: string;
+}
+
+// SQLite에서 사용되는 Coupon 타입
+export interface SQLiteCoupon extends Omit<Coupon, '_id'> {
+  id: number;
+}
+
+ 

@@ -16,6 +16,7 @@ import CustomerServiceManagement from '../components/CustomerServiceManagement';
 import InquiryManagement from '../components/InquiryManagement';
 import CouponManagement from '../components/CouponManagement';
 import PointManagement from '../components/PointManagement';
+import DataMigration from '../components/DataMigration';
 import Pagination from '../components/Pagination';
 import products, { getProducts, saveProducts, resetProducts } from '../data/products';
 import mockReviews from '../data/reviews-list';
@@ -67,6 +68,7 @@ interface Review {
   tags?: string;
   image?: string;
   background?: string;
+  productImage?: string;
   orderId?: string;
   orderDate?: string;
   quantity?: number;
@@ -103,6 +105,7 @@ interface SidebarItem {
   count?: number;
   action?: () => void;
   subItems?: SidebarItem[];
+  status?: string;
 }
 
 // 이메일 마스킹 함수
@@ -153,7 +156,7 @@ const Admin: React.FC = () => {
     }
   }, [navigate]);
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'orders' | 'reviews' | 'coupons' | 'points' | 'customerService' | 'inquiries' | 'users'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'orders' | 'reviews' | 'coupons' | 'points' | 'customerService' | 'inquiries' | 'users' | 'migration'>('dashboard');
   const [customerServiceTab, setCustomerServiceTab] = useState<'notices' | 'terms' | 'privacy'>('notices');
   const [isCustomerServiceExpanded, setIsCustomerServiceExpanded] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -504,29 +507,28 @@ const Admin: React.FC = () => {
     }
   }, [location.search, location.state]);
 
+
+
   const loadProducts = async () => {
     try {
-      // 타임아웃 설정 (5초)
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('요청 시간 초과')), 5000);
-      });
-
+      console.log('상품 데이터 로드 시작...');
+      
       // 백엔드에서 모든 상품 가져오기
-      const productPromise = productAPI.getAllProducts();
+      const productList = await productAPI.getAllProducts();
       
-      const productList = await Promise.race([productPromise, timeoutPromise]) as Product[];
+      console.log('백엔드에서 상품 데이터 로드 완료:', productList);
       
-      if (productList && productList.length > 0) {
+      if (productList && Array.isArray(productList) && productList.length > 0) {
         setProducts(productList);
+        console.log('상품 데이터 설정 완료:', productList.length, '개');
       } else {
-        // 백엔드에 데이터가 없으면 기본 데이터 사용
-        console.log('백엔드에 상품 데이터가 없어 기본 데이터를 사용합니다.');
-        setProducts(products);
+        console.log('백엔드에 상품 데이터가 없거나 빈 배열입니다.');
+        setProducts([]);
       }
     } catch (error) {
       console.error('상품 로드 에러:', error);
-      // 에러 발생 시 기본 데이터 사용
-              setProducts(products);
+      // 에러 발생 시 빈 배열로 설정
+      setProducts([]);
     }
   };
 
@@ -591,6 +593,11 @@ const Admin: React.FC = () => {
   // 필터 변경 시 페이지 리셋
   useEffect(() => {
     setCurrentUserPage(1);
+    console.log('필터 변경됨:', {
+      search: userSearchTerm,
+      role: userRoleFilter,
+      status: userStatusFilter
+    });
   }, [userSearchTerm, userRoleFilter, userStatusFilter, usersPerPage]);
 
   const loadOrders = async () => {
@@ -598,8 +605,18 @@ const Admin: React.FC = () => {
       const response = await fetch('http://localhost:5001/api/orders');
       if (response.ok) {
         const data = await response.json();
-        setOrders(data.orders);
-        console.log('백엔드에서 주문 데이터 로드 완료:', data.orders);
+        // 응답 구조 확인 및 안전한 데이터 설정
+        if (data && Array.isArray(data.orders)) {
+          setOrders(data.orders);
+          console.log('백엔드에서 주문 데이터 로드 완료:', data.orders);
+        } else if (Array.isArray(data)) {
+          // 응답이 배열인 경우
+          setOrders(data);
+          console.log('백엔드에서 주문 데이터 로드 완료 (배열):', data);
+        } else {
+          console.warn('예상하지 못한 응답 구조:', data);
+          setOrders([]);
+        }
       } else {
         console.error('주문 데이터 로드 실패:', response.status);
         setOrders([]);
@@ -614,8 +631,9 @@ const Admin: React.FC = () => {
     try {
       const response = await reviewsAPI.getAll();
       if (response && Array.isArray(response)) {
+        // 직접 배열인 경우
         const formattedReviews = response.map((review: any) => ({
-          id: review.id,
+          id: review._id || review.id || Math.random(), // MongoDB _id 우선 사용
           user: review.userEmail || review.user || '익명',
           time: review.createdAt || review.time || new Date().toLocaleString(),
           content: review.content,
@@ -628,11 +646,39 @@ const Admin: React.FC = () => {
           tags: review.tags,
           image: review.image,
           background: review.background,
+          productImage: review.productImage,
           orderId: review.orderId,
           orderDate: review.orderDate,
           quantity: review.quantity
         }));
+        console.log('리뷰 데이터 매핑 결과 (직접 배열):', formattedReviews);
         setReviews(formattedReviews);
+      } else if (response && response.success && Array.isArray(response.reviews)) {
+        // {success: true, reviews: [...]} 형태인 경우
+        const formattedReviews = response.reviews.map((review: any) => ({
+          id: review._id || review.id || Math.random(), // MongoDB _id 우선 사용
+          user: review.userEmail || review.user || '익명',
+          time: review.createdAt || review.time || new Date().toLocaleString(),
+          content: review.content,
+          product: review.productName || review.product || '상품명 없음',
+          rating: review.rating,
+          reply: review.adminReply || review.reply,
+          replyTime: review.adminReplyTime || review.replyTime,
+          productId: review.productId,
+          category: review.category,
+          tags: review.tags,
+          image: review.image,
+          background: review.background,
+          productImage: review.productImage,
+          orderId: review.orderId,
+          orderDate: review.orderDate,
+          quantity: review.quantity
+        }));
+        console.log('리뷰 데이터 매핑 결과 (success 객체):', formattedReviews);
+        setReviews(formattedReviews);
+      } else {
+        console.warn('예상하지 못한 리뷰 응답 구조:', response);
+        setReviews([]);
       }
     } catch (error) {
       console.error('리뷰 로드 중 오류:', error);
@@ -651,7 +697,7 @@ const Admin: React.FC = () => {
   };
 
   // 리뷰 검색 및 필터링
-  const filteredReviews = reviews.filter(review =>
+  const filteredReviews = (reviews || []).filter(review =>
     review.user.toLowerCase().includes(searchTerm.toLowerCase()) ||
     review.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
     review.product.toLowerCase().includes(searchTerm.toLowerCase())
@@ -695,13 +741,20 @@ const Admin: React.FC = () => {
       if (response && response.users) {
         setUsers(response.users);
         console.log('백엔드에서 회원 데이터 로드 완료:', response.users);
+        // 회원 데이터 로드 후 선택 상태 초기화
+        setSelectedUsers([]);
+        setSelectAllUsers(false);
       } else {
         console.error('회원 데이터 로드 실패: 응답 데이터 없음');
         setUsers([]);
+        setSelectedUsers([]);
+        setSelectAllUsers(false);
       }
     } catch (error) {
       console.error('회원 데이터 로드 중 오류:', error);
       setUsers([]);
+      setSelectedUsers([]);
+      setSelectAllUsers(false);
     }
   };
 
@@ -710,7 +763,7 @@ const Admin: React.FC = () => {
     if (window.confirm(`주문 상태를 "${newStatus}"로 변경하시겠습니까?`)) {
       try {
         // 백엔드 API 호출
-        const response = await fetch(`http://localhost:5001/api/orders/order/${orderId}/status`, {
+        const response = await fetch(`http://localhost:5001/api/orders/${orderId}/status`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -756,7 +809,7 @@ const Admin: React.FC = () => {
     if (window.confirm('입금을 확인하시겠습니까?\n\n입금 확인 후에는 취소할 수 있습니다.')) {
       try {
         // 백엔드 API 호출
-        const response = await fetch(`http://localhost:5001/api/orders/order/${orderId}/status`, {
+        const response = await fetch(`http://localhost:5001/api/orders/${orderId}/payment`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -794,7 +847,7 @@ const Admin: React.FC = () => {
     if (window.confirm('입금완료를 취소하시겠습니까?\n\n입금확인전 상태로 되돌립니다.')) {
       try {
         // 백엔드 API 호출
-        const response = await fetch(`http://localhost:5001/api/orders/order/${orderId}/status`, {
+        const response = await fetch(`http://localhost:5001/api/orders/${orderId}/payment`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -948,7 +1001,7 @@ const Admin: React.FC = () => {
   };
 
   // 필터링된 주문
-  const filteredOrders = orders.filter(order => {
+  const filteredOrders = (orders || []).filter(order => {
     const matchesSearch = (order.product?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
                          (order.orderId?.toLowerCase() || '').includes(searchTerm.toLowerCase());
     
@@ -992,12 +1045,26 @@ const Admin: React.FC = () => {
   const currentOrders = filteredOrders.slice(indexOfFirstOrder, indexOfLastOrder);
 
   // 필터링된 회원
-  const filteredUsers = users.filter(user => {
+  const filteredUsers = (users || []).filter(user => {
     const matchesSearch = (user.name?.toLowerCase() || '').includes(userSearchTerm.toLowerCase()) ||
                          (user.email?.toLowerCase() || '').includes(userSearchTerm.toLowerCase()) ||
                          (user.phone || '').includes(userSearchTerm);
     const matchesRole = userRoleFilter === 'all' || user.role === userRoleFilter;
     const matchesStatus = userStatusFilter === 'all' || user.status === userStatusFilter;
+    
+    // 디버깅을 위한 로그
+    if (userSearchTerm || userRoleFilter !== 'all' || userStatusFilter !== 'all') {
+      console.log('필터링:', {
+        user: user.name,
+        search: matchesSearch,
+        role: matchesRole,
+        status: matchesStatus,
+        userRole: user.role,
+        userStatus: user.status,
+        filters: { search: userSearchTerm, role: userRoleFilter, status: userStatusFilter }
+      });
+    }
+    
     return matchesSearch && matchesRole && matchesStatus;
   });
 
@@ -1010,6 +1077,15 @@ const Admin: React.FC = () => {
   const totalUserPages = Math.ceil(filteredUsers.length / usersPerPage);
   const currentUsers = sortedUsers.slice(indexOfFirstUser, indexOfLastUser);
 
+  // currentUsers 변경 시 선택 상태 동기화
+  useEffect(() => {
+    // currentUsers가 변경되면 선택 상태를 동기화
+    if (selectedUsers.length > 0) {
+      const allSelected = selectedUsers.length === currentUsers.length && currentUsers.length > 0;
+      setSelectAllUsers(allSelected);
+    }
+  }, [currentUsers, selectedUsers]);
+
   // 통계 데이터
   const totalOrders = orders.length;
   const totalUsers = users.length;
@@ -1019,8 +1095,8 @@ const Admin: React.FC = () => {
     { id: 'products', label: '상품관리', icon: faCog, count: products.length, action: undefined },
     { id: 'orders', label: '주문관리', icon: faBox, count: totalOrders, action: undefined },
     { id: 'reviews', label: '리뷰관리', icon: faStar, count: reviews.length, action: undefined },
-    { id: 'coupons', label: '쿠폰관리', icon: faTicketAlt, count: undefined, action: undefined },
-    { id: 'points', label: '포인트관리', icon: faCoins, count: undefined, action: undefined },
+    { id: 'coupons', label: '쿠폰관리', icon: faTicketAlt, count: undefined, action: undefined, status: '준비중' },
+    { id: 'points', label: '포인트관리', icon: faCoins, count: undefined, action: undefined, status: '준비중' },
     { id: 'customerService', label: '고객센터', icon: faComments, count: undefined, action: undefined, subItems: [
       { id: 'notices', label: '공지사항', icon: faBell, count: unreadCount, action: undefined },
       { id: 'terms', label: '이용약관', icon: faFileAlt, count: undefined, action: undefined },
@@ -1028,6 +1104,7 @@ const Admin: React.FC = () => {
     ] },
     { id: 'inquiries', label: '1:1문의', icon: faHeadset, count: chatMessages.length, action: undefined },
     { id: 'users', label: '회원관리', icon: faUser, count: totalUsers, action: undefined },
+    { id: 'migration', label: '데이터 마이그레이션', icon: faSync, count: undefined, action: undefined },
   ];
 
   // 로그아웃 함수
@@ -1162,11 +1239,16 @@ const Admin: React.FC = () => {
 
   // 회원 선택 관련 함수들
   const toggleUserSelection = (userId: string) => {
-    setSelectedUsers(prev => 
-      prev.includes(userId) 
+    setSelectedUsers(prev => {
+      const newSelected = prev.includes(userId) 
         ? prev.filter(id => id !== userId)
-        : [...prev, userId]
-    );
+        : [...prev, userId];
+      
+      // 전체 선택 상태 업데이트
+      setSelectAllUsers(newSelected.length === currentUsers.length && currentUsers.length > 0);
+      
+      return newSelected;
+    });
   };
 
   const toggleSelectAllUsers = () => {
@@ -1174,7 +1256,7 @@ const Admin: React.FC = () => {
       setSelectedUsers([]);
       setSelectAllUsers(false);
     } else {
-      setSelectedUsers(currentUsers.map(user => user.id));
+      setSelectedUsers(currentUsers.map(user => user._id).filter((id): id is string => id !== undefined));
       setSelectAllUsers(true);
     }
   };
@@ -1427,7 +1509,7 @@ const Admin: React.FC = () => {
   const saveRequest = async (orderId: string) => {
     try {
       // 백엔드 API 호출
-      const response = await fetch(`http://localhost:5001/api/orders/order/${orderId}/request`, {
+      const response = await fetch(`http://localhost:5001/api/orders/${orderId}/request`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -1490,7 +1572,7 @@ const Admin: React.FC = () => {
         // 백엔드에서 선택된 주문들 삭제
         const deletePromises = selectedOrders.map(async (orderId) => {
           try {
-            const response = await fetch(`http://localhost:5001/api/orders/order/${orderId}`, {
+            const response = await fetch(`http://localhost:5001/api/orders/${orderId}`, {
               method: 'DELETE',
               headers: {
                 'Content-Type': 'application/json',
@@ -1640,6 +1722,12 @@ const Admin: React.FC = () => {
                       <div className="bg-orange-500 text-white text-[9px] leading-4 text-center w-4 h-4 rounded-full ml-2 
                         px-[1px] whitespace-nowrap">
                         {typeof item.count === 'number' && item.count > 99 ? '99+' : item.count}
+                      </div>
+                    )}
+                    {item.status && (
+                      <div className="bg-gray-400 text-white text-[9px] leading-4 text-center px-2 h-4 rounded-full ml-2 
+                        whitespace-nowrap flex items-center">
+                        {item.status}
                       </div>
                     )}
                   </div>
@@ -1803,6 +1891,12 @@ const Admin: React.FC = () => {
                       <div className="bg-orange-500 text-white font-bold text-[8px] leading-4 text-center w-[14px] h-[14px] rounded-full ml-2 
                           whitespace-nowrap">
                         {item.count}
+                      </div>
+                    )}
+                    {item.status && (
+                      <div className="bg-gray-400 text-white font-bold text-[8px] leading-4 text-center px-2 h-[14px] rounded-full ml-2 
+                        whitespace-nowrap flex items-center">
+                        {item.status}
                       </div>
                     )}
                   </div>
@@ -3375,9 +3469,22 @@ const Admin: React.FC = () => {
               <InquiryManagement 
                 chatMessages={chatMessages}
                 onChatMessagesChange={updateChatMessages}
-                users={users}
+                users={users.map(user => ({
+                  id: user._id || '',
+                  email: user.email || '',
+                  name: user.name || '',
+                  role: user.role || 'user',
+                  status: user.status || 'active'
+                }))}
                 sendMessage={sendMessage}
               />
+            )}
+
+            {/* 데이터 마이그레이션 탭 */}
+            {activeTab === 'migration' && (
+              <div>
+                <DataMigration />
+              </div>
             )}
 
             {/* 회원 관리 탭 */}
@@ -3451,7 +3558,7 @@ const Admin: React.FC = () => {
                     
                     {/* 역할 필터 */}
                     <div className="flex items-center gap-2">
-                      <div className="relative">
+                      <div className="relative role-dropdown">
                         <button
                           onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
                           className="flex items-center justify-between px-3 py-2 pr-4 border border-gray-300 rounded-lg
@@ -3469,6 +3576,12 @@ const Admin: React.FC = () => {
                             className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10"
                             onMouseLeave={() => setIsRoleDropdownOpen(false)}
                           >
+                            <div
+                              onClick={() => { setUserRoleFilter('all'); setIsRoleDropdownOpen(false); }}
+                              className="px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                            >
+                              전체
+                            </div>
                             <div
                               onClick={() => { setUserRoleFilter('admin'); setIsRoleDropdownOpen(false); }}
                               className="px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
@@ -3488,7 +3601,7 @@ const Admin: React.FC = () => {
                     
                     {/* 상태 필터 */}
                     <div className="flex items-center gap-2">
-                      <div className="relative">
+                      <div className="relative status-dropdown">
                         <button
                           onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
                           className="flex items-center justify-between px-3 py-2 pr-4 border border-gray-300 rounded-lg text-sm
@@ -3504,6 +3617,12 @@ const Admin: React.FC = () => {
                             className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10"
                             onMouseLeave={() => setIsStatusDropdownOpen(false)}
                           >
+                            <div
+                              onClick={() => { setUserStatusFilter('all'); setIsStatusDropdownOpen(false); }}
+                              className="px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                            >
+                              전체
+                            </div>
                             <div
                               onClick={() => { setUserStatusFilter('active'); setIsStatusDropdownOpen(false); }}
                               className="px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
@@ -3691,12 +3810,12 @@ const Admin: React.FC = () => {
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
                         {currentUsers.map((user, idx) => (
-                          <tr key={user.id} className="hover:bg-gray-50">
+                          <tr key={user._id} className="hover:bg-gray-50">
                             <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500 flex justify-center">
                               <input
                                 type="checkbox"
-                                checked={selectedUsers.includes(user.id)}
-                                onChange={() => toggleUserSelection(user.id)}
+                                checked={user._id ? selectedUsers.includes(user._id) : false}
+                                onChange={() => user._id && toggleUserSelection(user._id)}
                                 className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                               />
                             </td>

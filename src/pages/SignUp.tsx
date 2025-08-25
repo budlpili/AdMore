@@ -30,6 +30,7 @@ const SignUp: React.FC = () => {
   const [showEmailVerificationModal, setShowEmailVerificationModal] = useState(false);
   const [registeredEmail, setRegisteredEmail] = useState('');
   const [isEmailVerifying, setIsEmailVerifying] = useState(false);
+  const [isVerifyingCode, setIsVerifyingCode] = useState(false);
   const [isEmailVerified, setIsEmailVerified] = useState(false);
   const [emailVerificationCode, setEmailVerificationCode] = useState('');
   const [showVerificationInput, setShowVerificationInput] = useState(false);
@@ -117,7 +118,7 @@ const SignUp: React.FC = () => {
       return;
     }
 
-    setIsEmailVerifying(true);
+    setIsVerifyingCode(true);
     try {
       const response = await fetch('http://localhost:5001/api/auth/verify-code', {
         method: 'POST',
@@ -145,7 +146,7 @@ const SignUp: React.FC = () => {
       console.error('이메일 인증 코드 확인 오류:', error);
       setErrors({ email: '인증 코드 확인 중 오류가 발생했습니다.' });
     } finally {
-      setIsEmailVerifying(false);
+      setIsVerifyingCode(false);
     }
   };
 
@@ -284,30 +285,70 @@ const SignUp: React.FC = () => {
         phone: '' // 전화번호는 선택사항
       };
       
-      authAPI.register(userData)
-        .then((response: any) => {
-          console.log('회원가입 성공:', response);
-          alert('회원가입이 완료되었습니다.\n\n입력하신 이메일로 인증 메일을 보냈습니다.\n메일함에서 인증을 완료하신 후 로그인해주세요.');
-          navigate('/login');
-        })
-        .catch((error: any) => {
-          console.error('회원가입 실패:', error);
-          if (error.response && error.response.data) {
-            setErrors({ email: error.response.data.message || '회원가입에 실패했습니다.' });
-          } else {
-            setErrors({ email: '회원가입에 실패했습니다.' });
-          }
-        })
-        .finally(() => {
-          setIsSubmitting(false);
-        });
+      // 이미 이메일 인증이 완료된 경우
+      if (isEmailVerified) {
+        console.log('이미 이메일 인증 완료됨, 바로 회원가입 진행');
+        // 백엔드 API에 맞는 데이터 구조로 변환
+        const userData = {
+          email: formData.email,
+          password: formData.password,
+          name: formData.name,
+          phone: '', // 전화번호는 선택사항
+          emailVerified: true // 이메일 인증 완료 상태 추가
+        };
+        
+        authAPI.register(userData)
+          .then((response: any) => {
+            console.log('회원가입 성공:', response);
+            alert('회원가입이 완료되었습니다!');
+            navigate('/login');
+          })
+          .catch((error: any) => {
+            console.error('회원가입 실패:', error);
+            if (error.response && error.response.data) {
+              setErrors({ email: error.response.data.message || '회원가입에 실패했습니다.' });
+            } else {
+              setErrors({ email: '회원가입에 실패했습니다.' });
+            }
+          })
+          .finally(() => {
+            setIsSubmitting(false);
+          });
+      } else {
+        console.log('이메일 인증 필요, 백엔드로 회원가입 요청');
+        // 백엔드 API에 맞는 데이터 구조로 변환
+        const userData = {
+          email: formData.email,
+          password: formData.password,
+          name: formData.name,
+          phone: '' // 전화번호는 선택사항
+        };
+        
+        authAPI.register(userData)
+          .then((response: any) => {
+            console.log('회원가입 성공:', response);
+            alert('회원가입이 완료되었습니다.\n\n입력하신 이메일로 인증 메일을 보냈습니다.\n메일함에서 인증을 완료하신 후 로그인해주세요.');
+            navigate('/login');
+          })
+          .catch((error: any) => {
+            console.error('회원가입 실패:', error);
+            if (error.response && error.response.data) {
+              setErrors({ email: error.response.data.message || '회원가입에 실패했습니다.' });
+            } else {
+              setErrors({ email: '회원가입에 실패했습니다.' });
+            }
+          })
+          .finally(() => {
+            setIsSubmitting(false);
+          });
+      }
     } else {
       console.log('폼 검증 실패! 회원가입 중단');
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12">
+    <div className="min-h-[calc(100vh-200px)] bg-gray-50 pt-12 pb-24">
       <div className="max-w-md mx-auto">
         <div className="bg-white rounded-lg shadow-md p-8">
           {/* Header */}
@@ -406,10 +447,10 @@ const SignUp: React.FC = () => {
                     <button
                       type="button"
                       onClick={verifyEmailCode}
-                      disabled={isEmailVerifying || !emailVerificationCode.trim() || timeLeft <= 0}
+                      disabled={isVerifyingCode || !emailVerificationCode.trim() || timeLeft <= 0}
                       className="w-[82px] px-4 py-3 bg-orange-500 text-white rounded-md text-sm font-medium hover:bg-orange-600 transition duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed"
                     >
-                      {isEmailVerifying ? '확인중...' : '확인'}
+                      {isVerifyingCode ? '확인중...' : '확인'}
                     </button>
                   </div>
                   

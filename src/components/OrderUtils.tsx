@@ -70,16 +70,24 @@ export const renderOrderStatusBadge = (order: Order) => {
 export const filterByDate = (order: Order, startDate: string, endDate: string) => {
   if (!startDate && !endDate) return true;
   
+  // 주문 날짜를 Date 객체로 변환 (로컬 시간대 기준)
   const orderDate = new Date(order.date);
-  const start = startDate ? new Date(startDate) : null;
-  const end = endDate ? new Date(endDate) : null;
   
-  if (start && end) {
-    return orderDate >= start && orderDate <= end;
-  } else if (start) {
-    return orderDate >= start;
-  } else if (end) {
-    return orderDate <= end;
+  // 검색 날짜들을 Date 객체로 변환 (로컬 시간대 기준)
+  const start = startDate ? new Date(startDate + 'T00:00:00') : null;
+  const end = endDate ? new Date(endDate + 'T23:59:59') : null;
+  
+  // 날짜만 비교 (시간 제외)
+  const orderDateOnly = new Date(orderDate.getFullYear(), orderDate.getMonth(), orderDate.getDate());
+  const startDateOnly = start ? new Date(start.getFullYear(), start.getMonth(), start.getDate()) : null;
+  const endDateOnly = end ? new Date(end.getFullYear(), end.getMonth(), end.getDate()) : null;
+  
+  if (startDateOnly && endDateOnly) {
+    return orderDateOnly >= startDateOnly && orderDateOnly <= endDateOnly;
+  } else if (startDateOnly) {
+    return orderDateOnly >= startDateOnly;
+  } else if (endDateOnly) {
+    return orderDateOnly <= endDateOnly;
   }
   
   return true;

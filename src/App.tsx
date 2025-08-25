@@ -21,6 +21,7 @@ import ApiTest from './components/ApiTest';
 import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
 import VerifyEmail from './pages/VerifyEmail';
+import ForgotPassword from './pages/ForgotPassword';
 
 // 보호된 라우트 컴포넌트
 const ProtectedAdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -69,6 +70,7 @@ const AppRoutes: React.FC<{ isChatOpen: boolean; setIsChatOpen: (open: boolean) 
               <Route path="/terms" element={<Terms />} />
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/verify-email" element={<VerifyEmail />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/admin" element={<ProtectedAdminRoute><Admin /></ProtectedAdminRoute>} />
               <Route path="/api-test" element={<ApiTest />} />
             </Routes>
