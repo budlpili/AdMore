@@ -990,7 +990,7 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
 
   const verifyAdminPassword = async () => {
     try {
-      const response = await fetch('http://localhost:5001/api/auth/admin/verify-password', {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/auth/admin/verify-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1018,7 +1018,7 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
     try {
       // 모든 상품 삭제
       const deletePromises = products.map(product => 
-        fetch(`http://localhost:5001/api/products/${product.id}`, {
+        fetch(`${process.env.REACT_APP_API_BASE_URL}/products/${product.id}`, {
           method: 'DELETE',
         })
       );

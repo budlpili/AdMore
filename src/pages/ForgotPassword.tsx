@@ -28,7 +28,7 @@ const ForgotPassword: React.FC = () => {
   const verifyToken = useCallback(async () => {
     console.log('토큰 확인 시작:', token);
     try {
-      const response = await fetch(`http://localhost:5001/api/auth/verify-reset-token?token=${token}`);
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/auth/verify-reset-token?token=${token}`);
       console.log('토큰 확인 응답:', response.status);
       const data = await response.json();
       console.log('토큰 확인 데이터:', data);
@@ -63,7 +63,7 @@ const ForgotPassword: React.FC = () => {
     setError('');
 
     try {
-      const response = await fetch('http://localhost:5001/api/auth/request-password-reset', {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/auth/request-password-reset`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -105,7 +105,7 @@ const ForgotPassword: React.FC = () => {
     setError('');
 
     try {
-      const response = await fetch('http://localhost:5001/api/auth/reset-password', {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/auth/reset-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

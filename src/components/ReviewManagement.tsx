@@ -194,7 +194,7 @@ const ReviewManagement: React.FC<ReviewManagementProps> = ({ reviews, onReviewsC
   // 사용 가능한 상품 목록 로드
   const loadAvailableProducts = async () => {
     try {
-      const response = await fetch('http://localhost:5001/api/products?status=active');
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/products?status=active`);
       if (response.ok) {
         const data = await response.json();
         // 응답 구조에 따라 상품 데이터 추출

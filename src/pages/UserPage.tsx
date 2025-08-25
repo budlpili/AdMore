@@ -377,7 +377,7 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5001/api/auth/change-password', {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/auth/change-password`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -434,7 +434,7 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5001/api/auth/delete-account', {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/auth/delete-account`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -550,7 +550,7 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
         console.log('토큰 디코딩 실패:', e);
       }
 
-      const response = await fetch('http://localhost:5001/api/auth/profile', {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/auth/profile`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -775,7 +775,7 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
 
       console.log('이름 변경 토큰 확인:', token.substring(0, 20) + '...');
 
-      const response = await fetch('http://localhost:5001/api/auth/profile', {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/auth/profile`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -1007,7 +1007,7 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
     if (window.confirm('구매를 확정하시겠습니까?\n\n구매확정 후에는 되돌릴 수 없습니다.')) {
       try {
         // 백엔드 API 호출하여 구매확정 처리
-        const response = await fetch(`http://localhost:5001/api/orders/${orderId}/confirm`, {
+        const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/orders/${orderId}/confirm`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',

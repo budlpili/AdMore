@@ -602,7 +602,7 @@ const Admin: React.FC = () => {
 
   const loadOrders = async () => {
     try {
-      const response = await fetch('http://localhost:5001/api/orders');
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/orders`);
       if (response.ok) {
         const data = await response.json();
         // 응답 구조 확인 및 안전한 데이터 설정
@@ -763,7 +763,7 @@ const Admin: React.FC = () => {
     if (window.confirm(`주문 상태를 "${newStatus}"로 변경하시겠습니까?`)) {
       try {
         // 백엔드 API 호출
-        const response = await fetch(`http://localhost:5001/api/orders/${orderId}/status`, {
+        const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/orders/${orderId}/status`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -809,7 +809,7 @@ const Admin: React.FC = () => {
     if (window.confirm('입금을 확인하시겠습니까?\n\n입금 확인 후에는 취소할 수 있습니다.')) {
       try {
         // 백엔드 API 호출
-        const response = await fetch(`http://localhost:5001/api/orders/${orderId}/payment`, {
+        const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/orders/${orderId}/payment`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -847,7 +847,7 @@ const Admin: React.FC = () => {
     if (window.confirm('입금완료를 취소하시겠습니까?\n\n입금확인전 상태로 되돌립니다.')) {
       try {
         // 백엔드 API 호출
-        const response = await fetch(`http://localhost:5001/api/orders/${orderId}/payment`, {
+        const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/orders/${orderId}/payment`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -877,7 +877,7 @@ const Admin: React.FC = () => {
     if (window.confirm('정말로 이 리뷰를 삭제하시겠습니까?')) {
       try {
         // 백엔드 API 호출
-        const response = await fetch(`http://localhost:5001/api/reviews/${reviewId}`, {
+        const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/reviews/${reviewId}`, {
           method: 'DELETE',
           headers: {
             'Content-Type': 'application/json',
@@ -1509,7 +1509,7 @@ const Admin: React.FC = () => {
   const saveRequest = async (orderId: string) => {
     try {
       // 백엔드 API 호출
-      const response = await fetch(`http://localhost:5001/api/orders/${orderId}/request`, {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/orders/${orderId}/request`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -1572,7 +1572,7 @@ const Admin: React.FC = () => {
         // 백엔드에서 선택된 주문들 삭제
         const deletePromises = selectedOrders.map(async (orderId) => {
           try {
-            const response = await fetch(`http://localhost:5001/api/orders/${orderId}`, {
+            const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/orders/${orderId}`, {
               method: 'DELETE',
               headers: {
                 'Content-Type': 'application/json',

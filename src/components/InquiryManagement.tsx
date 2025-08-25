@@ -689,7 +689,7 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
     try {
       // 백엔드 API를 통해 각 유저의 메시지 삭제
       const deletePromises = Array.from(selectedUsersForDelete).map(async (userEmail) => {
-        const response = await fetch(`http://localhost:5001/api/chat/messages/user/${encodeURIComponent(userEmail)}`, {
+        const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/chat/messages/user/${encodeURIComponent(userEmail)}`, {
           method: 'DELETE',
           headers: {
             'Content-Type': 'application/json',

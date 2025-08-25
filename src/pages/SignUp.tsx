@@ -48,7 +48,7 @@ const SignUp: React.FC = () => {
 
     setIsEmailVerifying(true);
     try {
-      const response = await fetch('http://localhost:5001/api/auth/request-verification', {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/auth/request-verification`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -120,7 +120,7 @@ const SignUp: React.FC = () => {
 
     setIsVerifyingCode(true);
     try {
-      const response = await fetch('http://localhost:5001/api/auth/verify-code', {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/auth/verify-code`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

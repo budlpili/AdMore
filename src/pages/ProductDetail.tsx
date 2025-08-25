@@ -965,7 +965,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ setIsChatOpen }) => {
       };
 
       console.log('리뷰 데이터 전송:', reviewData);
-      console.log('API_BASE_URL:', process.env.REACT_APP_API_URL || 'http://localhost:5001/api');
+      console.log('API_BASE_URL:', process.env.REACT_APP_API_BASE_URL || 'http://localhost:5001/api');
       
       console.log('=== 리뷰 API 호출 시작 ===');
       const createResponse = await reviewsAPI.create(reviewData);
@@ -975,7 +975,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ setIsChatOpen }) => {
       // 2. 저장된 리뷰 확인 (선택적)
       console.log('=== 리뷰 확인 시작 ===');
       try {
-        const verifyResponse = await fetch('http://localhost:5001/api/reviews');
+        const verifyResponse = await fetch(`${process.env.REACT_APP_API_BASE_URL}/reviews`);
         if (verifyResponse.ok) {
           const allReviews = await verifyResponse.json();
           console.log('전체 리뷰 목록:', allReviews);
