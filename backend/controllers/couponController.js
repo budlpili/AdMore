@@ -86,11 +86,22 @@ const getUserCoupons = async (req, res) => {
   try {
     const { userId } = req.params;
     
-    // CouponSend에서 해당 사용자에게 발송된 쿠폰 조회
+    // CouponSend에서 해당 사용자에게 발송된 쿠폰 조회 (만료되지 않은 쿠폰만)
     const userCouponSends = await CouponSend.find({ 
       userId: userId,
       expiresAt: { $gt: new Date() } // 만료되지 않은 쿠폰만
     }).populate('couponId'); // 쿠폰 상세 정보 포함
+    
+    console.log('=== getUserCoupons 디버깅 ===');
+    console.log('userId:', userId);
+    console.log('userCouponSends 개수:', userCouponSends.length);
+    if (userCouponSends.length > 0) {
+      console.log('첫 번째 send 문서:', JSON.stringify(userCouponSends[0], null, 2));
+      console.log('첫 번째 send._id:', userCouponSends[0]._id);
+      console.log('첫 번째 send.couponId:', userCouponSends[0].couponId);
+      console.log('첫 번째 send.usedAt:', userCouponSends[0].usedAt);
+      console.log('첫 번째 send.status:', userCouponSends[0].status);
+    }
     
     console.log('=== getUserCoupons 디버깅 ===');
     console.log('userId:', userId);
@@ -108,6 +119,9 @@ const getUserCoupons = async (req, res) => {
     
     // 사용자별 쿠폰 데이터 구성
     const userCoupons = userCouponSends.map(send => {
+      // 쿠폰 사용 여부 판단 (usedAt이 있거나 status가 'used'인 경우)
+      const isUsed = send.usedAt !== null || send.status === 'used';
+      
       const couponData = {
         sendId: send._id,
         couponId: send.couponId._id,
@@ -123,10 +137,12 @@ const getUserCoupons = async (req, res) => {
         code: send.couponId.code,
         usedAt: send.usedAt,
         expiresAt: send.expiresAt,
-        status: send.couponId.status
+        status: send.couponId.status,
+        isUsed: isUsed // 명시적으로 사용 여부 표시
       };
       
       console.log('매핑된 쿠폰 데이터:', couponData);
+      console.log('쿠폰 사용 여부:', isUsed);
       return couponData;
     });
     
