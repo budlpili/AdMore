@@ -32,7 +32,7 @@ const Order: React.FC = () => {
   const [requirements, setRequirements] = useState('');
   const [payment, setPayment] = useState('card');
   const [couponModalOpen, setCouponModalOpen] = useState(false);
-  const [selectedCoupon, setSelectedCoupon] = useState<null | typeof coupons[0]>(null);
+  const [selectedCoupon, setSelectedCoupon] = useState<any>(null);
 
   // 상품 데이터 로드
   useEffect(() => {
@@ -88,7 +88,7 @@ const Order: React.FC = () => {
         }
         
         if (userId) {
-          const response = await ordersAPI.getUserCoupons(userId);
+          const response = await couponsAPI.getUserCoupons(userId);
           if (response.success && response.coupons) {
             // 사용 가능한 쿠폰만 필터링
             const availableCoupons = response.coupons.filter((coupon: any) => !coupon.isUsed);
@@ -344,7 +344,7 @@ const Order: React.FC = () => {
               if (tokenParts.length === 3) {
                 const payload = JSON.parse(atob(tokenParts[1]));
                 const userId = payload.id.toString();
-                const response = await ordersAPI.getUserCoupons(userId);
+                const response = await couponsAPI.getUserCoupons(userId);
                 if (response.success && response.coupons) {
                   const availableCoupons = response.coupons.filter((coupon: any) => !coupon.isUsed);
                   setUserCoupons(availableCoupons);
