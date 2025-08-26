@@ -406,6 +406,9 @@ const Order: React.FC = () => {
           setTimeout(() => {
             loadUserCoupons();
           }, 500);
+          
+          // 주문 완료 후 홈화면으로 이동
+          navigate('/');
         } else {
           console.error('주문 생성 실패:', apiResponse);
           alert(`주문 처리에 실패했습니다.\n\n${apiResponse.message || '알 수 없는 오류가 발생했습니다.'}`);
