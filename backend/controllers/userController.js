@@ -67,15 +67,15 @@ const register = async (req, res) => {
     const verifyToken = crypto.randomBytes(32).toString('hex');
     const verifyExpires = new Date(Date.now() + 30 * 60 * 1000);
 
-    // 사용자 생성 (초기 emailVerified=false)
+    // 사용자 생성 (emailVerified를 true로 설정)
     const user = new User({
       name,
       email,
       password: hashedPassword,
       phone,
-      emailVerified: false,
-      verifyToken,
-      verifyExpires
+      emailVerified: true,   // ← false에서 true로 변경
+      verifyToken: null,      // ← 토큰을 null로 설정
+      verifyExpires: null     // ← 만료 시간을 null로 설정
     });
 
     await user.save();
