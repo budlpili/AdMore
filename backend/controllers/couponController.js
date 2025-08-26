@@ -85,11 +85,32 @@ const deleteCoupon = async (req, res) => {
 // 사용자별 쿠폰 목록 조회
 const getUserCoupons = async (req, res) => {
   try {
-    const { userId } = req.params;
+    const { userId, email } = req.params;
+    
+    let targetUserId = userId;
+    
+    // email로 전달된 경우 userId를 찾기
+    if (email && !userId) {
+      const user = await User.findOne({ email: email });
+      if (!user) {
+        return res.status(404).json({ 
+          success: false, 
+          message: '사용자를 찾을 수 없습니다.' 
+        });
+      }
+      targetUserId = user._id.toString();
+    }
+    
+    if (!targetUserId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: '사용자 ID 또는 이메일이 필요합니다.' 
+      });
+    }
     
     // CouponSend에서 해당 사용자에게 발송된 쿠폰 조회 (모든 쿠폰 포함)
     const userCouponSends = await CouponSend.find({ 
-      userId: userId
+      userId: targetUserId
     }).populate('couponId'); // 쿠폰 상세 정보 포함
     
     console.log('=== getUserCoupons 디버깅 ===');
@@ -396,6 +417,23 @@ const deleteUserCoupon = async (req, res) => {
   }
 };
 
+// 모든 쿠폰 발송 데이터 조회 (관리자용)
+const getAllCouponSends = async (req, res) => {
+  try {
+    const sends = await CouponSend.find().populate('couponId').populate('userId');
+    res.json({ 
+      success: true, 
+      sends 
+    });
+  } catch (error) {
+    console.error('모든 쿠폰 발송 데이터 조회 오류:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: '쿠폰 발송 데이터 조회에 실패했습니다.' 
+    });
+  }
+};
+
 module.exports = {
   getAllCoupons,
   createCoupon,
@@ -405,7 +443,8 @@ module.exports = {
   sendCoupon,
   getCouponSends,
   deleteUserCoupon,
-  useCoupon
+  useCoupon,
+  getAllCouponSends
 };
 
 

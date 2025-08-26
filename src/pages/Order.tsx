@@ -94,7 +94,9 @@ const Order: React.FC = () => {
     
     try {
       setCouponLoading(true);
-      const response = await couponsAPI.getUserCoupons(currentUser.email);
+      console.log('이메일로 쿠폰 조회 시도:', currentUser.email);
+      
+      const response = await couponsAPI.getUserCouponsByEmail(currentUser.email);
       
       if (response.success && response.coupons) {
         console.log('=== loadUserCoupons 디버깅 ===');
@@ -116,9 +118,13 @@ const Order: React.FC = () => {
         console.log('=== loadUserCoupons 디버깅 끝 ===');
         
         setUserCoupons(response.coupons);
+      } else {
+        console.log('쿠폰 조회 응답:', response);
+        setUserCoupons([]);
       }
     } catch (error) {
       console.error('사용자 쿠폰 로드 오류:', error);
+      setUserCoupons([]);
     } finally {
       setCouponLoading(false);
     }

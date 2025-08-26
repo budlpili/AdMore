@@ -608,39 +608,17 @@ export const usersAPI = {
 // 쿠폰 관리 API
 export const couponsAPI = {
   getAll: () => apiRequest('/coupons'),
-  getById: (id: string | number) => apiRequest(`/coupons/${id}`),
-  create: (data: any) => 
-    apiRequest('/coupons', {
-      method: 'POST',
-      body: JSON.stringify(data)
-    }),
-  update: (id: string | number, data: any) => 
-    apiRequest(`/coupons/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data)
-    }),
-  delete: (id: string | number) => 
-    apiRequest(`/coupons/${id}`, {
-      method: 'DELETE'
-    }),
-  send: (couponId: string | number, userIds: (string | number)[]) => 
-    apiRequest('/coupons/send', {
-      method: 'POST',
-      body: JSON.stringify({ couponId, userIds })
-    }),
-  getSends: (couponId: string | number) => apiRequest(`/coupons/sends/${couponId}`),
+  getById: (id: string) => apiRequest(`/coupons/${id}`),
+  create: (data: any) => apiRequest('/coupons', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: any) => apiRequest(`/coupons/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  delete: (id: string) => apiRequest(`/coupons/${id}`, { method: 'DELETE' }),
   getUserCoupons: (userId: string) => apiRequest(`/coupons/user/${userId}`),
-  useCoupon: (sendId: string) => 
-    apiRequest(`/coupons/use/${sendId}`, {
-      method: 'POST'
-    }),
-  deleteCoupon: (sendId: string) => 
-    apiRequest(`/coupons/user-coupon/${sendId}`, {
-      method: 'DELETE'
-    }),
-  // 관리자용 모든 쿠폰 조회
+  getUserCouponsByEmail: (email: string) => apiRequest(`/coupons/user-email/${email}`),
+  sendCoupon: (data: any) => apiRequest('/coupons/send', { method: 'POST', body: JSON.stringify(data) }),
+  getCouponSends: (couponId: string) => apiRequest(`/coupons/sends/${couponId}`),
+  useCoupon: (sendId: string) => apiRequest(`/coupons/use/${sendId}`, { method: 'POST' }),
+  deleteCoupon: (sendId: string) => apiRequest(`/coupons/user-coupon/${sendId}`, { method: 'DELETE' }),
   getAllCoupons: () => apiRequest('/coupons'),
-  // 관리자용 모든 쿠폰 발송 데이터 조회
   getAllCouponSends: () => apiRequest('/coupons/sends')
 };
 

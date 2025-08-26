@@ -9,7 +9,8 @@ const {
   sendCoupon,
   getCouponSends,
   deleteUserCoupon,
-  useCoupon
+  useCoupon,
+  getAllCouponSends
 } = require('../controllers/couponController');
 
 // 쿠폰 목록 조회
@@ -27,11 +28,17 @@ router.delete('/:id', deleteCoupon);
 // 사용자별 쿠폰 목록 조회
 router.get('/user/:userId', getUserCoupons);
 
+// 이메일로 쿠폰 목록 조회 (새로 추가)
+router.get('/user-email/:email', getUserCoupons);
+
 // 쿠폰 발송
 router.post('/send', sendCoupon);
 
 // 쿠폰 발송 이력 조회
 router.get('/sends/:couponId', getCouponSends);
+
+// 모든 쿠폰 발송 데이터 조회 (관리자용)
+router.get('/sends', getAllCouponSends);
 
 // 쿠폰 사용
 router.post('/use/:sendId', useCoupon);

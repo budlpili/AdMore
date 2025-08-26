@@ -823,24 +823,18 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
     try {
       setCouponLoading(true);
       
-      // 토큰에서 사용자 ID 추출
-      const token = localStorage.getItem('token');
-      let userId = '1'; // 기본값
+      // 현재 로그인한 사용자 이메일 가져오기
+      const currentUserEmail = localStorage.getItem('userEmail');
+      console.log('현재 로그인한 사용자 이메일:', currentUserEmail);
       
-      if (token) {
-        try {
-          const tokenParts = token.split('.');
-          if (tokenParts.length === 3) {
-            const payload = JSON.parse(atob(tokenParts[1]));
-            userId = payload.id.toString();
-            console.log('토큰에서 추출한 사용자 ID:', userId);
-          }
-        } catch (e) {
-          console.log('토큰에서 사용자 ID 추출 실패:', e);
-        }
+      if (!currentUserEmail || currentUserEmail === 'guest@example.com') {
+        console.log('로그인되지 않은 사용자입니다.');
+        setUserCoupons([]);
+        return;
       }
       
-      const response = await couponsAPI.getUserCoupons(userId);
+      // 이메일로 쿠폰 조회
+      const response = await couponsAPI.getUserCouponsByEmail(currentUserEmail);
       
       if (response.success && response.coupons) {
         console.log('유저 쿠폰함 데이터:', response.coupons);

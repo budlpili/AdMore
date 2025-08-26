@@ -150,28 +150,17 @@ const Header: React.FC<HeaderProps> = ({ setIsChatOpen }) => {
   }, [userMenuOpen]);
 
   const loadCouponCount = async () => {
-    if (!isLoggedIn) {
-      setCouponCount(0);
-      return;
-    }
-
     try {
-      const token = localStorage.getItem('token');
-      let userId = '1';
+      // 현재 로그인한 사용자 이메일 가져오기
+      const currentUserEmail = localStorage.getItem('userEmail');
       
-      if (token) {
-        try {
-          const tokenParts = token.split('.');
-          if (tokenParts.length === 3) {
-            const payload = JSON.parse(atob(tokenParts[1]));
-            userId = payload.id.toString();
-          }
-        } catch (e) {
-          console.log('토큰에서 사용자 ID 추출 실패:', e);
-        }
+      if (!currentUserEmail || currentUserEmail === 'guest@example.com') {
+        setCouponCount(0);
+        return;
       }
-
-      const response = await couponsAPI.getUserCoupons(userId);
+      
+      // 이메일로 쿠폰 조회
+      const response = await couponsAPI.getUserCouponsByEmail(currentUserEmail);
       if (response.success && response.coupons) {
         setCouponCount(response.coupons.length);
       } else {
