@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Coupon = require('../models/Coupon');
 const CouponSend = require('../models/CouponSend');
 const User = require('../models/User');
