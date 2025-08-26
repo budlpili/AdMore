@@ -17,6 +17,7 @@ import InquiryManagement from '../components/InquiryManagement';
 import CouponManagement from '../components/CouponManagement';
 import PointManagement from '../components/PointManagement';
 import DataMigration from '../components/DataMigration';
+import DataViewer from './DataViewer';
 import Pagination from '../components/Pagination';
 import products, { getProducts, saveProducts, resetProducts } from '../data/products';
 import mockReviews from '../data/reviews-list';
@@ -156,7 +157,7 @@ const Admin: React.FC = () => {
     }
   }, [navigate]);
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'orders' | 'reviews' | 'coupons' | 'points' | 'customerService' | 'inquiries' | 'users' | 'migration'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'orders' | 'reviews' | 'coupons' | 'points' | 'customerService' | 'inquiries' | 'users' | 'migration' | 'dataViewer'>('dashboard');
   const [customerServiceTab, setCustomerServiceTab] = useState<'notices' | 'terms' | 'privacy'>('notices');
   const [isCustomerServiceExpanded, setIsCustomerServiceExpanded] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -1105,6 +1106,7 @@ const Admin: React.FC = () => {
     { id: 'inquiries', label: '1:1문의', icon: faHeadset, count: chatMessages.length, action: undefined },
     { id: 'users', label: '회원관리', icon: faUser, count: totalUsers, action: undefined },
     { id: 'migration', label: '데이터 마이그레이션', icon: faSync, count: undefined, action: undefined },
+    { id: 'dataViewer', label: '데이터 뷰어', icon: faChartPie, count: undefined, action: undefined },
   ];
 
   // 로그아웃 함수
@@ -3484,6 +3486,13 @@ const Admin: React.FC = () => {
             {activeTab === 'migration' && (
               <div>
                 <DataMigration />
+              </div>
+            )}
+
+            {/* 데이터 뷰어 탭 */}
+            {activeTab === 'dataViewer' && (
+              <div>
+                <DataViewer />
               </div>
             )}
 
