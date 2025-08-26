@@ -2636,7 +2636,7 @@ const Admin: React.FC = () => {
                       <div className="flex flex-row gap-2 items-center justify-start">
                         <div className="flex items-center justify-center">
                           <p className="text-xs font-semibold text-gray-800 mr-2">일반회원</p>
-                          <p className="text-sm font-semibold text-orange-600">{totalUsers}</p>
+                          <p className="text-sm font-semibold text-orange-600">{users.filter(u => u.role === 'user').length}</p>
                           <p className="text-xs text-gray-500 ml-1">명</p>
                         </div>
                         <span className="text-gray-400 text-xs">|</span>
