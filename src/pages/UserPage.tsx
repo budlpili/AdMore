@@ -2118,7 +2118,7 @@ const handleDeleteUserCoupon = async (sendId: string, couponName: string) => {
                         // 탭별 필터링
                         switch (couponTab) {
                           case 'available':
-                            return !isCouponExpired(coupon.endDate) && !isUsed && coupon.couponStatus === 'active';
+                            return !isCouponExpired(coupon.endDate) && !isUsed;
                           case 'used':
                             return isUsed;
                           case 'expiring':
