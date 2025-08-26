@@ -219,6 +219,36 @@ const getCouponSends = async (req, res) => {
   }
 };
 
+// 사용자 쿠폰 삭제 (CouponSend에서 삭제)
+const deleteUserCoupon = async (req, res) => {
+  try {
+    const { sendId } = req.params;
+    
+    // CouponSend에서 해당 발송 기록 삭제
+    const deletedSend = await CouponSend.findByIdAndDelete(sendId);
+    
+    if (!deletedSend) {
+      return res.status(404).json({ 
+        success: false, 
+        message: '사용자 쿠폰을 찾을 수 없습니다.' 
+      });
+    }
+
+    console.log(`사용자 쿠폰 삭제 완료: sendId=${sendId}`);
+    
+    res.json({ 
+      success: true, 
+      message: '사용자 쿠폰이 삭제되었습니다.' 
+    });
+  } catch (error) {
+    console.error('사용자 쿠폰 삭제 오류:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: '사용자 쿠폰 삭제에 실패했습니다.' 
+    });
+  }
+};
+
 module.exports = {
   getAllCoupons,
   createCoupon,
@@ -226,7 +256,8 @@ module.exports = {
   deleteCoupon,
   getUserCoupons,
   sendCoupon,
-  getCouponSends
+  getCouponSends,
+  deleteUserCoupon
 };
 
 
