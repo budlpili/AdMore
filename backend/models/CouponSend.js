@@ -49,7 +49,7 @@ couponSendSchema.statics.findByCouponId = function(couponId) {
 
 // 사용자별 쿠폰 발송 이력 조회
 couponSendSchema.statics.findByUserId = function(userId) {
-  return this.find({ userId }).populate('couponId', 'name code discountType discountValue');
+  return this.find({ userId }).populate('couponId');
 };
 
 // 쿠폰 사용 상태 업데이트

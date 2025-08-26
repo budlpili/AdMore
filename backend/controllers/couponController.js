@@ -86,11 +86,32 @@ const getUserCoupons = async (req, res) => {
   try {
     const { userId } = req.params;
     
-    // 실제 구현에서는 사용자별 쿠폰 발송/사용 이력을 조회해야 합니다
-    // 현재는 간단히 활성 상태의 쿠폰만 반환
-    const coupons = await Coupon.find({ status: 'active' }).sort({ createdAt: -1 });
+    // CouponSend에서 해당 사용자에게 발송된 쿠폰 조회
+    const userCouponSends = await CouponSend.find({ 
+      userId: userId,
+      expiresAt: { $gt: new Date() } // 만료되지 않은 쿠폰만
+    }).populate('couponId'); // 쿠폰 상세 정보 포함
     
-    res.json({ success: true, coupons });
+    // 사용자별 쿠폰 데이터 구성
+    const userCoupons = userCouponSends.map(send => ({
+      sendId: send._id,
+      couponId: send.couponId._id,
+      name: send.couponId.name,
+      description: send.couponId.description,
+      discountType: send.couponId.discountType,
+      discountValue: send.couponId.discountValue,
+      maxDiscount: send.couponId.maxDiscount,
+      minPurchase: send.couponId.minPurchase,
+      startDate: send.couponId.startDate,
+      endDate: send.couponId.endDate,
+      brand: send.couponId.brand,
+      code: send.couponId.code,
+      usedAt: send.usedAt,
+      expiresAt: send.expiresAt,
+      status: send.couponId.status
+    }));
+    
+    res.json({ success: true, coupons: userCoupons });
   } catch (error) {
     console.error('사용자 쿠폰 조회 오류:', error);
     res.status(500).json({ success: false, message: '사용자 쿠폰 조회에 실패했습니다.' });
