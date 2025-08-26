@@ -95,6 +95,15 @@ const getUserCoupons = async (req, res) => {
     console.log('=== getUserCoupons 디버깅 ===');
     console.log('userId:', userId);
     console.log('userCouponSends 개수:', userCouponSends.length);
+    if (userCouponSends.length > 0) {
+      console.log('첫 번째 send 문서:', JSON.stringify(userCouponSends[0], null, 2));
+      console.log('첫 번째 send._id:', userCouponSends[0]._id);
+      console.log('첫 번째 send.couponId:', userCouponSends[0].couponId);
+    }
+    
+    console.log('=== getUserCoupons 디버깅 ===');
+    console.log('userId:', userId);
+    console.log('userCouponSends 개수:', userCouponSends.length);
     console.log('첫 번째 send 문서:', userCouponSends[0]);
     
     // 사용자별 쿠폰 데이터 구성
