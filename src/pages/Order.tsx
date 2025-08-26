@@ -378,12 +378,16 @@ const Order: React.FC = () => {
         // 주문 완료 후 사용자 페이지로 이동
         alert('주문이 성공적으로 완료되었습니다!');
         
+        // 쿠폰을 사용했다면 쿠폰함 탭으로 이동하여 상태 확인
+        const targetTab = selectedCoupon ? 'coupons' : 'orders';
+        
         // 바로 사용자 페이지로 이동
-        navigate('/user?tab=orders', { 
+        navigate(`/user?tab=${targetTab}`, { 
           state: { 
-            showOrders: true,
+            showOrders: targetTab === 'orders',
             newOrder: orderData,
-            newPayment: paymentData
+            newPayment: paymentData,
+            refreshCoupons: !!selectedCoupon // 쿠폰 사용 시 새로고침 플래그
           } 
         });
     } catch (error) {

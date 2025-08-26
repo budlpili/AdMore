@@ -144,8 +144,8 @@ const CouponCard: React.FC<CouponCardProps> = ({
             {/* 삭제 버튼 */}
             {onDelete && (
               <button
-                className="absolute top-2 right-2 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full 
-                  flex items-center justify-center text-xs font-bold transition-colors duration-200 
+                className="absolute top-2 right-2 w-6 h-6 bg-gray-500/80 hover:bg-gray-600/80 text-white rounded-full 
+                  flex items-center justify-center text-base font-normal transition-colors duration-200 
                   shadow-md hover:shadow-lg z-10"
                 onClick={(e) => {
                   e.stopPropagation();
