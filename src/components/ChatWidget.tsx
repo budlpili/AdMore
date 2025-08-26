@@ -759,13 +759,13 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
         console.log('ChatWidget - hideFloatingButton:', hideFloatingButton);
         console.log('ChatWidget - 플로팅 버튼 표시 여부:', !hideFloatingButton);
         return !hideFloatingButton;
-      })() && (
-        <button
-          className="fixed bottom-6 right-6 z-50 bg-blue-600 text-white rounded-full shadow-lg w-16 h-16 items-center justify-center text-3xl hover:bg-blue-700 transition"
-          onClick={handleOpen}
-          aria-label="문의하기"
-          style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.15)' }}
-        >
+              })() && (
+          <button
+            className="hidden md:block fixed bottom-6 right-6 z-50 bg-blue-600 text-white rounded-full shadow-lg w-16 h-16 items-center justify-center text-3xl hover:bg-blue-700 transition"
+            onClick={handleOpen}
+            aria-label="문의하기"
+            style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.15)' }}
+          >
           <span>💬</span>
         </button>
       )}
