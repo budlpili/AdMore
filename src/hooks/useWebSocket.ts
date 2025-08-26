@@ -344,29 +344,29 @@ export const useWebSocket = ({
   }, []);
 
   useEffect(() => {
-    console.log('useWebSocket useEffect 실행:', { userEmail, isAdmin });
+    // console.log('useWebSocket useEffect 실행:', { userEmail, isAdmin });
     
     // userEmail이 없으면 연결하지 않음
     if (!userEmail) {
-      console.log('userEmail이 없어서 WebSocket 연결을 건너뜀');
+      // console.log('userEmail이 없어서 WebSocket 연결을 건너뜀');
       return;
     }
     
     // guest@example.com인 경우 연결하지 않음
     if (userEmail === 'guest@example.com') {
-      console.log('게스트 사용자이므로 WebSocket 연결을 건너뜀');
+      // console.log('게스트 사용자이므로 WebSocket 연결을 건너뜀');
       return;
     }
     
     // 이미 연결 시도 중이면 건너뜀
     if (connectionAttemptedRef.current) {
-      console.log('이미 연결 시도 중입니다. 건너뜀');
+      // console.log('이미 연결 시도 중입니다. 건너뜀');
       return;
     }
     
     // 기존 연결이 있으면 해제
     if (socketRef.current?.connected) {
-      console.log('기존 연결 해제 후 재연결');
+      // console.log('기존 연결 해제 후 재연결');
       socketRef.current.disconnect();
       socketRef.current = null;
     }

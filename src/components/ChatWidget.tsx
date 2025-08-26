@@ -399,12 +399,12 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     }
   }, [socket, sessionId, handleNewMessage]);
 
-  // 디버깅: 세션 ID와 userEmail 상태 로깅
-  console.log('ChatWidget - sessionId:', sessionId);
-  console.log('ChatWidget - userEmail:', userEmail);
-  console.log('ChatWidget - actualUserEmail:', actualUserEmail);
-  console.log('ChatWidget - effectiveUserEmail:', effectiveUserEmail);
-  console.log('ChatWidget - useWebSocket에 전달되는 userEmail:', effectiveUserEmail);
+  // 디버깅: 세션 ID와 userEmail 상태 로깅 (성능 최적화를 위해 주석 처리)
+  // console.log('ChatWidget - sessionId:', sessionId);
+  // console.log('ChatWidget - userEmail:', userEmail);
+  // console.log('ChatWidget - actualUserEmail:', actualUserEmail);
+  // console.log('ChatWidget - effectiveUserEmail:', effectiveUserEmail);
+  // console.log('ChatWidget - useWebSocket에 전달되는 userEmail:', effectiveUserEmail);
 
   // WebSocket에서 받은 메시지를 로컬 상태와 동기화 (사용자별 키 사용)
   useEffect(() => {
@@ -461,14 +461,14 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     }
   }, [wsMessages, sessionId, messages, isChatOpen, mode]);
 
-  // 디버깅을 위한 메시지 상태 로깅
-  useEffect(() => {
-    console.log('현재 messages 상태:', messages);
-  }, [messages]);
+  // 디버깅을 위한 메시지 상태 로깅 (성능 최적화를 위해 주석 처리)
+  // useEffect(() => {
+  //   console.log('현재 messages 상태:', messages);
+  // }, [messages]);
 
-  // WebSocket 연결 상태 로깅
-  console.log('ChatWidget - WebSocket 연결 상태:', isConnected);
-  console.log('ChatWidget - 사용자 이메일:', userEmail);
+  // WebSocket 연결 상태 로깅 (성능 최적화를 위해 주석 처리)
+  // console.log('ChatWidget - WebSocket 연결 상태:', isConnected);
+  // console.log('ChatWidget - 사용자 이메일:', userEmail);
   const [input, setInput] = useState('');
   const chatEndRef = useRef<HTMLDivElement>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -488,7 +488,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
       console.log('isChatOpen이 true로 변경됨, handleOpen 실행');
       handleOpen();
     }
-  }, [isChatOpen, sessionId]);
+  }, [isChatOpen]); // sessionId 의존성 제거로 무한 루프 방지
 
   // 자동 메시지 입력 기능 (결제취소 요청, 상담 문의 등)
   useEffect(() => {
