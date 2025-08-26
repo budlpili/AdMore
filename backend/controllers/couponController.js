@@ -150,6 +150,8 @@ const getUserCoupons = async (req, res) => {
       
       console.log('매핑된 쿠폰 데이터:', couponData);
       console.log('쿠폰 사용 여부:', isUsed);
+      console.log('sendId 값 확인:', couponData.sendId);
+      console.log('sendId 타입 확인:', typeof couponData.sendId);
       console.log('=== 개별 쿠폰 매핑 디버깅 끝 ===');
       return couponData;
     });

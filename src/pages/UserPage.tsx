@@ -2160,6 +2160,11 @@ const handleDeleteUserCoupon = async (sendId: string, couponName: string) => {
                             couponCode={coupon.code}
                             onUse={() => handleUseUserCoupon(coupon.sendId)}
                             onDelete={() => {
+                              if (!coupon.sendId) {
+                                console.error('쿠폰 삭제 실패: sendId가 undefined입니다.', coupon);
+                                alert('쿠폰 삭제에 실패했습니다: sendId가 없습니다.');
+                                return;
+                              }
                               console.log('쿠폰 삭제 시도:', { sendId: coupon.sendId, name: coupon.name, coupon });
                               handleDeleteUserCoupon(coupon.sendId, coupon.name);
                             }}
