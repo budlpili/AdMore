@@ -130,7 +130,11 @@ const Order: React.FC = () => {
         });
         console.log('=== loadUserCoupons 디버깅 끝 ===');
         
-        setUserCoupons(response.coupons);
+        // 사용 가능한 쿠폰만 필터링하여 저장
+        const availableCoupons = response.coupons.filter((coupon: any) => !coupon.isUsed);
+        console.log('필터링된 사용 가능한 쿠폰:', availableCoupons);
+        
+        setUserCoupons(availableCoupons);
       } else {
         console.log('쿠폰 조회 응답:', response);
         setUserCoupons([]);
@@ -374,9 +378,11 @@ const Order: React.FC = () => {
                   status: couponResponse.status
                 });
                 
-                // 쿠폰 사용 후 즉시 로컬 상태에서 해당 쿠폰 제거하지 않음
-                // API 새로고침으로 상태를 동기화하도록 수정
-                console.log('쿠폰 사용 성공 후 로컬 상태 업데이트 건너뜀');
+                // 쿠폰 사용 후 즉시 로컬 상태에서 해당 쿠폰 제거
+                setUserCoupons(prevCoupons => 
+                  prevCoupons.filter(coupon => coupon.sendId !== selectedCoupon.sendId)
+                );
+                console.log('쿠폰 사용 후 로컬 상태 업데이트 완료');
                 
                 alert(`주문이 완료되었습니다!\n\n사용된 쿠폰: ${selectedCoupon.name}\n할인 금액: ${couponDiscount.toLocaleString()}원`);
               } else {
