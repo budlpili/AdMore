@@ -935,33 +935,16 @@ const handleDeleteUserCoupon = async (sendId: string, couponName: string) => {
         setOrderList(userOrders);
         console.log('백엔드에서 주문 데이터 로드 완료:', userOrders);
         
-        // 백엔드 데이터를 localStorage에 동기화 (백업용)
-        localStorage.setItem('orderList', JSON.stringify(userOrders));
+        // 백엔드 데이터만 사용, 로컬 저장하지 않음
+        console.log('백엔드 데이터를 로컬에 저장하지 않습니다.');
       } else {
         console.log('백엔드에서 주문 데이터를 가져올 수 없습니다.');
         setOrderList([]);
       }
     } catch (error) {
       console.error('주문 데이터 로드 중 오류:', error);
-      // 백엔드 실패 시 localStorage에서 폴백 데이터 로드
-      try {
-        const currentUserEmail = localStorage.getItem('userEmail');
-        const savedOrderList = localStorage.getItem('orderList');
-        if (savedOrderList && currentUserEmail) {
-          const parsedOrders = JSON.parse(savedOrderList);
-          // 현재 사용자의 주문만 필터링
-          const userOrders = parsedOrders.filter((order: any) => 
-            order.userEmail === currentUserEmail
-          );
-          setOrderList(userOrders);
-          console.log('localStorage에서 폴백 데이터 로드:', userOrders);
-        } else {
-          setOrderList([]);
-        }
-      } catch (localStorageError) {
-        console.error('localStorage 폴백 로드 중 오류:', localStorageError);
-        setOrderList([]);
-      }
+      // 백엔드 실패 시 빈 배열로 설정
+      setOrderList([]);
     }
   };
 
