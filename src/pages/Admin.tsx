@@ -120,6 +120,30 @@ const maskEmail = (email: string): string => {
   return `${maskedLocalPart}@${domain}`;
 };
 
+// 한국시간으로 날짜 포맷팅 함수
+const formatKoreanDate = (dateString: string): string => {
+  if (!dateString || dateString === '-') return '-';
+  
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString;
+    
+    // 한국시간으로 변환 (UTC+9)
+    const koreanTime = new Date(date.getTime() + (9 * 60 * 60 * 1000));
+    
+    const year = koreanTime.getUTCFullYear();
+    const month = String(koreanTime.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(koreanTime.getUTCDate()).padStart(2, '0');
+    const hours = String(koreanTime.getUTCHours()).padStart(2, '0');
+    const minutes = String(koreanTime.getUTCMinutes()).padStart(2, '0');
+    
+    return `${year}-${month}-${day} ${hours}:${minutes}`;
+  } catch (error) {
+    console.error('날짜 포맷팅 오류:', error);
+    return dateString;
+  }
+};
+
 const Admin: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -2080,7 +2104,7 @@ const Admin: React.FC = () => {
                                 </p>
                                 <p className="text-xs text-gray-500 mt-1">{notification.message}</p>
                                 <p className="text-xs text-gray-400 mt-1">
-                                  {new Date(notification.timestamp).toLocaleString('ko-KR')}
+                                  {formatKoreanDate(notification.timestamp)}
                                 </p>
                               </div>
                               <button
@@ -2495,14 +2519,7 @@ const Admin: React.FC = () => {
                           {filteredRecentOrders.slice(0, 10).map((order) => (
                             <tr key={order.orderId} className="border-b border-gray-100 hover:bg-gray-50">
                               <td className="py-2 px-2 text-xs text-gray-600">
-                                {order.date ? new Date(order.date).toLocaleString('ko-KR', { 
-                                  year: '2-digit', 
-                                  month: '2-digit', 
-                                  day: '2-digit',
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                  hour12: false
-                                }).replace(/\. /g, '.').replace(/\.(\d{2}:\d{2})/, '. $1') : '날짜 없음'}
+                                {formatKoreanDate(order.date)}
                               </td>
                               <td className="py-2 px-2 text-xs text-gray-600">
                                 <div>
@@ -2666,13 +2683,7 @@ const Admin: React.FC = () => {
                             <div className="flex items-center justify-between gap-3 mt-1 ">
                               <p className="text-xs text-gray-500">주문번호: {order.orderId}</p>
                               <p className="text-xs text-gray-400">
-                                {order.date ? new Date(order.date).toLocaleString('ko-KR', { 
-                                  month: '2-digit', 
-                                  day: '2-digit',
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                  hour12: false
-                                }).replace(/\. /g, '.').replace(/\.(\d{2}:\d{2})/, '. $1') : ''}
+                                {formatKoreanDate(order.date)}
                               </p>
                             </div>
                           </div>
@@ -2703,13 +2714,7 @@ const Admin: React.FC = () => {
                             <div className="flex items-center justify-between gap-3 mt-1">
                               <p className="text-xs text-gray-500">작성자: {review.user}</p>
                               <p className="text-xs text-gray-400">
-                                {review.time ? new Date(review.time).toLocaleString('ko-KR', { 
-                                  month: '2-digit', 
-                                  day: '2-digit',
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                  hour12: false
-                                }).replace(/\. /g, '.').replace(/\.(\d{2}:\d{2})/, '. $1') : ''}
+                                {formatKoreanDate(review.time)}
                               </p>
                             </div>
                           </div>
@@ -2746,13 +2751,7 @@ const Admin: React.FC = () => {
                                 return emailMatch ? emailMatch[0] : message.user;
                               })()}</p>
                               <p className="text-xs text-gray-400">
-                                {message.timestamp ? new Date(message.timestamp).toLocaleString('ko-KR', { 
-                                  month: '2-digit', 
-                                  day: '2-digit',
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                  hour12: false
-                                }).replace(/\. /g, '.').replace(/\.(\d{2}:\d{2})/, '. $1') : ''}
+                                {formatKoreanDate(message.timestamp)}
                               </p>
                             </div>
                           </div>
@@ -3185,60 +3184,7 @@ const Admin: React.FC = () => {
                               </div>
                             </td>
                             <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500">
-                              {(() => {
-                                try {
-                                  // null, undefined, 빈 문자열 처리
-                                  if (!order.date || order.date === '') {
-                                    const now = new Date();
-                                    const koreanTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
-                                    return koreanTime.toLocaleString('ko-KR', {
-                                      year: '2-digit',
-                                      month: '2-digit',
-                                      day: '2-digit',
-                                      hour: '2-digit',
-                                      minute: '2-digit',
-                                      hour12: false
-                                    });
-                                  }
-                                  
-                                  // 이미 포맷된 한국어 날짜 문자열인지 확인
-                                  if (typeof order.date === 'string' && (order.date.includes('오전') || order.date.includes('오후') || order.date.includes('년'))) {
-                                    return order.date;
-                                  }
-                                  
-                                  // ISO 형식이나 다른 형식의 날짜인 경우 파싱
-                                  let date = new Date(order.date);
-                                  
-                                  // 파싱이 실패한 경우 현재 시간 사용
-                                  if (isNaN(date.getTime())) {
-                                    date = new Date();
-                                  }
-                                  
-                                  // 한국 시간대로 변환 (UTC+9)
-                                  const koreanTime = new Date(date.getTime() + (9 * 60 * 60 * 1000));
-                                  
-                                  return koreanTime.toLocaleString('ko-KR', {
-                                    year: '2-digit',
-                                    month: '2-digit',
-                                    day: '2-digit',
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                    hour12: false
-                                  });
-                                } catch (error) {
-                                  // 에러 발생 시 현재 시간으로 표시
-                                  const now = new Date();
-                                  const koreanTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
-                                  return koreanTime.toLocaleString('ko-KR', {
-                                    year: '2-digit',
-                                    month: '2-digit',
-                                    day: '2-digit',
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                    hour12: false
-                                  });
-                                }
-                              })()}
+                              {formatKoreanDate(order.date)}
                             </td>
                             <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500 min-w-[80px]">
                               {order.paymentMethod === 'card' ? '신용카드' : 
@@ -3845,7 +3791,7 @@ const Admin: React.FC = () => {
                               </div>
                             </td>
                             <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500">{user.phone}</td>
-                            <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500">{user.joinDate}</td>
+                            <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500">{formatKoreanDate(user.joinDate)}</td>
                             <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500">
                               {user.role === 'admin' ? '관리자' : '일반회원'}
                             </td>
@@ -3977,39 +3923,7 @@ const Admin: React.FC = () => {
                 <div className="border-b border-gray-200 pb-2">
                   <p className="text-sm font-medium text-gray-600">주문일</p>
                   <p className="text-sm text-gray-900">
-                    {(() => {
-                      try {
-                        if (!selectedPaymentOrder.date || selectedPaymentOrder.date === '') {
-                          const now = new Date();
-                          const koreanTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
-                          return koreanTime.toLocaleString('ko-KR', {
-                            year: '2-digit',
-                            month: '2-digit',
-                            day: '2-digit',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                            hour12: false
-                          });
-                        }
-                        
-                        const date = new Date(selectedPaymentOrder.date);
-                        if (isNaN(date.getTime())) {
-                          return selectedPaymentOrder.date;
-                        }
-                        
-                        const koreanTime = new Date(date.getTime() + (9 * 60 * 60 * 1000));
-                        return koreanTime.toLocaleString('ko-KR', {
-                          year: '2-digit',
-                          month: '2-digit',
-                          day: '2-digit',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                          hour12: false
-                        });
-                      } catch (error) {
-                        return selectedPaymentOrder.date;
-                      }
-                    })()}
+                    {formatKoreanDate(selectedPaymentOrder.date)}
                   </p>
                 </div>
                 <div className="border-b border-gray-200 pb-2">
@@ -4027,30 +3941,7 @@ const Admin: React.FC = () => {
                 <div className="border-b border-gray-200 pb-2">
                   <p className="text-sm font-medium text-gray-600">결제일</p>
                   <p className="text-sm text-gray-900">
-                    {(() => {
-                      if (selectedPaymentOrder.paymentDate === '-' || !selectedPaymentOrder.paymentDate) {
-                        return '입금전';
-                      }
-                      
-                      try {
-                        const date = new Date(selectedPaymentOrder.paymentDate);
-                        if (isNaN(date.getTime())) {
-                          return selectedPaymentOrder.paymentDate;
-                        }
-                        
-                        const koreanTime = new Date(date.getTime() + (9 * 60 * 60 * 1000));
-                        return koreanTime.toLocaleString('ko-KR', {
-                          year: '2-digit',
-                          month: '2-digit',
-                          day: '2-digit',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                          hour12: false
-                        });
-                      } catch (error) {
-                        return selectedPaymentOrder.paymentDate;
-                      }
-                    })()}
+                    {selectedPaymentOrder.paymentDate === '-' || !selectedPaymentOrder.paymentDate ? '입금전' : formatKoreanDate(selectedPaymentOrder.paymentDate)}
                   </p>
                 </div>
                 <div className="border-b border-gray-200 pb-2">

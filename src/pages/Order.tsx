@@ -578,14 +578,14 @@ const Order: React.FC = () => {
               onClick={() => userCoupons.length > 0 && setCouponModalOpen(true)}
               disabled={userCoupons.length === 0}
             >
-              쿠폰 선택
+              선택
             </button>
             {selectedCoupon && (
               <button 
                 className="px-4 py-2 rounded font-semibold text-xs bg-gray-500 text-white hover:bg-gray-600"
                 onClick={() => setSelectedCoupon(null)}
               >
-                선택 해제
+                해제
               </button>
             )}
           </div>

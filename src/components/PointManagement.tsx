@@ -233,7 +233,21 @@ const PointManagement: React.FC = () => {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString('ko-KR');
+    if (!dateString || dateString === '-') return '-';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return dateString;
+      const koreanTime = new Date(date.getTime() + (9 * 60 * 60 * 1000)); // UTC+9
+      const year = koreanTime.getUTCFullYear();
+      const month = String(koreanTime.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(koreanTime.getUTCDate()).padStart(2, '0');
+      const hours = String(koreanTime.getUTCHours()).padStart(2, '0');
+      const minutes = String(koreanTime.getUTCMinutes()).padStart(2, '0');
+      return `${year}-${month}-${day} ${hours}:${minutes}`;
+    } catch (error) {
+      console.error('날짜 포맷팅 오류:', error);
+      return dateString;
+    }
   };
 
   const formatAmount = (amount: number) => {
