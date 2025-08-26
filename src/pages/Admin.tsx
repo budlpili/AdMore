@@ -16,7 +16,7 @@ import CustomerServiceManagement from '../components/CustomerServiceManagement';
 import InquiryManagement from '../components/InquiryManagement';
 import CouponManagement from '../components/CouponManagement';
 import PointManagement from '../components/PointManagement';
-import DataViewer from './DataViewer';
+
 
 import Pagination from '../components/Pagination';
 import products, { getProducts, saveProducts, resetProducts } from '../data/products';
@@ -181,7 +181,7 @@ const Admin: React.FC = () => {
     }
   }, [navigate]);
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'orders' | 'reviews' | 'coupons' | 'points' | 'customerService' | 'inquiries' | 'users' | 'dataViewer'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'orders' | 'reviews' | 'coupons' | 'points' | 'customerService' | 'inquiries' | 'users'>('dashboard');
   const [customerServiceTab, setCustomerServiceTab] = useState<'notices' | 'terms' | 'privacy'>('notices');
   const [isCustomerServiceExpanded, setIsCustomerServiceExpanded] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -1129,7 +1129,6 @@ const Admin: React.FC = () => {
     ] },
     { id: 'inquiries', label: '1:1문의', icon: faHeadset, count: chatMessages.length, action: undefined },
     { id: 'users', label: '회원관리', icon: faUser, count: totalUsers, action: undefined },
-    { id: 'dataViewer', label: '데이터 뷰어', icon: faChartPie, count: undefined, action: undefined },
   ];
 
   // 로그아웃 함수
@@ -1425,7 +1424,7 @@ const Admin: React.FC = () => {
       setActiveTab('customerService');
       setIsCustomerServiceExpanded(!isCustomerServiceExpanded);
       setIsMobileSidebarOpen(false); // 모바일에서도 닫기
-    } else if (['dashboard', 'orders', 'reviews', 'coupons', 'points', 'inquiries', 'users', 'dataViewer'].includes(tabId)) {
+    } else if (['dashboard', 'orders', 'reviews', 'coupons', 'points', 'inquiries', 'users'].includes(tabId)) {
       setActiveTab(tabId as any);
       setIsMobileSidebarOpen(false); // 모바일에서도 닫기
     }
@@ -3425,13 +3424,6 @@ const Admin: React.FC = () => {
                 }))}
                 sendMessage={sendMessage}
               />
-            )}
-
-            {/* 데이터 뷰어 탭 */}
-            {activeTab === 'dataViewer' && (
-              <div>
-                <DataViewer />
-              </div>
             )}
 
             {/* 회원 관리 탭 */}
