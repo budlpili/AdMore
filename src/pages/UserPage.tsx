@@ -844,6 +844,8 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
       
       if (response.success && response.coupons) {
         console.log('유저 쿠폰함 데이터:', response.coupons);
+        console.log('첫 번째 쿠폰의 sendId:', response.coupons[0]?.sendId);
+        console.log('첫 번째 쿠폰 전체 데이터:', response.coupons[0]);
         setUserCoupons(response.coupons);
       } else {
         console.log('쿠폰함 데이터가 없습니다.');
@@ -2157,7 +2159,10 @@ const handleDeleteUserCoupon = async (sendId: string, couponName: string) => {
                             brand={coupon.brand || 'ADMORE'}
                             couponCode={coupon.code}
                             onUse={() => handleUseUserCoupon(coupon.sendId)}
-                            onDelete={() => handleDeleteUserCoupon(coupon.sendId, coupon.name)}
+                            onDelete={() => {
+                              console.log('쿠폰 삭제 시도:', { sendId: coupon.sendId, name: coupon.name, coupon });
+                              handleDeleteUserCoupon(coupon.sendId, coupon.name);
+                            }}
                           />
                         </div>
                       ))
