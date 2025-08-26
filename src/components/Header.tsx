@@ -162,7 +162,10 @@ const Header: React.FC<HeaderProps> = ({ setIsChatOpen }) => {
       // 이메일로 쿠폰 조회
       const response = await couponsAPI.getUserCouponsByEmail(currentUserEmail);
       if (response.success && response.coupons) {
-        setCouponCount(response.coupons.length);
+        // 사용 가능한 쿠폰만 카운트
+        const availableCoupons = response.coupons.filter((coupon: any) => !coupon.isUsed);
+        setCouponCount(availableCoupons.length);
+        console.log('Header - 전체 쿠폰:', response.coupons.length, '사용 가능한 쿠폰:', availableCoupons.length);
       } else {
         setCouponCount(0);
       }
