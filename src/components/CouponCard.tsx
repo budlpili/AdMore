@@ -5,8 +5,7 @@ interface CouponCardProps {
   expiry: string;
   maxDiscount: number;
   discountRate: number;
-  onUse: () => void;
-  onDelete?: () => void; // 삭제 함수 추가
+  onDelete?: () => void; // 삭제 함수만 유지
   used?: boolean; // 추가
   brand?: string;
   couponCode?: string; // 쿠폰 코드 추가
@@ -17,7 +16,6 @@ const CouponCard: React.FC<CouponCardProps> = ({
   expiry,
   maxDiscount,
   discountRate,
-  onUse,
   onDelete,
   used = false,
   brand = 'WELCOME COUPON',
@@ -36,14 +34,10 @@ const CouponCard: React.FC<CouponCardProps> = ({
 
   const expired = isExpired();
 
-  // 카드 전체 클릭 핸들러
+  // 카드 전체 클릭 핸들러 (쿠폰 사용은 주문 페이지에서)
   const handleCardClick = () => {
-    if (!used && !expired && onUse) {
-      const confirmMessage = `"${title}" 쿠폰을 사용하시겠습니까?\n\n할인율: ${discountRate}%\n최대 할인: ${maxDiscount.toLocaleString()}원`;
-      if (window.confirm(confirmMessage)) {
-        onUse();
-      }
-    }
+    // 쿠폰 사용은 주문 페이지에서 처리
+    console.log(`"${title}" 쿠폰 정보: 할인율 ${discountRate}%, 최대 할인 ${maxDiscount.toLocaleString()}원`);
   };
 
   return (
@@ -59,12 +53,8 @@ const CouponCard: React.FC<CouponCardProps> = ({
       onKeyDown={e => {
         if ((e.key === 'Enter' || e.key === ' ') && !used && !expired) {
           e.preventDefault();
-          if (onUse) {
-            const confirmMessage = `"${title}" 쿠폰을 사용하시겠습니까?\n\n할인율: ${discountRate}%\n최대 할인: ${maxDiscount.toLocaleString()}원`;
-            if (window.confirm(confirmMessage)) {
-              onUse();
-            }
-          }
+          // 쿠폰 사용은 주문 페이지에서 처리
+          console.log(`"${title}" 쿠폰 정보: 할인율 ${discountRate}%, 최대 할인 ${maxDiscount.toLocaleString()}원`);
         }
       }}
     >

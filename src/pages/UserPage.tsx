@@ -859,22 +859,7 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
     }
   };
 
-  // 쿠폰 사용 처리 함수
-const handleUseUserCoupon = async (sendId: string) => {
-  try {
-    const response = await couponsAPI.useCoupon(sendId);
-    if (response.success) {
-      alert('쿠폰이 사용되었습니다.');
-      // 쿠폰함 다시 로드
-      await loadUserCoupons();
-    } else {
-      alert('쿠폰 사용에 실패했습니다.');
-    }
-  } catch (error) {
-    console.error('쿠폰 사용 에러:', error);
-    alert('쿠폰 사용에 실패했습니다.');
-  }
-};
+
 
 // 쿠폰 삭제 처리 함수
 const handleDeleteUserCoupon = async (sendId: string, couponName: string) => {
@@ -2158,7 +2143,6 @@ const handleDeleteUserCoupon = async (sendId: string, couponName: string) => {
                             used={coupon.isUsed !== undefined ? coupon.isUsed : coupon.usedAt !== null}
                             brand={coupon.brand || 'ADMORE'}
                             couponCode={coupon.code}
-                            onUse={() => handleUseUserCoupon(coupon.sendId)}
                             onDelete={() => {
                               if (!coupon.sendId) {
                                 console.error('쿠폰 삭제 실패: sendId가 undefined입니다.', coupon);
