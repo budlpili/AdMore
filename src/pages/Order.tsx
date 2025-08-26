@@ -514,7 +514,7 @@ const Order: React.FC = () => {
           
         </div>
 
-        <div className="mb-4 bg-gray-50 p-4 rounded-lg">
+        <div className="mb-4 bg-gray-100 p-4 rounded-lg border border-gray-200">
           <div className="font-semibold mb-2 text-sm">요구사항</div>
           <textarea
             className="w-full border rounded p-3 text-xs resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"

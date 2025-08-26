@@ -615,6 +615,7 @@ export const couponsAPI = {
   getUserCoupons: (userId: string) => apiRequest(`/coupons/user/${userId}`),
   getUserCouponsByEmail: (email: string) => apiRequest(`/coupons/user-email/${email}`),
   sendCoupon: (data: any) => apiRequest('/coupons/send', { method: 'POST', body: JSON.stringify(data) }),
+  send: (couponId: string | number, userIds: (string | number)[]) => apiRequest('/coupons/send', { method: 'POST', body: JSON.stringify({ couponId, userIds }) }),
   getCouponSends: (couponId: string) => apiRequest(`/coupons/sends/${couponId}`),
   useCoupon: (sendId: string) => apiRequest(`/coupons/use/${sendId}`, { method: 'POST' }),
   deleteCoupon: (sendId: string) => apiRequest(`/coupons/user-coupon/${sendId}`, { method: 'DELETE' }),

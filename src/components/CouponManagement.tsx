@@ -175,7 +175,7 @@ const CouponManagement: React.FC = () => {
   const handleDeleteCoupon = async (couponId: string | number) => {
     if (window.confirm('정말로 이 쿠폰을 삭제하시겠습니까?')) {
       try {
-        const response = await couponsAPI.delete(couponId);
+        const response = await couponsAPI.delete(couponId.toString());
         if (response.success) {
           setCoupons(prev => prev.filter(coupon => (coupon._id || coupon.id || 0) !== couponId));
           alert('쿠폰이 삭제되었습니다.');
@@ -195,7 +195,7 @@ const CouponManagement: React.FC = () => {
     try {
       if (editingCoupon) {
         // 수정
-        const response = await couponsAPI.update(editingCoupon._id || editingCoupon.id || 0, formData);
+        const response = await couponsAPI.update((editingCoupon._id || editingCoupon.id || 0).toString(), formData);
         if (response.success) {
           setCoupons(prev => prev.map(coupon => 
             (coupon._id || coupon.id || 0) === (editingCoupon._id || editingCoupon.id || 0) ? { ...coupon, ...formData } : coupon
