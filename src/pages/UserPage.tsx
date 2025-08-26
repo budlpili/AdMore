@@ -281,7 +281,7 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
   const params = new URLSearchParams(location.search);
   const initialTab = params.get('tab') || 'mypage';
   const [activeTab, setActiveTab] = useState(initialTab);
-  const [couponTab, setCouponTab] = useState('all');
+  const [couponTab, setCouponTab] = useState('available');
   const navigate = useNavigate();
   
   // 날짜 검색 상태
