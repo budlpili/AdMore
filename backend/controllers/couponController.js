@@ -92,24 +92,37 @@ const getUserCoupons = async (req, res) => {
       expiresAt: { $gt: new Date() } // 만료되지 않은 쿠폰만
     }).populate('couponId'); // 쿠폰 상세 정보 포함
     
+    console.log('=== getUserCoupons 디버깅 ===');
+    console.log('userId:', userId);
+    console.log('userCouponSends 개수:', userCouponSends.length);
+    console.log('첫 번째 send 문서:', userCouponSends[0]);
+    
     // 사용자별 쿠폰 데이터 구성
-    const userCoupons = userCouponSends.map(send => ({
-      sendId: send._id,
-      couponId: send.couponId._id,
-      name: send.couponId.name,
-      description: send.couponId.description,
-      discountType: send.couponId.discountType,
-      discountValue: send.couponId.discountValue,
-      maxDiscount: send.couponId.maxDiscount,
-      minPurchase: send.couponId.minPurchase,
-      startDate: send.couponId.startDate,
-      endDate: send.couponId.endDate,
-      brand: send.couponId.brand,
-      code: send.couponId.code,
-      usedAt: send.usedAt,
-      expiresAt: send.expiresAt,
-      status: send.couponId.status
-    }));
+    const userCoupons = userCouponSends.map(send => {
+      const couponData = {
+        sendId: send._id,
+        couponId: send.couponId._id,
+        name: send.couponId.name,
+        description: send.couponId.description,
+        discountType: send.couponId.discountType,
+        discountValue: send.couponId.discountValue,
+        maxDiscount: send.couponId.maxDiscount,
+        minPurchase: send.couponId.minPurchase,
+        startDate: send.couponId.startDate,
+        endDate: send.couponId.endDate,
+        brand: send.couponId.brand,
+        code: send.couponId.code,
+        usedAt: send.usedAt,
+        expiresAt: send.expiresAt,
+        status: send.couponId.status
+      };
+      
+      console.log('매핑된 쿠폰 데이터:', couponData);
+      return couponData;
+    });
+    
+    console.log('최종 반환할 쿠폰 목록:', userCoupons);
+    console.log('=== 디버깅 끝 ===');
     
     res.json({ success: true, coupons: userCoupons });
   } catch (error) {
