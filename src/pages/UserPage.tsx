@@ -2094,6 +2094,18 @@ const handleDeleteUserCoupon = async (sendId: string, couponName: string) => {
 
                         // 쿠폰 사용 여부 확인 (백엔드에서 계산된 isUsed 필드 사용)
                         const isUsed = coupon.isUsed !== undefined ? coupon.isUsed : coupon.usedAt !== null;
+                        
+                        // 디버깅: 쿠폰 상태 정보 출력
+                        if (couponTab === 'used' || couponTab === 'available') {
+                          console.log(`쿠폰 "${coupon.name}" 필터링:`, {
+                            sendId: coupon.sendId,
+                            isUsed: coupon.isUsed,
+                            usedAt: coupon.usedAt,
+                            calculatedIsUsed: isUsed,
+                            couponTab,
+                            willShow: couponTab === 'used' ? isUsed : !isUsed
+                          });
+                        }
 
                         // 탭별 필터링
                         switch (couponTab) {

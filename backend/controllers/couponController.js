@@ -87,10 +87,9 @@ const getUserCoupons = async (req, res) => {
   try {
     const { userId } = req.params;
     
-    // CouponSend에서 해당 사용자에게 발송된 쿠폰 조회 (만료되지 않은 쿠폰만)
+    // CouponSend에서 해당 사용자에게 발송된 쿠폰 조회 (모든 쿠폰 포함)
     const userCouponSends = await CouponSend.find({ 
-      userId: userId,
-      expiresAt: { $gt: new Date() } // 만료되지 않은 쿠폰만
+      userId: userId
     }).populate('couponId'); // 쿠폰 상세 정보 포함
     
     console.log('=== getUserCoupons 디버깅 ===');
