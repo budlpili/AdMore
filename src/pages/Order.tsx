@@ -317,6 +317,51 @@ const Order: React.FC = () => {
       const apiResponse = await ordersAPI.create(orderRequestData);
       console.log('백엔드 주문 생성 응답:', apiResponse);
 
+      // 주문 성공 시 선택된 쿠폰 사용 처리
+      if (apiResponse.success && selectedCoupon) {
+        try {
+          console.log('쿠폰 사용 처리 시작:', selectedCoupon);
+          
+          // 쿠폰 사용 API 호출
+          const couponResponse = await couponsAPI.useCoupon(selectedCoupon.sendId);
+          
+          if (couponResponse.success) {
+            console.log('쿠폰 사용 성공:', selectedCoupon.name);
+            alert(`주문이 완료되었습니다!\n\n사용된 쿠폰: ${selectedCoupon.name}\n할인 금액: ${couponDiscount.toLocaleString()}원`);
+          } else {
+            console.error('쿠폰 사용 실패:', couponResponse.message);
+            alert(`주문은 완료되었지만 쿠폰 사용에 실패했습니다.\n\n${couponResponse.message}`);
+          }
+          
+          // 쿠폰 사용 후 상태 정리
+          setSelectedCoupon(null);
+          
+          // 사용자 쿠폰 목록 새로고침 (사용 완료된 쿠폰 제거)
+          const token = localStorage.getItem('token');
+          if (token) {
+            try {
+              const tokenParts = token.split('.');
+              if (tokenParts.length === 3) {
+                const payload = JSON.parse(atob(tokenParts[1]));
+                const userId = payload.id.toString();
+                const response = await ordersAPI.getUserCoupons(userId);
+                if (response.success && response.coupons) {
+                  const availableCoupons = response.coupons.filter((coupon: any) => !coupon.isUsed);
+                  setUserCoupons(availableCoupons);
+                }
+              }
+            } catch (e) {
+              console.log('쿠폰 목록 새로고침 실패:', e);
+            }
+          }
+        } catch (couponError) {
+          console.error('쿠폰 사용 처리 중 오류:', couponError);
+          alert(`주문은 완료되었지만 쿠폰 사용 처리 중 오류가 발생했습니다.`);
+        }
+      } else if (apiResponse.success) {
+        alert('주문이 완료되었습니다!');
+      }
+
       // 백엔드 성공 시 로컬스토리지에도 저장 (인증 정보 보존)
       try {
         const existingOrders = JSON.parse(localStorage.getItem('orderList') || '[]');
@@ -361,6 +406,13 @@ const Order: React.FC = () => {
         });
     } catch (error) {
       console.error('주문 처리 중 오류:', error);
+      
+      // 주문 실패 시 에러 메시지 표시
+      if (error instanceof Error) {
+        alert(`주문 처리 중 오류가 발생했습니다:\n\n${error.message}`);
+      } else {
+        alert('주문 처리 중 오류가 발생했습니다. 다시 시도해주세요.');
+      }
       
       // 백엔드 실패 시에도 로컬스토리지에 저장 (폴백, 인증 정보 보존)
       try {
