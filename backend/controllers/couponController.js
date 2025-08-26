@@ -119,7 +119,7 @@ const getUserCoupons = async (req, res) => {
     
     // 사용자별 쿠폰 데이터 구성
     const userCoupons = userCouponSends.map(send => {
-      // 쿠폰 사용 여부 판단 (usedAt이 있거나 status가 'used'인 경우)
+      // 쿠폰 사용 여부 판단 (정확한 조건)
       const isUsed = send.usedAt !== null || send.status === 'used';
       
       console.log('=== 개별 쿠폰 매핑 디버깅 ===');
@@ -237,7 +237,8 @@ const sendCoupon = async (req, res) => {
         userEmail: user.email,
         userName: user.name || user.email,
         expiresAt,
-        usedAt: null // 명시적으로 null로 설정
+        usedAt: null, // 명시적으로 null로 설정
+        status: 'sent' // 상태를 명시적으로 sent로 설정
       };
     });
 
