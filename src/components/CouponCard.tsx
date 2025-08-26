@@ -6,6 +6,7 @@ interface CouponCardProps {
   maxDiscount: number;
   discountRate: number;
   onUse: () => void;
+  onDelete?: () => void; // 삭제 함수 추가
   used?: boolean; // 추가
   brand?: string;
   couponCode?: string; // 쿠폰 코드 추가
@@ -17,6 +18,7 @@ const CouponCard: React.FC<CouponCardProps> = ({
   maxDiscount,
   discountRate,
   onUse,
+  onDelete,
   used = false,
   brand = 'WELCOME COUPON',
   couponCode,
@@ -148,6 +150,23 @@ const CouponCard: React.FC<CouponCardProps> = ({
                 {couponCode}
               </div>
             )}
+            
+            {/* 삭제 버튼 */}
+            {onDelete && (
+              <button
+                className="absolute top-2 right-2 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full 
+                  flex items-center justify-center text-xs font-bold transition-colors duration-200 
+                  shadow-md hover:shadow-lg z-10"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete();
+                }}
+                title="쿠폰 삭제"
+              >
+                ×
+              </button>
+            )}
+            
             {used && (
               <button
                 className="absolute top-1/2 -translate-y-1/2 text-sm transition 

@@ -208,12 +208,7 @@ const Home: React.FC = () => {
           <p className="text-lg sm:text-xl md:text-2xl mb-6 sm:mb-8 text-blue-100 px-4">
             애드모어와 함께 당신의 소셜미디어를 성장시키세요
           </p>
-          <Link
-            to="/products"
-            className="inline-block bg-white text-blue-600 px-6 sm:px-8 py-3 sm:py-4 rounded-lg text-base sm:text-lg font-semibold hover:bg-gray-100 transition duration-300 shadow-lg hover:shadow-xl"
-          >
-            상품 보기
-          </Link>
+          
         </div>
       </div>
 

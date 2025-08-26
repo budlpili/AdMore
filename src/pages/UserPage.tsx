@@ -858,21 +858,42 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
   };
 
   // 쿠폰 사용 처리 함수
-  const handleUseUserCoupon = async (sendId: string) => {
-    try {
-      const response = await couponsAPI.useCoupon(sendId);
-      if (response.success) {
-        alert('쿠폰이 사용되었습니다.');
-        // 쿠폰함 다시 로드
-        await loadUserCoupons();
-      } else {
-        alert('쿠폰 사용에 실패했습니다.');
-      }
-    } catch (error) {
-      console.error('쿠폰 사용 에러:', error);
+const handleUseUserCoupon = async (sendId: string) => {
+  try {
+    const response = await couponsAPI.useCoupon(sendId);
+    if (response.success) {
+      alert('쿠폰이 사용되었습니다.');
+      // 쿠폰함 다시 로드
+      await loadUserCoupons();
+    } else {
       alert('쿠폰 사용에 실패했습니다.');
     }
-  };
+  } catch (error) {
+    console.error('쿠폰 사용 에러:', error);
+    alert('쿠폰 사용에 실패했습니다.');
+  }
+};
+
+// 쿠폰 삭제 처리 함수
+const handleDeleteUserCoupon = async (sendId: string, couponName: string) => {
+  if (!window.confirm(`"${couponName}" 쿠폰을 삭제하시겠습니까?\n\n삭제된 쿠폰은 복구할 수 없습니다.`)) {
+    return;
+  }
+
+  try {
+    const response = await couponsAPI.deleteCoupon(sendId);
+    if (response.success) {
+      alert('쿠폰이 삭제되었습니다.');
+      // 쿠폰함 다시 로드
+      await loadUserCoupons();
+    } else {
+      alert('쿠폰 삭제에 실패했습니다.');
+    }
+  } catch (error) {
+    console.error('쿠폰 삭제 에러:', error);
+    alert('쿠폰 삭제에 실패했습니다.');
+  }
+};
   const toggleFavorite = (id: string | number) => {
     if (favoriteIds.includes(id)) {
       removeFavorite(id);
@@ -2136,6 +2157,7 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
                             brand={coupon.brand || 'ADMORE'}
                             couponCode={coupon.code}
                             onUse={() => handleUseUserCoupon(coupon.sendId)}
+                            onDelete={() => handleDeleteUserCoupon(coupon.sendId, coupon.name)}
                           />
                         </div>
                       ))
