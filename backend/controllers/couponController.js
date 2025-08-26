@@ -121,7 +121,7 @@ const getUserCoupons = async (req, res) => {
     // 사용자별 쿠폰 데이터 구성
     const userCoupons = userCouponSends.map(send => {
       // 쿠폰 사용 여부 판단 (정확한 조건)
-      const isUsed = send.usedAt !== null || send.status === 'used';
+      const isUsed = send.usedAt || send.status === 'used';
       
       console.log('=== 개별 쿠폰 매핑 디버깅 ===');
       console.log('send._id:', send._id);
