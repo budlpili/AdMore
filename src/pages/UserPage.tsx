@@ -847,16 +847,12 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
         console.log('첫 번째 쿠폰의 sendId:', response.coupons[0]?.sendId);
         console.log('첫 번째 쿠폰 전체 데이터:', response.coupons[0]);
         
-        // 사용하지 않은 쿠폰만 필터링 (사용 완료된 쿠폰은 제외)
-        const availableCoupons = response.coupons.filter((coupon: any) => {
-          const isUsed = coupon.isUsed !== undefined ? coupon.isUsed : coupon.usedAt !== null;
-          return !isUsed;
-        });
-        
-        console.log('사용 가능한 쿠폰 개수:', availableCoupons.length);
+        // 모든 쿠폰을 로드 (사용 완료된 쿠폰 포함)
         console.log('전체 쿠폰 개수:', response.coupons.length);
+        console.log('사용 가능한 쿠폰 개수:', response.coupons.filter((c: any) => !c.isUsed).length);
+        console.log('사용 완료된 쿠폰 개수:', response.coupons.filter((c: any) => c.isUsed).length);
         
-        setUserCoupons(availableCoupons);
+        setUserCoupons(response.coupons);
       } else {
         console.log('쿠폰함 데이터가 없습니다.');
         setUserCoupons([]);
@@ -1604,22 +1600,13 @@ const handleDeleteUserCoupon = async (sendId: string, couponName: string) => {
     alert('쿠폰이 성공적으로 등록되었습니다!');
   };
 
-  // 사용 가능한 쿠폰 개수 계산
-  const allCoupons = [...DUMMY_COUPONS, ...registeredCoupons];
-  const availableCouponCount = allCoupons.filter(c => {
-    // 쿠폰 만료일 확인
-    const isExpired = () => {
-      try {
-        const expireDate = new Date(c.expire.replace('년 ', '-').replace('월 ', '-').replace('일 ', ' ').split(' ')[0]);
-        const today = new Date();
-        return expireDate < today;
-      } catch {
-        return false;
-      }
-    };
-    return !usedCoupons[c.id] && !isExpired();
+  // 사용 가능한 쿠폰 개수 계산 (실제 데이터 기반)
+  const availableCouponCount = userCoupons.filter((coupon: any) => {
+    const isUsed = coupon.isUsed !== undefined ? coupon.isUsed : coupon.usedAt !== null;
+    const isExpired = new Date(coupon.endDate) < new Date();
+    return !isUsed && !isExpired;
   }).length;
-  const totalCouponCount = allCoupons.length;
+  const totalCouponCount = userCoupons.length;
 
   // 드래그 스크롤 훅 적용
   const dragScroll = useDragScroll<HTMLDivElement>();
