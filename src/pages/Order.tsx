@@ -33,6 +33,29 @@ const Order: React.FC = () => {
   const [payment, setPayment] = useState('card');
   const [couponModalOpen, setCouponModalOpen] = useState(false);
   const [selectedCoupon, setSelectedCoupon] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [orderLoading, setOrderLoading] = useState(false);
+
+  // 사용자 정보 로드
+  useEffect(() => {
+    const loadUserInfo = () => {
+      const token = localStorage.getItem('token');
+      const userEmail = localStorage.getItem('userEmail');
+      const userName = localStorage.getItem('userName');
+      const userRole = localStorage.getItem('userRole');
+      
+      if (token && userEmail) {
+        setCurrentUser({
+          email: userEmail,
+          name: userName,
+          username: userName,
+          role: userRole
+        });
+      }
+    };
+
+    loadUserInfo();
+  }, []);
 
   // 상품 데이터 로드
   useEffect(() => {
@@ -229,173 +252,112 @@ const Order: React.FC = () => {
 
   // 주문 처리 함수
   const handleOrder = async () => {
-    // 인증 상태 확인
-    if (!restoreAuthState()) {
+    if (!product || !currentUser) {
+      alert('상품 정보나 사용자 정보를 불러올 수 없습니다.');
       return;
     }
-    
-    // 현재 로그인된 사용자 정보 가져오기
-    const userEmail = localStorage.getItem('userEmail') || 'guest@example.com';
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
-    const currentUser = users.find((user: any) => user.email === userEmail);
-    const userName = currentUser ? currentUser.name || '고객' : '고객';
 
-    // 한국 시간대의 현재 날짜를 ISO 문자열로 변환하는 함수
-    const getKoreanTimeISOString = () => {
-      const now = new Date();
-      const koreanTime = new Date(now.getTime() + (9 * 60 * 60 * 1000)); // UTC+9
-      return koreanTime.toISOString();
-    };
+    if (!selectedCoupon && couponDiscount > 0) {
+      alert('쿠폰을 선택해주세요.');
+      return;
+    }
 
-    // 주문 데이터
-    const orderData = {
-      orderId: `ORDER-${Date.now()}`,
-      productId: product.id,
-      product: product.name,
-      productName: product.name, // 관리자 페이지 호환성을 위해 추가
-      productImage: product.image || product.background,
-      quantity: quantity,
-      originalPrice: totalOriginal,
-      price: totalPrice,
-      discountRate: discountRate,
-      finalPrice: finalPrice,
-      requirements: requirements,
-      request: requirements,
-      payment: payment,
-      paymentMethod: payment === 'card' ? 'card' : 'virtual',
-      coupon: selectedCoupon,
-      couponDiscount: couponDiscount,
-      status: '주문접수',
-      date: getKoreanTimeISOString(),
-      review: '리뷰 작성하기',
-      detail: product.description || product.name,
-      // 관리자 페이지에서 필요한 추가 필드들
-      refundStatus: '환불대기',
-      confirmStatus: '확인대기',
-      paymentDate: payment === 'card' ? getKoreanTimeISOString() : '-',
-      paymentNumber: `PAY-${Date.now()}`,
-      userName: userName,
-      userEmail: userEmail
-    };
+    if (selectedCoupon && couponDiscount === 0) {
+      alert('선택된 쿠폰이 적용되지 않았습니다. 쿠폰을 다시 선택해주세요.');
+      return;
+    }
 
-    // 결제내역 데이터
-    const paymentData = {
-      orderId: orderData.orderId,
-      productId: product.id,
-      product: product.name, // productName -> product로 변경
-      productName: product.name, // 호환성을 위해 유지
-      productImage: product.image || product.background,
-      quantity: quantity,
-      originalPrice: totalOriginal,
-      price: totalPrice,
-      finalPrice: finalPrice,
-      paymentMethod: payment === 'card' ? 'card' : 'virtual',
-      paymentDate: getKoreanTimeISOString(),
-      status: '결제완료',
-      couponDiscount: couponDiscount,
-      requirements: requirements,
-      request: requirements, // request 추가
-      detail: product.description || product.name // detail 추가
-    };
-
-    // localStorage에 주문 정보 저장
     try {
-      // 백엔드 API에 주문 생성 요청
-      const orderRequestData = {
-        productId: (product._id || product.id).toString(),
-        product: product.name,
-        price: totalPrice,
-        originalPrice: totalOriginal,
-        discountPrice: couponDiscount,
-        quantity: quantity,
-        paymentMethod: payment === 'card' ? 'card' : 'virtual',
-        request: requirements,
-        detail: product.description || product.name,
-        userName: userName,
-        userEmail: userEmail,
-        userInfo: {
-          name: userName,
-          email: userEmail,
-          phone: currentUser?.phone || ''
-        }
-      };
+      setOrderLoading(true);
 
-      const apiResponse = await ordersAPI.create(orderRequestData);
-      console.log('백엔드 주문 생성 응답:', apiResponse);
+      const totalPrice = calculatePrice(quantity) - couponDiscount;
+      const totalOriginal = calculateOriginalPrice(quantity);
+      const userName = currentUser.name || currentUser.username || '사용자';
+      const userEmail = currentUser.email || '';
 
-      // 주문 성공 시 선택된 쿠폰 사용 처리
-      if (apiResponse.success && selectedCoupon) {
-        try {
-          console.log('=== 쿠폰 사용 처리 시작 ===');
-          console.log('선택된 쿠폰:', selectedCoupon);
-          console.log('쿠폰 sendId:', selectedCoupon.sendId);
-          console.log('쿠폰 이름:', selectedCoupon.name);
-          
-          // 쿠폰 사용 API 호출
-          console.log('couponsAPI.useCoupon 호출 시작...');
-          const couponResponse = await couponsAPI.useCoupon(selectedCoupon.sendId);
-          console.log('쿠폰 사용 API 응답:', couponResponse);
-          
-          if (couponResponse.success) {
-            console.log('쿠폰 사용 성공:', selectedCoupon.name);
-            alert(`주문이 완료되었습니다!\n\n사용된 쿠폰: ${selectedCoupon.name}\n할인 금액: ${couponDiscount.toLocaleString()}원`);
-          } else {
-            console.error('쿠폰 사용 실패:', couponResponse.message);
-            alert(`주문은 완료되었지만 쿠폰 사용에 실패했습니다.\n\n${couponResponse.message}`);
+      // localStorage에 주문 정보 저장
+      try {
+        // 백엔드 API에 주문 생성 요청
+        const orderRequestData = {
+          productId: (product._id || product.id).toString(),
+          product: product.name,
+          price: totalPrice,
+          originalPrice: totalOriginal,
+          discountPrice: couponDiscount,
+          quantity: quantity,
+          paymentMethod: payment === 'card' ? 'card' : 'virtual',
+          request: requirements,
+          detail: product.description || product.name,
+          userName: userName,
+          userEmail: userEmail,
+          userInfo: {
+            name: userName,
+            email: userEmail,
+            phone: currentUser?.phone || ''
           }
-          
-          // 쿠폰 사용 후 상태 정리
-          setSelectedCoupon(null);
-          
-          // 사용자 쿠폰 목록 새로고침 (사용 완료된 쿠폰 제거)
-          const token = localStorage.getItem('token');
-          if (token) {
+        };
+
+        const apiResponse = await ordersAPI.create(orderRequestData);
+        console.log('백엔드 주문 생성 응답:', apiResponse);
+
+        if (apiResponse.success) {
+          // 주문 성공 시 선택된 쿠폰 사용 처리
+          if (selectedCoupon) {
             try {
-              const tokenParts = token.split('.');
-              if (tokenParts.length === 3) {
-                const payload = JSON.parse(atob(tokenParts[1]));
-                const userId = payload.id.toString();
-                const response = await couponsAPI.getUserCoupons(userId);
-                if (response.success && response.coupons) {
-                  const availableCoupons = response.coupons.filter((coupon: any) => !coupon.isUsed);
-                  setUserCoupons(availableCoupons);
-                }
+              console.log('=== 쿠폰 사용 처리 시작 ===');
+              console.log('선택된 쿠폰:', selectedCoupon);
+              console.log('쿠폰 sendId:', selectedCoupon.sendId);
+              console.log('쿠폰 이름:', selectedCoupon.name);
+              
+              // 쿠폰 사용 API 호출
+              console.log('couponsAPI.useCoupon 호출 시작...');
+              const couponResponse = await couponsAPI.useCoupon(selectedCoupon.sendId);
+              console.log('쿠폰 사용 API 응답:', couponResponse);
+              
+              if (couponResponse.success) {
+                console.log('쿠폰 사용 성공:', selectedCoupon.name);
+                
+                // 쿠폰 사용 후 즉시 로컬 상태에서 해당 쿠폰 제거
+                setUserCoupons(prevCoupons => 
+                  prevCoupons.filter(coupon => coupon.sendId !== selectedCoupon.sendId)
+                );
+                
+                alert(`주문이 완료되었습니다!\n\n사용된 쿠폰: ${selectedCoupon.name}\n할인 금액: ${couponDiscount.toLocaleString()}원`);
+              } else {
+                console.error('쿠폰 사용 실패:', couponResponse.message);
+                alert(`주문은 완료되었지만 쿠폰 사용에 실패했습니다.\n\n${couponResponse.message}`);
               }
-            } catch (e) {
-              console.log('쿠폰 목록 새로고침 실패:', e);
+            } catch (couponError) {
+              console.error('쿠폰 사용 처리 중 오류:', couponError);
+              alert(`주문은 완료되었지만 쿠폰 사용 처리 중 오류가 발생했습니다.`);
             }
+          } else {
+            alert('주문이 완료되었습니다!');
           }
-        } catch (couponError) {
-          console.error('쿠폰 사용 처리 중 오류:', couponError);
-          alert(`주문은 완료되었지만 쿠폰 사용 처리 중 오류가 발생했습니다.`);
-        }
-      } else if (apiResponse.success) {
-        alert('주문이 완료되었습니다!');
-      }
 
-      // 백엔드 성공 시 로컬 저장하지 않음 (중복 방지)
-      console.log('백엔드에 주문이 성공적으로 저장되었습니다. 로컬 저장을 건너뜁니다.');
-      
-              // 주문 완료 후 인증 상태 재확인
-        if (!restoreAuthState()) {
-          return;
-        }
-        
-        // 주문 완료 후 Order 페이지에 머무름
-        if (selectedCoupon) {
-          alert(`주문이 성공적으로 완료되었습니다!\n\n사용된 쿠폰: ${selectedCoupon.name}\n할인 금액: ${couponDiscount.toLocaleString()}원`);
+          // 주문 완료 후 인증 상태 재확인
+          if (!restoreAuthState()) {
+            return;
+          }
+          
+          // Order 페이지에 머무르고 폼 초기화
+          setSelectedCoupon(null);
+          setQuantity(1);
+          setRequirements('');
+          setPayment('card');
+          
+          // 쿠폰 사용 후 사용자 쿠폰 목록 새로고침
+          loadUserCoupons();
         } else {
-          alert('주문이 성공적으로 완료되었습니다!');
+          alert('주문 처리에 실패했습니다. 다시 시도해주세요.');
         }
-        
-        // Order 페이지에 머무르고 폼 초기화
-        setSelectedCoupon(null);
-        setQuantity(1);
-        setRequirements('');
-        setPayment('card');
-        
-        // 쿠폰 사용 후 사용자 쿠폰 목록 새로고침
-        loadUserCoupons();
+
+        // 백엔드 성공 시 로컬 저장하지 않음 (중복 방지)
+        console.log('백엔드에 주문이 성공적으로 저장되었습니다. 로컬 저장을 건너뜁니다.');
+      } catch (error) {
+        console.error('백엔드 주문 생성 실패:', error);
+        throw error;
+      }
     } catch (error) {
       console.error('주문 처리 중 오류:', error);
       
@@ -405,16 +367,14 @@ const Order: React.FC = () => {
       } else {
         alert('주문 처리 중 오류가 발생했습니다. 다시 시도해주세요.');
       }
-      
-      // 백엔드 실패 시 사용자에게 알림
-      console.error('백엔드 주문 생성 실패');
-      alert('주문 처리 중 오류가 발생했습니다. 다시 시도해주세요.');
+    } finally {
+      setOrderLoading(false);
     }
   };
 
   return (
-    <div className="max-w-3xl mx-auto py-10 px-4 pb-20">
-      <div className="bg-white rounded-xl shadow p-6 mb-8">
+    <div className=" py-10 px-4 pb-20 bg-gray-50">
+      <div className="max-w-3xl mx-auto bg-white rounded-xl shadow p-6 mb-8 border border-gray-200">
         <div className="flex flex-row justify-between items-center mb-4">
           <span className="text-gray-700 font-semibold text-base" >주문내역</span>
         </div>
@@ -463,10 +423,10 @@ const Order: React.FC = () => {
             
           </div>
         </div>
-        <div className="flex flex-row justify-between w-full items-start text-xs text-gray-400 border-b border-gray-200 py-4 mb-4">
+        <div className="flex xs:flex-row flex-col gap-4 justify-between w-full items-start text-xs text-gray-400 border-b border-gray-200 py-4 mb-4">
           
-          <div className="flex flex-row items-center w-full justify-between">
-            <div className="flex items-center">
+          <div className="flex flex-row items-center w-full justify-between flex-wrap">
+            <div className="flex items-center ">
               <span className="text-gray-700 font-bold">기본</span>
               <span className="text-gray-600 ml-2"> (1일 / {(() => {
                 const basePrice = product.price1Day || product.price || 0;
@@ -474,7 +434,7 @@ const Order: React.FC = () => {
                 return typeof price === 'number' ? price.toLocaleString() : basePrice;
               })()}원)</span>
             </div>
-            <div className="flex items-center justify-end min-w-20">
+            <div className="flex items-center justify-end min-w-10">
               <span className="text-gray-600 font-bold">{quantity}일</span>
             </div>
           </div>
@@ -520,8 +480,8 @@ const Order: React.FC = () => {
           />
         </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        <div className="bg-white rounded-xl shadow p-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 max-w-3xl mx-auto">
+        <div className="bg-white rounded-xl shadow p-6 border border-gray-200">
           <div className="font-semibold mb-2">포인트 사용</div>
           <div className="text-xs text-gray-500 mb-2">잔여 포인트: 0 P</div>
           <div className="flex gap-2 mb-2">
@@ -529,7 +489,7 @@ const Order: React.FC = () => {
             <button className="bg-gray-100 text-gray-400 px-4 py-2 rounded font-semibold text-xs" disabled>전액 사용</button>
           </div>
         </div>
-        <div className="bg-white rounded-xl shadow p-6">
+        <div className="bg-white rounded-xl shadow p-6 border border-gray-200">
           <div className="font-semibold mb-2">쿠폰 사용</div>
           <div className="text-xs text-gray-500 mb-2">
             사용 가능한 쿠폰: {couponLoading ? '로딩 중...' : userCoupons.length}개
@@ -603,7 +563,7 @@ const Order: React.FC = () => {
           </div>
         </div>
       )}
-      <div className="bg-white rounded-xl shadow p-6 mb-8">
+      <div className="max-w-3xl mx-auto bg-white rounded-xl shadow p-6 mb-8 border border-gray-200">
         <div className="font-semibold mb-2">결제 방법</div>
         <div className="flex gap-6 mb-4">
           <label className="flex items-center gap-2 cursor-pointer">
@@ -649,12 +609,14 @@ const Order: React.FC = () => {
           </div>
         </div>
       </div>
-      <button 
-        className="w-full bg-orange-600 text-white py-3 rounded-lg font-semibold text-lg hover:bg-orange-700 transition"
-        onClick={handleOrder}
-      >
-        주문하기
-      </button>
+      <div className="max-w-3xl mx-auto">
+        <button 
+          className="max-w-3xl mx-auto w-full bg-orange-600 text-white py-3 rounded-lg font-semibold text-lg hover:bg-orange-700 transition"
+          onClick={handleOrder}
+        >
+          주문하기
+        </button>
+      </div>
     </div>
   );
 };
