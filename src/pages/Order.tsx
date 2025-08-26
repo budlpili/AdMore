@@ -90,42 +90,35 @@ const Order: React.FC = () => {
 
   // 사용자 쿠폰 로드 함수
   const loadUserCoupons = async () => {
+    if (!currentUser?.email) return;
+    
     try {
       setCouponLoading(true);
+      const response = await couponsAPI.getUserCoupons(currentUser.email);
       
-      // 토큰에서 사용자 ID 추출
-      const token = localStorage.getItem('token');
-      let userId = '';
-      
-      if (token) {
-        try {
-          const tokenParts = token.split('.');
-          if (tokenParts.length === 3) {
-            const payload = JSON.parse(atob(tokenParts[1]));
-            userId = payload.id.toString();
-          }
-        } catch (e) {
-          console.log('토큰에서 사용자 ID 추출 실패:', e);
-        }
-      }
-      
-      if (userId) {
-        const response = await couponsAPI.getUserCoupons(userId);
-        if (response.success && response.coupons) {
-          // 사용되지 않은 쿠폰만 필터링하여 표시
-          const availableCoupons = response.coupons.filter((coupon: any) => {
-            const isUsed = coupon.isUsed !== undefined ? coupon.isUsed : coupon.usedAt !== null;
-            return !isUsed;
+      if (response.success && response.coupons) {
+        console.log('=== loadUserCoupons 디버깅 ===');
+        console.log('유저 쿠폰함 데이터:', response.coupons);
+        console.log('전체 쿠폰 개수:', response.coupons.length);
+        console.log('사용 가능한 쿠폰 개수:', response.coupons.filter((c: any) => !c.isUsed).length);
+        console.log('사용 완료된 쿠폰 개수:', response.coupons.filter((c: any) => c.isUsed).length);
+        
+        // 각 쿠폰의 상태 상세 정보 출력
+        response.coupons.forEach((coupon: any, index: number) => {
+          console.log(`쿠폰 ${index + 1}:`, {
+            name: coupon.name,
+            sendId: coupon.sendId,
+            isUsed: coupon.isUsed,
+            usedAt: coupon.usedAt,
+            status: coupon.status
           });
-          setUserCoupons(availableCoupons);
-          console.log('사용 가능한 쿠폰:', availableCoupons);
-          console.log('전체 쿠폰 개수:', response.coupons.length);
-          console.log('사용 가능한 쿠폰 개수:', availableCoupons.length);
-        }
+        });
+        console.log('=== loadUserCoupons 디버깅 끝 ===');
+        
+        setUserCoupons(response.coupons);
       }
     } catch (error) {
-      console.error('사용자 쿠폰 로드 에러:', error);
-      setUserCoupons([]);
+      console.error('사용자 쿠폰 로드 오류:', error);
     } finally {
       setCouponLoading(false);
     }
@@ -170,37 +163,53 @@ const Order: React.FC = () => {
 
   // 원가 계산 함수 (1일 가격을 기준으로 기간별 계산)
   const calculateOriginalPrice = (selectedQuantity: number) => {
-    if (!product || !product.price1Day) return 0;
+    if (!product) return 0;
     
-    // 1일 가격을 기준으로 기간별 원가 계산
-    const basePrice = typeof product.price1Day === 'number' ? product.price1Day : parseFloat(String(product.price1Day));
+    let basePrice = 0;
+    
+    // 1일 가격이 있으면 사용, 없으면 기본 가격 사용
+    if (product.price1Day) {
+      basePrice = typeof product.price1Day === 'number' ? product.price1Day : parseFloat(String(product.price1Day));
+    } else if (product.price) {
+      basePrice = typeof product.price === 'number' ? product.price : parseFloat(String(product.price));
+    } else {
+      return 0;
+    }
+    
     const originalPrice = basePrice * selectedQuantity;
-    
     return Math.round(originalPrice);
   };
 
   // 할인율 계산 함수
   const calculateDiscountRate = (selectedQuantity: number) => {
-    if (!product || !product.price1Day) return 0;
+    if (!product) return 0;
     
     // 1일 선택 시 할인율 0% (1일 가격이 기준이므로 할인 없음)
     if (selectedQuantity === 1) {
       return 0;
     }
     
-    // 7일 또는 30일 선택 시 할인율 계산
-    const price1Day = typeof product.price1Day === 'number' ? product.price1Day : parseFloat(String(product.price1Day));
+    // 기준 가격 결정 (1일 가격이 있으면 사용, 없으면 기본 가격 사용)
+    let basePrice = 0;
+    if (product.price1Day) {
+      basePrice = typeof product.price1Day === 'number' ? product.price1Day : parseFloat(String(product.price1Day));
+    } else if (product.price) {
+      basePrice = typeof product.price === 'number' ? product.price : parseFloat(String(product.price));
+    } else {
+      return 0;
+    }
     
+    // 7일 또는 30일 선택 시 할인율 계산
     if (selectedQuantity === 7 && product.price7Days) {
       const price7Days = typeof product.price7Days === 'number' ? product.price7Days : parseFloat(String(product.price7Days));
-      const originalPrice = price1Day * 7; // 7일 원가
+      const originalPrice = basePrice * 7; // 7일 원가
       const discountRate = ((originalPrice - price7Days) / originalPrice) * 100;
       return Math.round(discountRate);
     }
     
     if (selectedQuantity === 30 && product.price30Days) {
       const price30Days = typeof product.price30Days === 'number' ? product.price30Days : parseFloat(String(product.price30Days));
-      const originalPrice = price1Day * 30; // 30일 원가
+      const originalPrice = basePrice * 30; // 30일 원가
       const discountRate = ((originalPrice - price30Days) / originalPrice) * 100;
       return Math.round(discountRate);
     }
@@ -252,17 +261,28 @@ const Order: React.FC = () => {
 
   // 주문 처리 함수
   const handleOrder = async () => {
+    console.log('=== 주문 처리 시작 ===');
+    console.log('상품 정보:', product);
+    console.log('사용자 정보:', currentUser);
+    console.log('선택된 쿠폰:', selectedCoupon);
+    console.log('수량:', quantity);
+    console.log('요구사항:', requirements);
+    console.log('결제 방법:', payment);
+    
     if (!product || !currentUser) {
+      console.error('상품 정보나 사용자 정보 누락');
       alert('상품 정보나 사용자 정보를 불러올 수 없습니다.');
       return;
     }
 
     if (!selectedCoupon && couponDiscount > 0) {
+      console.error('쿠폰 선택 누락');
       alert('쿠폰을 선택해주세요.');
       return;
     }
 
     if (selectedCoupon && couponDiscount === 0) {
+      console.error('쿠폰 할인이 적용되지 않음');
       alert('선택된 쿠폰이 적용되지 않았습니다. 쿠폰을 다시 선택해주세요.');
       return;
     }
@@ -270,8 +290,17 @@ const Order: React.FC = () => {
     try {
       setOrderLoading(true);
 
-      const totalPrice = calculatePrice(quantity) - couponDiscount;
+      const basePrice = calculatePrice(quantity);
       const totalOriginal = calculateOriginalPrice(quantity);
+      const finalPrice = basePrice - couponDiscount;
+      
+      console.log('가격 계산 결과:', {
+        basePrice,
+        totalOriginal,
+        couponDiscount,
+        finalPrice
+      });
+      
       const userName = currentUser.name || currentUser.username || '사용자';
       const userEmail = currentUser.email || '';
 
@@ -281,7 +310,7 @@ const Order: React.FC = () => {
         const orderRequestData = {
           productId: (product._id || product.id).toString(),
           product: product.name,
-          price: totalPrice,
+          price: finalPrice,
           originalPrice: totalOriginal,
           discountPrice: couponDiscount,
           quantity: quantity,
@@ -297,6 +326,9 @@ const Order: React.FC = () => {
           }
         };
 
+        console.log('주문 요청 데이터:', orderRequestData);
+        console.log('백엔드 API 호출 시작...');
+        
         const apiResponse = await ordersAPI.create(orderRequestData);
         console.log('백엔드 주문 생성 응답:', apiResponse);
 
@@ -316,11 +348,16 @@ const Order: React.FC = () => {
               
               if (couponResponse.success) {
                 console.log('쿠폰 사용 성공:', selectedCoupon.name);
+                console.log('쿠폰 사용 응답 상세:', {
+                  success: couponResponse.success,
+                  message: couponResponse.message,
+                  usedAt: couponResponse.usedAt,
+                  status: couponResponse.status
+                });
                 
-                // 쿠폰 사용 후 즉시 로컬 상태에서 해당 쿠폰 제거
-                setUserCoupons(prevCoupons => 
-                  prevCoupons.filter(coupon => coupon.sendId !== selectedCoupon.sendId)
-                );
+                // 쿠폰 사용 후 즉시 로컬 상태에서 해당 쿠폰 제거하지 않음
+                // API 새로고침으로 상태를 동기화하도록 수정
+                console.log('쿠폰 사용 성공 후 로컬 상태 업데이트 건너뜀');
                 
                 alert(`주문이 완료되었습니다!\n\n사용된 쿠폰: ${selectedCoupon.name}\n할인 금액: ${couponDiscount.toLocaleString()}원`);
               } else {
@@ -346,8 +383,10 @@ const Order: React.FC = () => {
           setRequirements('');
           setPayment('card');
           
-          // 쿠폰 사용 후 사용자 쿠폰 목록 새로고침
-          loadUserCoupons();
+          // 쿠폰 사용 후 사용자 쿠폰 목록 새로고침 (약간의 지연 추가)
+          setTimeout(() => {
+            loadUserCoupons();
+          }, 500);
         } else {
           alert('주문 처리에 실패했습니다. 다시 시도해주세요.');
         }
