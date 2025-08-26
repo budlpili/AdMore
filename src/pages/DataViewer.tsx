@@ -23,7 +23,7 @@ const DataViewer: React.FC = () => {
   const loadData = async (collection: keyof CollectionData) => {
     try {
       setLoading(true);
-      let response;
+      let response: any;
       
       switch (collection) {
         case 'users':

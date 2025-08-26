@@ -404,6 +404,9 @@ export const ordersAPI = {
   getById: async (orderId: string) => {
     return apiRequest(`/orders/${orderId}`);
   },
+  
+  // 관리자용 모든 주문 조회 (간단한 버전)
+  getAllOrders: () => apiRequest('/orders'),
 };
 
 // 카테고리 관련 API
@@ -634,7 +637,11 @@ export const couponsAPI = {
   deleteCoupon: (sendId: string) => 
     apiRequest(`/coupons/user-coupon/${sendId}`, {
       method: 'DELETE'
-    })
+    }),
+  // 관리자용 모든 쿠폰 조회
+  getAllCoupons: () => apiRequest('/coupons'),
+  // 관리자용 모든 쿠폰 발송 데이터 조회
+  getAllCouponSends: () => apiRequest('/coupons/sends')
 };
 
 // 고객센터 API
