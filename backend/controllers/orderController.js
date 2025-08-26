@@ -51,13 +51,19 @@ const createOrder = async (req, res) => {
     console.log('받은 주문 데이터:', req.body);
 
     if (!productId || !price) {
-      return res.status(400).json({ message: '필수 필드가 누락되었습니다.' });
+      return res.status(400).json({ 
+        success: false,
+        message: '필수 필드가 누락되었습니다.' 
+      });
     }
 
     // 먼저 상품 정보를 데이터베이스에서 가져오기
     const productData = await Product.findById(productId);
     if (!productData) {
-      return res.status(404).json({ message: '상품을 찾을 수 없습니다.' });
+      return res.status(404).json({ 
+        success: false,
+        message: '상품을 찾을 수 없습니다.' 
+      });
     }
 
     // 실제 상품 정보 사용
@@ -97,6 +103,7 @@ const createOrder = async (req, res) => {
     await order.save();
 
     res.status(201).json({
+      success: true,
       message: '주문이 성공적으로 생성되었습니다.',
       orderId: orderId,
       order: {
@@ -115,7 +122,10 @@ const createOrder = async (req, res) => {
     });
   } catch (error) {
     console.error('주문 생성 오류:', error);
-    res.status(500).json({ message: '주문 생성 중 오류가 발생했습니다.' });
+    res.status(500).json({ 
+      success: false,
+      message: '주문 생성 중 오류가 발생했습니다.' 
+    });
   }
 };
 

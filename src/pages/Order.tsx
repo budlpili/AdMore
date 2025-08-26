@@ -407,7 +407,8 @@ const Order: React.FC = () => {
             loadUserCoupons();
           }, 500);
         } else {
-          alert('주문 처리에 실패했습니다. 다시 시도해주세요.');
+          console.error('주문 생성 실패:', apiResponse);
+          alert(`주문 처리에 실패했습니다.\n\n${apiResponse.message || '알 수 없는 오류가 발생했습니다.'}`);
         }
 
         // 백엔드 성공 시 로컬 저장하지 않음 (중복 방지)
