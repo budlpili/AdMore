@@ -57,6 +57,13 @@ const Order: React.FC = () => {
     loadUserInfo();
   }, []);
 
+  // currentUser가 설정된 후 쿠폰 로드
+  useEffect(() => {
+    if (currentUser?.email) {
+      loadUserCoupons();
+    }
+  }, [currentUser]);
+
   // 상품 데이터 로드
   useEffect(() => {
     const loadProduct = async () => {
@@ -90,13 +97,19 @@ const Order: React.FC = () => {
 
   // 사용자 쿠폰 로드 함수
   const loadUserCoupons = async () => {
-    if (!currentUser?.email) return;
+    // localStorage에서 직접 이메일 가져오기
+    const userEmail = localStorage.getItem('userEmail');
+    if (!userEmail || userEmail === 'guest@example.com') {
+      console.log('사용자 이메일이 없거나 게스트입니다.');
+      setUserCoupons([]);
+      return;
+    }
     
     try {
       setCouponLoading(true);
-      console.log('이메일로 쿠폰 조회 시도:', currentUser.email);
+      console.log('이메일로 쿠폰 조회 시도:', userEmail);
       
-      const response = await couponsAPI.getUserCouponsByEmail(currentUser.email);
+      const response = await couponsAPI.getUserCouponsByEmail(userEmail);
       
       if (response.success && response.coupons) {
         console.log('=== loadUserCoupons 디버깅 ===');
@@ -130,10 +143,10 @@ const Order: React.FC = () => {
     }
   };
 
-  // 컴포넌트 마운트 시 쿠폰 로드
-  useEffect(() => {
-    loadUserCoupons();
-  }, []);
+  // 컴포넌트 마운트 시 쿠폰 로드 (제거)
+  // useEffect(() => {
+  //   loadUserCoupons();
+  // }, []);
 
   // 사용자 쿠폰 상태
   const [userCoupons, setUserCoupons] = useState<any[]>([]);
