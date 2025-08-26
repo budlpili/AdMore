@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import CouponCard from '../components/CouponCard';
-import { productAPI, ordersAPI } from '../services/api';
+import { productAPI, ordersAPI, couponsAPI } from '../services/api';
 
 const Order: React.FC = () => {
   const location = useLocation();
@@ -65,27 +65,51 @@ const Order: React.FC = () => {
     loadProduct();
   }, [orderInfo.product.id]);
 
-  // 예시 쿠폰 데이터
-  const coupons = [
-    {
-      title: '가입 환영 10% 할인 쿠폰',
-      expiry: '2025년 07월 09일 13:49',
-      maxDiscount: 10000,
-      discountRate: 10,
-    },
-    {
-      title: '가입 환영 10% 할인 쿠폰',
-      expiry: '2025년 07월 09일 13:49',
-      maxDiscount: 10000,
-      discountRate: 10,
-    },
-    {
-      title: '가입 환영 10% 할인 쿠폰',
-      expiry: '2025년 07월 09일 13:49',
-      maxDiscount: 10000,
-      discountRate: 10,
-    },
-  ];
+  // 사용자 쿠폰 로드
+  useEffect(() => {
+    const loadUserCoupons = async () => {
+      try {
+        setCouponLoading(true);
+        
+        // 토큰에서 사용자 ID 추출
+        const token = localStorage.getItem('token');
+        let userId = '';
+        
+        if (token) {
+          try {
+            const tokenParts = token.split('.');
+            if (tokenParts.length === 3) {
+              const payload = JSON.parse(atob(tokenParts[1]));
+              userId = payload.id.toString();
+            }
+          } catch (e) {
+            console.log('토큰에서 사용자 ID 추출 실패:', e);
+          }
+        }
+        
+        if (userId) {
+          const response = await ordersAPI.getUserCoupons(userId);
+          if (response.success && response.coupons) {
+            // 사용 가능한 쿠폰만 필터링
+            const availableCoupons = response.coupons.filter((coupon: any) => !coupon.isUsed);
+            setUserCoupons(availableCoupons);
+            console.log('사용 가능한 쿠폰:', availableCoupons);
+          }
+        }
+      } catch (error) {
+        console.error('사용자 쿠폰 로드 에러:', error);
+        setUserCoupons([]);
+      } finally {
+        setCouponLoading(false);
+      }
+    };
+
+    loadUserCoupons();
+  }, []);
+
+  // 사용자 쿠폰 상태
+  const [userCoupons, setUserCoupons] = useState<any[]>([]);
+  const [couponLoading, setCouponLoading] = useState(false);
 
   // 가격 계산 함수 (ProductDetail과 동일)
   const calculatePrice = (selectedQuantity: number) => {
@@ -168,8 +192,16 @@ const Order: React.FC = () => {
   const totalOriginal = calculateOriginalPrice(quantity);
   const discountRate = calculateDiscountRate(quantity);
   const discount = totalOriginal - totalPrice;
-  // 쿠폰 할인 금액 계산 (쿠폰 사용 비활성화)
-  const couponDiscount = 0;
+  // 쿠폰 할인 계산
+  const couponDiscount = selectedCoupon ? (() => {
+    if (selectedCoupon.discountType === 'percentage') {
+      const discountAmount = (totalPrice * selectedCoupon.discountValue) / 100;
+      return Math.min(discountAmount, selectedCoupon.maxDiscount || 10000);
+    } else {
+      return Math.min(selectedCoupon.discountValue || 0, selectedCoupon.maxDiscount || 10000);
+    }
+  })() : 0;
+
   const finalPrice = totalPrice - couponDiscount;
 
   // 인증 상태 복구 함수
@@ -490,16 +522,35 @@ const Order: React.FC = () => {
         </div>
         <div className="bg-white rounded-xl shadow p-6">
           <div className="font-semibold mb-2">쿠폰 사용</div>
-          <div className="text-xs text-gray-500 mb-2">사용 가능한 쿠폰: 0개</div>
+          <div className="text-xs text-gray-500 mb-2">
+            사용 가능한 쿠폰: {couponLoading ? '로딩 중...' : userCoupons.length}개
+          </div>
           <div className="flex gap-2 mb-2">
             <input
-              className="flex-1 border rounded px-3 py-2 bg-gray-100 text-gray-400 text-xs"
-              placeholder="사용할 쿠폰을 선택해 주세요."
-              value=""
+              className="flex-1 border rounded px-3 py-2 text-xs"
+              placeholder={selectedCoupon ? selectedCoupon.name : "사용할 쿠폰을 선택해 주세요."}
+              value={selectedCoupon ? selectedCoupon.name : ""}
               readOnly
-              disabled
             />
-            <button className="bg-gray-100 text-gray-400 px-4 py-2 rounded font-semibold text-xs" disabled>쿠폰 선택</button>
+            <button 
+              className={`px-4 py-2 rounded font-semibold text-xs ${
+                userCoupons.length > 0 
+                  ? 'bg-orange-600 text-white hover:bg-orange-700' 
+                  : 'bg-gray-100 text-gray-400'
+              }`}
+              onClick={() => userCoupons.length > 0 && setCouponModalOpen(true)}
+              disabled={userCoupons.length === 0}
+            >
+              쿠폰 선택
+            </button>
+            {selectedCoupon && (
+              <button 
+                className="px-4 py-2 rounded font-semibold text-xs bg-gray-500 text-white hover:bg-gray-600"
+                onClick={() => setSelectedCoupon(null)}
+              >
+                선택 해제
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -512,20 +563,33 @@ const Order: React.FC = () => {
               <button onClick={() => setCouponModalOpen(false)} className="text-2xl">&times;</button>
             </div>
             <div className="flex flex-wrap gap-3 max-h-[60vh] overflow-y-auto">
-              {coupons.map((coupon, idx) => (
-                <div key={idx} className="w-full sm:w-[calc(50%-6px)]">
-                  <CouponCard
-                    title={coupon.title}
-                    expiry={coupon.expiry}
-                    maxDiscount={coupon.maxDiscount}
-                    discountRate={coupon.discountRate}
-                    onUse={() => {
-                      setSelectedCoupon(coupon);
-                      setCouponModalOpen(false);
-                    }}
-                  />
+              {userCoupons.length > 0 ? (
+                userCoupons.map((coupon, idx) => (
+                  <div key={idx} className="w-full sm:w-[calc(50%-6px)]">
+                    <CouponCard
+                      title={coupon.name}
+                      expiry={coupon.endDate}
+                      maxDiscount={coupon.maxDiscount || 10000}
+                      discountRate={coupon.discountType === 'percentage' ? coupon.discountValue : 0}
+                      brand={coupon.brand || 'ADMORE'}
+                      couponCode={coupon.code}
+                    />
+                    <button
+                      className="w-full mt-2 bg-orange-600 text-white py-2 rounded text-sm hover:bg-orange-700 transition"
+                      onClick={() => {
+                        setSelectedCoupon(coupon);
+                        setCouponModalOpen(false);
+                      }}
+                    >
+                      이 쿠폰 사용하기
+                    </button>
+                  </div>
+                ))
+              ) : (
+                <div className="w-full text-center py-8 text-gray-500">
+                  사용 가능한 쿠폰이 없습니다.
                 </div>
-              ))}
+              )}
             </div>
           </div>
         </div>
@@ -559,8 +623,8 @@ const Order: React.FC = () => {
           </div>
           <div className="flex justify-between mb-1">
             <span className="text-gray-700 text-xs" >쿠폰 할인</span>
-            <span className="text-gray-400 text-xs">
-              0 원
+            <span className="text-red-500 text-xs">
+              -{couponDiscount.toLocaleString()} 원
             </span>
           </div>
           <div className="flex justify-between mb-1">
