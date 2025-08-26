@@ -320,10 +320,15 @@ const Order: React.FC = () => {
       // 주문 성공 시 선택된 쿠폰 사용 처리
       if (apiResponse.success && selectedCoupon) {
         try {
-          console.log('쿠폰 사용 처리 시작:', selectedCoupon);
+          console.log('=== 쿠폰 사용 처리 시작 ===');
+          console.log('선택된 쿠폰:', selectedCoupon);
+          console.log('쿠폰 sendId:', selectedCoupon.sendId);
+          console.log('쿠폰 이름:', selectedCoupon.name);
           
           // 쿠폰 사용 API 호출
+          console.log('couponsAPI.useCoupon 호출 시작...');
           const couponResponse = await couponsAPI.useCoupon(selectedCoupon.sendId);
+          console.log('쿠폰 사용 API 응답:', couponResponse);
           
           if (couponResponse.success) {
             console.log('쿠폰 사용 성공:', selectedCoupon.name);
