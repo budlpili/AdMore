@@ -367,31 +367,8 @@ const Order: React.FC = () => {
         alert('주문이 완료되었습니다!');
       }
 
-      // 백엔드 성공 시 로컬스토리지에도 저장 (인증 정보 보존)
-      try {
-        const existingOrders = JSON.parse(localStorage.getItem('orderList') || '[]');
-        const updatedOrders = [orderData, ...existingOrders];
-        localStorage.setItem('orderList', JSON.stringify(updatedOrders));
-        
-        // localStorage에 결제내역 저장
-        const existingPayments = JSON.parse(localStorage.getItem('paymentList') || '[]');
-        const updatedPayments = [paymentData, ...existingPayments];
-        localStorage.setItem('paymentList', JSON.stringify(updatedPayments));
-        
-        // 인증 상태 확인 및 유지
-        const currentToken = localStorage.getItem('token');
-        const currentUserEmail = localStorage.getItem('userEmail');
-        const currentUserRole = localStorage.getItem('userRole');
-        const currentUserName = localStorage.getItem('userName');
-        
-        if (currentToken && currentUserEmail) {
-          console.log('인증 상태 유지됨:', { currentUserEmail, currentUserRole });
-        } else {
-          console.warn('인증 상태가 누락됨');
-        }
-      } catch (localError) {
-        console.error('로컬 저장 중 오류:', localError);
-      }
+      // 백엔드 성공 시 로컬 저장하지 않음 (중복 방지)
+      console.log('백엔드에 주문이 성공적으로 저장되었습니다. 로컬 저장을 건너뜁니다.');
       
               // 주문 완료 후 인증 상태 재확인
         if (!restoreAuthState()) {
@@ -419,44 +396,9 @@ const Order: React.FC = () => {
         alert('주문 처리 중 오류가 발생했습니다. 다시 시도해주세요.');
       }
       
-      // 백엔드 실패 시에도 로컬스토리지에 저장 (폴백, 인증 정보 보존)
-      try {
-        const existingOrders = JSON.parse(localStorage.getItem('orderList') || '[]');
-        const updatedOrders = [orderData, ...existingOrders];
-        localStorage.setItem('orderList', JSON.stringify(updatedOrders));
-        
-        const existingPayments = JSON.parse(localStorage.getItem('paymentList') || '[]');
-        const updatedPayments = [paymentData, ...existingPayments];
-        localStorage.setItem('paymentList', JSON.stringify(updatedPayments));
-        
-        // 인증 상태 확인 및 유지
-        const currentToken = localStorage.getItem('token');
-        const currentUserEmail = localStorage.getItem('userEmail');
-        const currentUserRole = localStorage.getItem('userRole');
-        
-        if (currentToken && currentUserEmail) {
-          console.log('폴백 저장 후 인증 상태 유지됨:', { currentUserEmail, currentUserRole });
-        } else {
-          console.warn('폴백 저장 후 인증 상태가 누락됨');
-        }
-        
-        // 폴백 저장 후 인증 상태 재확인
-        if (!restoreAuthState()) {
-          return;
-        }
-        
-        alert('주문이 완료되었습니다! (로컬 저장)');
-        navigate('/user?tab=orders', { 
-          state: { 
-            showOrders: true,
-            newOrder: orderData,
-            newPayment: paymentData
-          } 
-        });
-      } catch (localError) {
-        console.error('로컬 저장 중 오류:', localError);
-        alert('주문 처리 중 오류가 발생했습니다. 다시 시도해주세요.');
-      }
+      // 백엔드 실패 시 사용자에게 알림
+      console.error('백엔드 주문 생성 실패');
+      alert('주문 처리 중 오류가 발생했습니다. 다시 시도해주세요.');
     }
   };
 
