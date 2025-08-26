@@ -37,8 +37,10 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
   paymentInfo,
   hideFloatingButton = false
 }) => {
-  // 실제 로그인된 유저의 이메일 가져오기
+  // 실제 로그인된 유저의 이메일 가져오기 (userEmail과 통일)
   const actualUserEmail = localStorage.getItem('userEmail') || userEmail;
+  // userEmail을 actualUserEmail로 통일하여 WebSocket 연결 문제 해결
+  const effectiveUserEmail = actualUserEmail !== 'guest@example.com' ? actualUserEmail : userEmail;
   
   // 디버깅: 로컬 스토리지 상태 확인
   console.log('=== 로컬 스토리지 디버깅 ===');
@@ -352,7 +354,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     });
   }, []); // 의존성 배열을 비워서 함수가 재생성되지 않도록 함
 
-  // useWebSocket 훅 사용 (actualUserEmail이 변경될 때만 재연결)
+  // useWebSocket 훅 사용 (effectiveUserEmail로 통일)
   const {
     isConnected,
     wsMessages,
@@ -360,7 +362,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     loadMessages,
     socket
   } = useWebSocket({
-    userEmail: actualUserEmail, // 실제 사용자 이메일 사용 (세션 ID가 아님)
+    userEmail: effectiveUserEmail, // 통일된 사용자 이메일 사용
     onNewMessage: handleNewMessage
   });
 
@@ -401,7 +403,8 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
   console.log('ChatWidget - sessionId:', sessionId);
   console.log('ChatWidget - userEmail:', userEmail);
   console.log('ChatWidget - actualUserEmail:', actualUserEmail);
-  console.log('ChatWidget - useWebSocket에 전달되는 userEmail:', actualUserEmail);
+  console.log('ChatWidget - effectiveUserEmail:', effectiveUserEmail);
+  console.log('ChatWidget - useWebSocket에 전달되는 userEmail:', effectiveUserEmail);
 
   // WebSocket에서 받은 메시지를 로컬 상태와 동기화 (사용자별 키 사용)
   useEffect(() => {
@@ -479,13 +482,13 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     }
   }, [messages, isChatOpen, mode]);
 
-  // isChatOpen이 true로 변경될 때 handleOpen 실행
+  // isChatOpen이 true로 변경될 때 handleOpen 실행 (무한 루프 방지)
   useEffect(() => {
-    if (isChatOpen) {
+    if (isChatOpen && !sessionId.includes('_session_')) {
       console.log('isChatOpen이 true로 변경됨, handleOpen 실행');
       handleOpen();
     }
-  }, [isChatOpen]);
+  }, [isChatOpen, sessionId]);
 
   // 자동 메시지 입력 기능 (결제취소 요청, 상담 문의 등)
   useEffect(() => {
@@ -618,6 +621,12 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
       return;
     }
     
+    // 이미 열려있는 경우 중복 실행 방지
+    if (isChatOpen && sessionId.includes('_session_')) {
+      console.log('이미 채팅창이 열려있어서 중복 실행 방지');
+      return;
+    }
+    
     console.log('채팅창 열기 시도');
     // 채팅창 열기
     setIsChatOpen(true);
@@ -626,8 +635,12 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     setIsChatCompleted(false);
     setShowDeleteConfirmModal(false);
     
-    // 새로운 창을 열 때는 새로운 세션 ID 생성
-    const newSessionId = `${actualUserEmail}_session_${Date.now()}`;
+    // 기존 세션이 있으면 재사용, 없으면 새로 생성
+    let newSessionId = sessionId;
+    if (!sessionId.includes('_session_')) {
+      newSessionId = `${actualUserEmail}_session_${Date.now()}`;
+      setSessionId(newSessionId);
+    }
     
     // 기존 메시지 완전히 초기화
     const welcomeMessage = {
@@ -654,7 +667,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
       }
     }
     
-    // 메시지 상태를 즉시 초기화 (sessionId 변경 전에 실행)
+    // 메시지 상태를 즉시 초기화
     setMessages(initialMessages);
     
     // 새로운 세션의 로컬 스토리지 키도 초기화
@@ -672,11 +685,9 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
       console.log('기존 세션 키 삭제:', key);
     });
     
-    // sessionId를 마지막에 변경하여 useEffect가 실행되지 않도록 함
-    setSessionId(newSessionId);
     localStorage.setItem(`current_session_${actualUserEmail}`, newSessionId);
-    console.log('새로운 창 열기 - 새로운 세션 ID 생성:', newSessionId);
-    console.log('새로운 창 열기 - 기본 환영 메시지 설정 및 로컬 스토리지 초기화 완료');
+    console.log('채팅창 열기 완료 - 세션 ID:', newSessionId);
+    console.log('기본 환영 메시지 설정 및 로컬 스토리지 초기화 완료');
   };
 
   const handleClose = () => {
@@ -800,17 +811,20 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                   </>
                 )}
               </div>
-              <div className="flex items-center gap-2">
+              <div>
                 {/* 답변완료 버튼 - 채팅 모드에서만 표시 */}
                 {mode === 'chat' && !isChatCompleted && (
                   <button 
                     onClick={handleCompleteChat} 
-                    className="text-xs bg-blue-600 text-white p-2 w-12 h-12 rounded-full hover:bg-blue-700 
+                    className="text-xs bg-blue-600 text-white p-2 w-18 h-8 rounded-md hover:bg-blue-700 
                       transition-colors font-medium mr-4 shadow-md shadow-blue-500/50 border border-blue-600"
                   >
-                    채팅<br />완료
+                    채팅완료
                   </button>
                 )}
+              </div>
+              <div className="flex items-center">
+                
                 <button onClick={handleClose} className="text-gray-500 hover:text-gray-700 text-base">
                   <FontAwesomeIcon icon={faXmark} />
                 </button>

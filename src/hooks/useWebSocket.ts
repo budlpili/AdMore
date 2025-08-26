@@ -38,6 +38,8 @@ export const useWebSocket = ({
   onUserConnected,
   onUserDisconnected
 }: UseWebSocketProps) => {
+  // userEmail에서 관리자 여부 자동 판단
+  const effectiveIsAdmin = isAdmin || (userEmail && userEmail.includes('admin'));
   const [isConnected, setIsConnected] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const socketRef = useRef<Socket | null>(null);
@@ -86,7 +88,7 @@ export const useWebSocket = ({
       connectionAttemptedRef.current = false;
       
       // 사용자 또는 관리자 로그인
-      if (isAdmin) {
+      if (effectiveIsAdmin) {
         console.log('관리자 로그인 이벤트 전송');
         socket.emit('admin_login');
       } else if (userEmail) {
@@ -313,7 +315,7 @@ export const useWebSocket = ({
         }));
         
         // 관리자가 아닌 경우 현재 사용자의 메시지만 필터링
-        if (!isAdmin && userEmail) {
+        if (!effectiveIsAdmin && userEmail) {
           const currentUserEmail = userEmail.split('_')[0];
           const userMessages = formattedData.filter((message: any) => {
             const messageUserEmail = message.user.split('_')[0];
@@ -329,7 +331,7 @@ export const useWebSocket = ({
     } catch (error) {
       console.error('메시지 로드 오류:', error);
     }
-  }, [isAdmin, userEmail]);
+  }, [effectiveIsAdmin, userEmail]);
 
   // 연결 해제
   const disconnect = useCallback(() => {
@@ -347,6 +349,12 @@ export const useWebSocket = ({
     // userEmail이 없으면 연결하지 않음
     if (!userEmail) {
       console.log('userEmail이 없어서 WebSocket 연결을 건너뜀');
+      return;
+    }
+    
+    // guest@example.com인 경우 연결하지 않음
+    if (userEmail === 'guest@example.com') {
+      console.log('게스트 사용자이므로 WebSocket 연결을 건너뜀');
       return;
     }
     
@@ -370,7 +378,7 @@ export const useWebSocket = ({
     connect();
     
     // 관리자인 경우에만 기존 메시지 로드
-    if (isAdmin) {
+    if (effectiveIsAdmin) {
       loadMessages();
     }
 
@@ -378,7 +386,7 @@ export const useWebSocket = ({
       // 컴포넌트 언마운트 시에만 연결 해제
       // disconnect();
     };
-  }, [userEmail, isAdmin]); // userEmail이 변경될 때마다 재연결
+  }, [userEmail, effectiveIsAdmin]); // userEmail이 변경될 때마다 재연결
 
   return {
     isConnected,
