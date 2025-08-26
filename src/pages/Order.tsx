@@ -65,45 +65,51 @@ const Order: React.FC = () => {
     loadProduct();
   }, [orderInfo.product.id]);
 
-  // 사용자 쿠폰 로드
-  useEffect(() => {
-    const loadUserCoupons = async () => {
-      try {
-        setCouponLoading(true);
-        
-        // 토큰에서 사용자 ID 추출
-        const token = localStorage.getItem('token');
-        let userId = '';
-        
-        if (token) {
-          try {
-            const tokenParts = token.split('.');
-            if (tokenParts.length === 3) {
-              const payload = JSON.parse(atob(tokenParts[1]));
-              userId = payload.id.toString();
-            }
-          } catch (e) {
-            console.log('토큰에서 사용자 ID 추출 실패:', e);
+  // 사용자 쿠폰 로드 함수
+  const loadUserCoupons = async () => {
+    try {
+      setCouponLoading(true);
+      
+      // 토큰에서 사용자 ID 추출
+      const token = localStorage.getItem('token');
+      let userId = '';
+      
+      if (token) {
+        try {
+          const tokenParts = token.split('.');
+          if (tokenParts.length === 3) {
+            const payload = JSON.parse(atob(tokenParts[1]));
+            userId = payload.id.toString();
           }
+        } catch (e) {
+          console.log('토큰에서 사용자 ID 추출 실패:', e);
         }
-        
-        if (userId) {
-          const response = await couponsAPI.getUserCoupons(userId);
-          if (response.success && response.coupons) {
-            // 사용 가능한 쿠폰만 필터링
-            const availableCoupons = response.coupons.filter((coupon: any) => !coupon.isUsed);
-            setUserCoupons(availableCoupons);
-            console.log('사용 가능한 쿠폰:', availableCoupons);
-          }
-        }
-      } catch (error) {
-        console.error('사용자 쿠폰 로드 에러:', error);
-        setUserCoupons([]);
-      } finally {
-        setCouponLoading(false);
       }
-    };
+      
+      if (userId) {
+        const response = await couponsAPI.getUserCoupons(userId);
+        if (response.success && response.coupons) {
+          // 사용되지 않은 쿠폰만 필터링하여 표시
+          const availableCoupons = response.coupons.filter((coupon: any) => {
+            const isUsed = coupon.isUsed !== undefined ? coupon.isUsed : coupon.usedAt !== null;
+            return !isUsed;
+          });
+          setUserCoupons(availableCoupons);
+          console.log('사용 가능한 쿠폰:', availableCoupons);
+          console.log('전체 쿠폰 개수:', response.coupons.length);
+          console.log('사용 가능한 쿠폰 개수:', availableCoupons.length);
+        }
+      }
+    } catch (error) {
+      console.error('사용자 쿠폰 로드 에러:', error);
+      setUserCoupons([]);
+    } finally {
+      setCouponLoading(false);
+    }
+  };
 
+  // 컴포넌트 마운트 시 쿠폰 로드
+  useEffect(() => {
     loadUserCoupons();
   }, []);
 
@@ -375,21 +381,21 @@ const Order: React.FC = () => {
           return;
         }
         
-        // 주문 완료 후 사용자 페이지로 이동
-        alert('주문이 성공적으로 완료되었습니다!');
+        // 주문 완료 후 Order 페이지에 머무름
+        if (selectedCoupon) {
+          alert(`주문이 성공적으로 완료되었습니다!\n\n사용된 쿠폰: ${selectedCoupon.name}\n할인 금액: ${couponDiscount.toLocaleString()}원`);
+        } else {
+          alert('주문이 성공적으로 완료되었습니다!');
+        }
         
-        // 쿠폰을 사용했다면 쿠폰함 탭으로 이동하여 상태 확인
-        const targetTab = selectedCoupon ? 'coupons' : 'orders';
+        // Order 페이지에 머무르고 폼 초기화
+        setSelectedCoupon(null);
+        setQuantity(1);
+        setRequirements('');
+        setPayment('card');
         
-        // 바로 사용자 페이지로 이동
-        navigate(`/user?tab=${targetTab}`, { 
-          state: { 
-            showOrders: targetTab === 'orders',
-            newOrder: orderData,
-            newPayment: paymentData,
-            refreshCoupons: !!selectedCoupon // 쿠폰 사용 시 새로고침 플래그
-          } 
-        });
+        // 쿠폰 사용 후 사용자 쿠폰 목록 새로고침
+        loadUserCoupons();
     } catch (error) {
       console.error('주문 처리 중 오류:', error);
       

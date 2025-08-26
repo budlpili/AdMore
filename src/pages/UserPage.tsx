@@ -978,15 +978,7 @@ const handleDeleteUserCoupon = async (sendId: string, couponName: string) => {
   useEffect(() => {
     loadOrders();
     loadPayments();
-    
-    // Order 페이지에서 쿠폰 사용 후 이동한 경우 쿠폰 새로고침
-    if (location.state?.refreshCoupons) {
-      console.log('쿠폰 사용 후 이동 감지, 쿠폰 새로고침 실행');
-      loadUserCoupons();
-      // state 초기화
-      navigate(location.pathname + location.search, { replace: true });
-    }
-  }, [location.state]);
+  }, []);
 
   // 사용자 이메일 상태 추가
   const [currentUserEmail, setCurrentUserEmail] = useState<string>('');
