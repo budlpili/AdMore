@@ -8,7 +8,8 @@ const {
   getUserCoupons,
   sendCoupon,
   getCouponSends,
-  deleteUserCoupon
+  deleteUserCoupon,
+  useCoupon
 } = require('../controllers/couponController');
 
 // 쿠폰 목록 조회
@@ -31,6 +32,9 @@ router.post('/send', sendCoupon);
 
 // 쿠폰 발송 이력 조회
 router.get('/sends/:couponId', getCouponSends);
+
+// 쿠폰 사용
+router.post('/use/:sendId', useCoupon);
 
 // 사용자 쿠폰 삭제
 router.delete('/user-coupon/:sendId', deleteUserCoupon);

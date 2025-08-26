@@ -846,7 +846,17 @@ const UserPage: React.FC<UserPageProps> = ({ setIsChatOpen }) => {
         console.log('유저 쿠폰함 데이터:', response.coupons);
         console.log('첫 번째 쿠폰의 sendId:', response.coupons[0]?.sendId);
         console.log('첫 번째 쿠폰 전체 데이터:', response.coupons[0]);
-        setUserCoupons(response.coupons);
+        
+        // 사용하지 않은 쿠폰만 필터링 (사용 완료된 쿠폰은 제외)
+        const availableCoupons = response.coupons.filter((coupon: any) => {
+          const isUsed = coupon.isUsed !== undefined ? coupon.isUsed : coupon.usedAt !== null;
+          return !isUsed;
+        });
+        
+        console.log('사용 가능한 쿠폰 개수:', availableCoupons.length);
+        console.log('전체 쿠폰 개수:', response.coupons.length);
+        
+        setUserCoupons(availableCoupons);
       } else {
         console.log('쿠폰함 데이터가 없습니다.');
         setUserCoupons([]);

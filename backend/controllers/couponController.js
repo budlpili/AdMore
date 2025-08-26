@@ -294,6 +294,60 @@ const getCouponSends = async (req, res) => {
   }
 };
 
+// 쿠폰 사용 처리 (Order 페이지에서 호출)
+const useCoupon = async (req, res) => {
+  try {
+    const { sendId } = req.params;
+    console.log('=== useCoupon 디버깅 ===');
+    console.log('쿠폰 사용 요청 sendId:', sendId);
+
+    if (!mongoose.Types.ObjectId.isValid(sendId)) {
+      console.error('유효하지 않은 sendId 형식:', sendId);
+      return res.status(400).json({ success: false, message: '유효하지 않은 쿠폰 ID 형식입니다.' });
+    }
+
+    // CouponSend에서 해당 쿠폰 발송 기록 찾기
+    const couponSend = await CouponSend.findById(sendId);
+    if (!couponSend) {
+      console.error('쿠폰 발송 기록을 찾을 수 없습니다. sendId:', sendId);
+      return res.status(404).json({ success: false, message: '쿠폰을 찾을 수 없습니다.' });
+    }
+
+    // 이미 사용된 쿠폰인지 확인
+    if (couponSend.usedAt || couponSend.status === 'used') {
+      console.error('이미 사용된 쿠폰입니다. sendId:', sendId);
+      return res.status(400).json({ success: false, message: '이미 사용된 쿠폰입니다.' });
+    }
+
+    // 쿠폰 사용 처리
+    couponSend.usedAt = new Date();
+    couponSend.status = 'used';
+    await couponSend.save();
+
+    console.log('쿠폰 사용 완료:', {
+      sendId,
+      couponId: couponSend.couponId,
+      usedAt: couponSend.usedAt,
+      status: couponSend.status
+    });
+    console.log('=== useCoupon 디버깅 끝 ===');
+
+    res.json({ 
+      success: true, 
+      message: '쿠폰이 사용되었습니다.',
+      usedAt: couponSend.usedAt,
+      status: couponSend.status
+    });
+  } catch (error) {
+    console.error('쿠폰 사용 처리 오류:', error);
+    console.error('에러 스택:', error.stack);
+    res.status(500).json({ 
+      success: false, 
+      message: '쿠폰 사용 처리에 실패했습니다.' 
+    });
+  }
+};
+
 // 사용자 쿠폰 삭제 (CouponSend에서 삭제)
 const deleteUserCoupon = async (req, res) => {
   try {
@@ -351,7 +405,8 @@ module.exports = {
   getUserCoupons,
   sendCoupon,
   getCouponSends,
-  deleteUserCoupon
+  deleteUserCoupon,
+  useCoupon
 };
 
 
