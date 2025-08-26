@@ -65,7 +65,7 @@ const Products: React.FC = () => {
       const activeProducts = await productAPI.getActiveProducts();
       console.log('로드된 모든 상품:', activeProducts);
       activeProducts.forEach(product => {
-        console.log(`상품 ID: ${product.id}, 이름: ${product.name}, 카테고리: ${product.category}`);
+        console.log(`상품 ID: ${product._id || product.id}, 이름: ${product.name}, 카테고리: ${product.category}`);
       });
       setProducts(activeProducts);
       
@@ -263,7 +263,7 @@ const Products: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {sortProducts(filteredProducts).map((product) => (
             <ProductCard
-              key={product.id}
+              key={product._id || product.id}
               product={product}
               isFavorite={favorites.includes(product._id || product.id || '')}
               onFavoriteToggle={toggleFavorite}
