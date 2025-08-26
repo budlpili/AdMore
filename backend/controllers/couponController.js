@@ -128,6 +128,9 @@ const getUserCoupons = async (req, res) => {
       console.log('send.status:', send.status);
       console.log('send.couponId.status:', send.couponId.status);
       console.log('계산된 isUsed:', isUsed);
+      console.log('send.usedAt !== null:', send.usedAt !== null);
+      console.log('send.status === "used":', send.status === 'used');
+      console.log('send.status === "sent":', send.status === 'sent');
       
       const couponData = {
         sendId: send._id,
@@ -296,6 +299,8 @@ const deleteUserCoupon = async (req, res) => {
     const { sendId } = req.params;
     console.log('=== deleteUserCoupon 디버깅 ===');
     console.log('삭제 요청 sendId:', sendId);
+    console.log('sendId 타입:', typeof sendId);
+    console.log('sendId 길이:', sendId ? sendId.length : 'undefined');
 
     // sendId가 유효한 ObjectId 형식인지 확인
     if (!mongoose.Types.ObjectId.isValid(sendId)) {
@@ -303,8 +308,12 @@ const deleteUserCoupon = async (req, res) => {
       return res.status(400).json({ success: false, message: '유효하지 않은 쿠폰 ID 형식입니다.' });
     }
 
+    console.log('sendId 유효성 검사 통과');
+
     // CouponSend에서 해당 발송 기록 삭제
+    console.log('CouponSend.findByIdAndDelete 실행 전');
     const deletedSend = await CouponSend.findByIdAndDelete(sendId);
+    console.log('CouponSend.findByIdAndDelete 실행 완료');
     
     if (!deletedSend) {
       console.log('삭제할 사용자 쿠폰 발송 기록을 찾을 수 없습니다. sendId:', sendId);
@@ -323,6 +332,9 @@ const deleteUserCoupon = async (req, res) => {
     });
   } catch (error) {
     console.error('사용자 쿠폰 삭제 오류:', error);
+    console.error('에러 스택:', error.stack);
+    console.error('에러 메시지:', error.message);
+    console.error('=== deleteUserCoupon 에러 상세 ===');
     res.status(500).json({ 
       success: false, 
       message: '사용자 쿠폰 삭제에 실패했습니다.' 
