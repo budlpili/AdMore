@@ -122,6 +122,13 @@ const getUserCoupons = async (req, res) => {
       // 쿠폰 사용 여부 판단 (usedAt이 있거나 status가 'used'인 경우)
       const isUsed = send.usedAt !== null || send.status === 'used';
       
+      console.log('=== 개별 쿠폰 매핑 디버깅 ===');
+      console.log('send._id:', send._id);
+      console.log('send.usedAt:', send.usedAt);
+      console.log('send.status:', send.status);
+      console.log('send.couponId.status:', send.couponId.status);
+      console.log('계산된 isUsed:', isUsed);
+      
       const couponData = {
         sendId: send._id,
         couponId: send.couponId._id,
@@ -143,6 +150,7 @@ const getUserCoupons = async (req, res) => {
       
       console.log('매핑된 쿠폰 데이터:', couponData);
       console.log('쿠폰 사용 여부:', isUsed);
+      console.log('=== 개별 쿠폰 매핑 디버깅 끝 ===');
       return couponData;
     });
     

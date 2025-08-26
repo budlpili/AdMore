@@ -2127,8 +2127,8 @@ const handleDeleteUserCoupon = async (sendId: string, couponName: string) => {
                           }
                         };
 
-                        // 쿠폰 사용 여부 확인
-                        const isUsed = coupon.usedAt !== null;
+                        // 쿠폰 사용 여부 확인 (백엔드에서 계산된 isUsed 필드 사용)
+                        const isUsed = coupon.isUsed !== undefined ? coupon.isUsed : coupon.usedAt !== null;
 
                         // 탭별 필터링
                         switch (couponTab) {
@@ -2155,7 +2155,7 @@ const handleDeleteUserCoupon = async (sendId: string, couponName: string) => {
                             expiry={coupon.endDate}
                             maxDiscount={coupon.maxDiscount || 10000}
                             discountRate={coupon.discountType === 'percentage' ? coupon.discountValue : 0}
-                            used={coupon.usedAt !== null}
+                            used={coupon.isUsed !== undefined ? coupon.isUsed : coupon.usedAt !== null}
                             brand={coupon.brand || 'ADMORE'}
                             couponCode={coupon.code}
                             onUse={() => handleUseUserCoupon(coupon.sendId)}
