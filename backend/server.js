@@ -530,7 +530,7 @@ app.delete('/api/chat/messages/user/:userEmail', async (req, res) => {
 
 // 저장된 파일 목록 조회 API
 app.get('/api/chat/messages/exports', (req, res) => {
-  const exportsDir = path.join(__dirname, 'chat_exports');
+  const exportsDir = process.env.NODE_ENV === 'production' ? '/tmp' : path.join(__dirname, 'chat_exports');
   
   if (!fs.existsSync(exportsDir)) {
     return res.json({ files: [] });
@@ -562,7 +562,7 @@ app.get('/api/chat/messages/exports', (req, res) => {
 // 파일 다운로드 API
 app.get('/api/chat/messages/download/:filename', (req, res) => {
   const { filename } = req.params;
-  const exportsDir = path.join(__dirname, 'chat_exports');
+  const exportsDir = process.env.NODE_ENV === 'production' ? '/tmp' : path.join(__dirname, 'chat_exports');
   const filePath = path.join(exportsDir, filename);
   
   // 파일 존재 여부 확인
