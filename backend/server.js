@@ -376,32 +376,7 @@ app.delete('/api/chat/messages/clear', (req, res) => {
   // });
 });
 
-// 특정 유저의 채팅 메시지 삭제 API
-app.delete('/api/chat/messages/user/:userEmail', (req, res) => {
-  const { userEmail } = req.params;
-  
-  if (!userEmail) {
-    return res.status(400).json({ error: '유저 이메일이 필요합니다.' });
-  }
-  
-  const query = `DELETE FROM chat_messages WHERE user = ?`;
-  
-  // db.run(query, [ // SQLite 제거
-  //   userEmail
-  // ], function(err) {
-  //   if (err) {
-  //     console.error('유저 메시지 삭제 오류:', err);
-  //     return res.status(500).json({ error: '유저 메시지 삭제에 실패했습니다.' });
-  //   }
-    
-  //   console.log(`유저 ${userEmail}의 메시지 삭제 완료: ${this.changes}개 메시지 삭제됨`);
-  //   res.json({ 
-  //     message: `${userEmail}의 모든 채팅 메시지가 삭제되었습니다.`, 
-  //     deletedCount: this.changes,
-  //     userEmail: userEmail
-  //   });
-  // });
-});
+// 특정 유저의 채팅 메시지 삭제 API (구버전 SQLite 코드 제거됨)
 
 // 채팅 메시지를 파일로 저장하는 함수
 const saveChatMessagesToFile = async () => {
