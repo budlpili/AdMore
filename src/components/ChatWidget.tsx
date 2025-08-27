@@ -215,7 +215,31 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     socket
   } = useWebSocket({
     userEmail: effectiveUserEmail, // 통일된 사용자 이메일 사용
-    onNewMessage: handleNewMessage
+    onNewMessage: handleNewMessage,
+    onMessagesLoad: (loadedMessages) => {
+      // WebSocket에서 로드된 메시지를 로컬 상태와 병합
+      if (loadedMessages && loadedMessages.length > 0) {
+        // ChatMessage를 Message 형식으로 변환
+        const convertedMessages: Message[] = loadedMessages.map((msg: any) => ({
+          id: msg.id,
+          from: msg.type === 'admin' ? 'admin' : 'user',
+          text: msg.message,
+          timestamp: msg.timestamp
+        }));
+        
+        setMessages(prevMessages => {
+          const existingIds = new Set(prevMessages.map(m => m.id));
+          const newMessages = convertedMessages.filter(msg => !existingIds.has(msg.id));
+          
+          if (newMessages.length > 0) {
+            console.log('WebSocket에서 로드된 메시지:', newMessages.length, '개');
+            return [...prevMessages, ...newMessages];
+          }
+          
+          return prevMessages;
+        });
+      }
+    }
   });
 
   // sessionId가 변경될 때 WebSocket 재연결을 위한 useEffect
@@ -258,49 +282,38 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
   // console.log('ChatWidget - effectiveUserEmail:', effectiveUserEmail);
   // console.log('ChatWidget - useWebSocket에 전달되는 userEmail:', effectiveUserEmail);
 
-  // WebSocket에서 받은 메시지를 로컬 상태와 동기화 (사용자별 키 사용)
+  // WebSocket에서 받은 메시지를 로컬 상태와 동기화
   useEffect(() => {
     if (wsMessages && Array.isArray(wsMessages) && wsMessages.length > 0) {
-      // 현재 세션이 새로운 세션인지 확인 (타임스탬프가 포함된 세션 ID)
-      const isNewSession = sessionId.includes('_session_');
-      
-      if (isNewSession) {
-        return;
-      }
-      
-      // 채팅 완료 메시지가 포함된 경우 필터링
-      const hasCompletionMessage = wsMessages.some((msg: any) => 
-        msg.message === '유저가 채팅종료를 하였습니다.' || 
-        msg.message === '관리자가 답변을 완료하였습니다.'
-      );
-      
-      if (hasCompletionMessage) {
-        return;
-      }
-      
-      // 현재 메시지가 이미 환영 메시지만 있는 상태라면 WebSocket 메시지로 덮어쓰지 않음
-      const currentMessages = messages;
-      if (currentMessages.length === 1 && 
-          currentMessages[0].from === 'admin' && 
-          currentMessages[0].text?.includes('고객님 반갑습니다')) {
-        return;
-      }
-      
-      // 새로운 세션이 시작된 후 WebSocket 메시지가 로드되는 것을 방지
-      if (isChatOpen && mode === 'chat') {
-        return;
-      }
+      // 현재 사용자의 메시지만 필터링 (관리자 메시지 포함)
+      const currentUserEmail = effectiveUserEmail.split('_')[0];
+      const userMessages = wsMessages.filter((msg: any) => {
+        const messageUserEmail = msg.user?.split('_')[0];
+        return messageUserEmail === currentUserEmail || msg.type === 'admin';
+      });
       
       // ChatMessage를 Message 형식으로 변환
-      const convertedMessages: Message[] = wsMessages.map((msg: any) => ({
+      const convertedMessages: Message[] = userMessages.map((msg: any) => ({
         id: msg.id,
         from: msg.type === 'admin' ? 'admin' : 'user',
         text: msg.message,
         timestamp: msg.timestamp
       }));
-      setMessages(convertedMessages);
+      
+      // 기존 메시지와 병합하여 중복 제거
+      setMessages(prevMessages => {
+        const existingIds = new Set(prevMessages.map(m => m.id));
+        const newMessages = convertedMessages.filter(msg => !existingIds.has(msg.id));
+        
+        if (newMessages.length > 0) {
+          console.log('새로운 WebSocket 메시지 추가:', newMessages.length, '개');
+          return [...prevMessages, ...newMessages];
+        }
+        
+        return prevMessages;
+      });
     }
-  }, [wsMessages, sessionId, messages, isChatOpen, mode]);
+  }, [wsMessages, effectiveUserEmail]);
 
   // 디버깅을 위한 메시지 상태 로깅 (성능 최적화를 위해 주석 처리)
   // useEffect(() => {
@@ -526,6 +539,12 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     
     // 세션 ID만 저장 (메시지는 WebSocket을 통해 관리)
     localStorage.setItem(`current_session_${actualUserEmail}`, newSessionId);
+    
+    // WebSocket에서 기존 메시지 로드
+    if (loadMessages) {
+      loadMessages();
+    }
+    
     // console.log('채팅창 열기 완료 - 세션 ID:', newSessionId);
     // console.log('기본 환영 메시지 설정 및 로컬 스토리지 초기화 완료');
   };

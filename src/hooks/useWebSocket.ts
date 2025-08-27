@@ -28,6 +28,7 @@ interface UseWebSocketProps {
   onStatusUpdate?: (data: { userEmail: string; status: string }) => void;
   onUserConnected?: (userEmail: string) => void;
   onUserDisconnected?: (userEmail: string) => void;
+  onMessagesLoad?: (messages: ChatMessage[]) => void;
 }
 
 export const useWebSocket = ({
@@ -36,7 +37,8 @@ export const useWebSocket = ({
   onNewMessage,
   onStatusUpdate,
   onUserConnected,
-  onUserDisconnected
+  onUserDisconnected,
+  onMessagesLoad
 }: UseWebSocketProps) => {
   // userEmail에서 관리자 여부 자동 판단
   const effectiveIsAdmin = isAdmin || (userEmail && userEmail.includes('admin'));
@@ -237,7 +239,10 @@ export const useWebSocket = ({
       }
       
       // console.log('기존 메시지 로드 중...');
-      const response = await fetch('http://localhost:5001/api/chat/messages');
+      const wsUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+        ? 'http://localhost:5001'
+        : 'https://port-0-admore-me83wyv0a5a64d5a.sel5.cloudtype.app';
+      const response = await fetch(`${wsUrl}/api/chat/messages`);
       if (response.ok) {
         const data = await response.json();
         // console.log('로드된 메시지:', data);
@@ -256,8 +261,18 @@ export const useWebSocket = ({
             return messageUserEmail === currentUserEmail || message.type === 'admin';
           });
           setMessages(userMessages);
+          
+          // ChatWidget에 메시지 로드 완료 알림
+          if (onMessagesLoad) {
+            onMessagesLoad(userMessages);
+          }
         } else {
           setMessages(formattedData);
+          
+          // ChatWidget에 메시지 로드 완료 알림
+          if (onMessagesLoad) {
+            onMessagesLoad(formattedData);
+          }
         }
       } else {
         console.error('메시지 로드 실패:', response.status);
