@@ -53,6 +53,7 @@ export const useWebSocket = ({
     }
     
     if (connectionAttemptedRef.current) {
+      console.log('⏳ 이미 연결 시도 중입니다. 대기 중...');
       return socketRef.current;
     }
 
@@ -61,6 +62,7 @@ export const useWebSocket = ({
       ? 'https://port-0-admore-me83wyv0a5a64d5a.sel5.cloudtype.app'
       : 'http://localhost:5001';
     
+    console.log('🚀 WebSocket 연결 시도:', wsUrl);
     connectionAttemptedRef.current = true;
 
     const socket = io(wsUrl, {
@@ -78,25 +80,31 @@ export const useWebSocket = ({
     socketRef.current = socket;
 
     socket.on('connect', () => {
+      console.log('✅ WebSocket 연결 성공! Socket ID:', socket.id);
       setIsConnected(true);
       connectionAttemptedRef.current = false;
       
       // 사용자 또는 관리자 로그인
       if (effectiveIsAdmin) {
+        console.log('관리자 로그인 이벤트 전송');
         socket.emit('admin_login');
       } else if (userEmail) {
+        console.log('사용자 로그인 이벤트 전송:', userEmail);
         socket.emit('user_login', userEmail);
       }
     });
 
     socket.on('connect_error', (error) => {
-      console.error('WebSocket 연결 오류:', error.message);
+      console.error('❌ WebSocket 연결 오류:', error.message);
+      console.error('연결 시도 URL:', wsUrl);
+      console.error('사용자 이메일:', userEmail);
       setIsConnected(false);
       connectionAttemptedRef.current = false;
       
       // 3초 후 재연결 시도
       setTimeout(() => {
         if (!connectionAttemptedRef.current) {
+          console.log('🔄 재연결 시도 중...');
           connect();
         }
       }, 3000);
@@ -214,7 +222,10 @@ export const useWebSocket = ({
   }) => {
     if (!socketRef.current?.connected) {
       console.error('WebSocket이 연결되지 않았습니다. 연결을 시도합니다.');
-      connect();
+      // 연결 시도 중이 아닐 때만 연결 시도
+      if (!connectionAttemptedRef.current) {
+        connect();
+      }
       return;
     }
 
