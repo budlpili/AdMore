@@ -596,6 +596,7 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
       return user.name;
     }
     
+    // 사용자 이름이 없으면 깔끔한 이메일 주소만 반환
     return originalEmail;
   }, [userNames, users]);
 
