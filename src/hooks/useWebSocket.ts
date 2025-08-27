@@ -47,14 +47,17 @@ export const useWebSocket = ({
 
   // WebSocket 연결
   const connect = useCallback(() => {
-    // 기존 연결이 있으면 해제
-    if (socketRef.current?.connected) {
+    // 이미 연결된 소켓이 있으면 해제
+    if (socketRef.current) {
+      console.log('🔌 기존 소켓 연결 해제');
       socketRef.current.disconnect();
+      socketRef.current = null;
     }
     
+    // 연결 시도 중이면 대기
     if (connectionAttemptedRef.current) {
       console.log('⏳ 이미 연결 시도 중입니다. 대기 중...');
-      return socketRef.current;
+      return;
     }
 
     // 현재 접속한 URL을 기반으로 WebSocket URL 설정
@@ -63,7 +66,7 @@ export const useWebSocket = ({
       ? 'http://localhost:5001'
       : 'https://port-0-admore-me83wyv0a5a64d5a.sel5.cloudtype.app';
     
-    console.log('🚀 WebSocket 연결 시도:', wsUrl);
+        console.log('🚀 WebSocket 연결 시도:', wsUrl);
     connectionAttemptedRef.current = true;
 
     const socket = io(wsUrl, {
@@ -71,10 +74,7 @@ export const useWebSocket = ({
       transports: ['polling', 'websocket'],
       autoConnect: true,
       timeout: 15000,
-      reconnection: true,
-      reconnectionAttempts: 10,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
+      reconnection: false, // 자동 재연결 비활성화
       forceNew: true
     });
 
@@ -102,13 +102,13 @@ export const useWebSocket = ({
       setIsConnected(false);
       connectionAttemptedRef.current = false;
       
-      // 3초 후 재연결 시도
+      // 연결 오류 시 5초 후 재시도 (무한 루프 방지)
       setTimeout(() => {
-        if (!connectionAttemptedRef.current) {
-          console.log('🔄 재연결 시도 중...');
+        if (!connectionAttemptedRef.current && !socketRef.current?.connected) {
+          console.log('🔄 5초 후 재연결 시도...');
           connect();
         }
-      }, 3000);
+      }, 5000);
     });
 
     socket.on('disconnect', (reason) => {
@@ -221,8 +221,9 @@ export const useWebSocket = ({
     fileType?: string;
 
   }) => {
-    if (!socketRef.current?.connected) {
-      console.error('WebSocket이 연결되지 않았습니다. 연결을 시도합니다.');
+    // 연결 상태 확인
+    if (!socketRef.current || !socketRef.current.connected) {
+      console.error('❌ WebSocket이 연결되지 않았습니다. 연결을 시도합니다.');
       // 연결 시도 중이 아닐 때만 연결 시도
       if (!connectionAttemptedRef.current) {
         connect();
