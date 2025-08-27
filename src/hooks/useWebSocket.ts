@@ -49,20 +49,17 @@ export const useWebSocket = ({
   const connect = useCallback(() => {
     // 기존 연결이 있으면 해제
     if (socketRef.current?.connected) {
-      console.log('기존 연결 해제 중...');
       socketRef.current.disconnect();
     }
     
     if (connectionAttemptedRef.current) {
-      console.log('이미 연결 시도 중입니다.');
       return socketRef.current;
     }
 
-    const wsUrl = 'http://localhost:5001';
-    console.log('=== WebSocket 연결 시도 시작 ===');
-    console.log('연결 대상:', wsUrl);
-    console.log('사용자 이메일:', userEmail);
-    console.log('관리자 모드:', isAdmin);
+    // 개발 환경과 배포 환경에 따라 WebSocket URL 설정
+    const wsUrl = process.env.NODE_ENV === 'production' 
+      ? 'https://port-0-admore-me83wyv0a5a64d5a.sel5.cloudtype.app'
+      : 'http://localhost:5001';
     
     connectionAttemptedRef.current = true;
 
@@ -81,65 +78,49 @@ export const useWebSocket = ({
     socketRef.current = socket;
 
     socket.on('connect', () => {
-      console.log('=== WebSocket 연결 성공 ===');
-      console.log('Socket ID:', socket.id);
-      console.log('연결 상태:', socket.connected);
       setIsConnected(true);
       connectionAttemptedRef.current = false;
       
       // 사용자 또는 관리자 로그인
       if (effectiveIsAdmin) {
-        console.log('관리자 로그인 이벤트 전송');
         socket.emit('admin_login');
       } else if (userEmail) {
-        console.log('사용자 로그인 이벤트 전송:', userEmail);
         socket.emit('user_login', userEmail);
       }
     });
 
     socket.on('connect_error', (error) => {
-      console.error('=== WebSocket 연결 오류 ===');
-      console.error('오류 메시지:', error.message);
-      console.error('오류 상세:', error);
+      console.error('WebSocket 연결 오류:', error.message);
       setIsConnected(false);
       connectionAttemptedRef.current = false;
+      
+      // 3초 후 재연결 시도
+      setTimeout(() => {
+        if (!connectionAttemptedRef.current) {
+          connect();
+        }
+      }, 3000);
     });
 
     socket.on('disconnect', (reason) => {
-      console.log('=== WebSocket 연결 해제 ===');
-      console.log('해제 이유:', reason);
-      console.log('연결 상태:', socket.connected);
       setIsConnected(false);
       connectionAttemptedRef.current = false;
     });
 
     socket.on('reconnect', (attemptNumber) => {
-      console.log('=== WebSocket 재연결 성공 ===');
-      console.log('재연결 시도 횟수:', attemptNumber);
-      console.log('Socket ID:', socket.id);
       setIsConnected(true);
     });
 
     socket.on('reconnect_error', (error) => {
-      console.error('=== WebSocket 재연결 오류 ===');
-      console.error('오류:', error);
+      // 재연결 오류 시 추가 처리 없음
     });
 
     socket.on('reconnect_failed', () => {
-      console.error('=== WebSocket 재연결 실패 ===');
-      console.error('최대 재연결 시도 횟수 초과');
       setIsConnected(false);
       connectionAttemptedRef.current = false;
     });
 
     socket.on('new_message', (message: any) => {
-      console.log('새 메시지 수신:', message);
-      console.log('파일 데이터 확인:', {
-        file: message.file ? '있음' : '없음',
-        fileName: message.fileName,
-        fileType: message.fileType
-      });
-      
       // userEmail 필드를 user로 매핑, id는 문자열로 변환
       const formattedMessage = {
         ...message,
@@ -150,26 +131,17 @@ export const useWebSocket = ({
         fileType: message.fileType || undefined
       };
       
-      console.log('포맷된 메시지:', formattedMessage);
-      
-      // console.log('formattedMessage:', formattedMessage);
-      // console.log('현재 userEmail:', userEmail);
-      // console.log('isAdmin:', isAdmin);
-      
       // 관리자가 아닌 경우 현재 사용자의 메시지만 추가
       if (!isAdmin && userEmail) {
-        // console.log('사용자 모드 - 메시지 필터링 중...');
         // 이메일 부분만 비교 (세션 ID 제외)
         const currentUserEmail = userEmail.split('_')[0];
         const messageUserEmail = formattedMessage.user.split('_')[0];
         
         if (messageUserEmail === currentUserEmail || formattedMessage.type === 'admin') {
-          // console.log('메시지 추가 및 onNewMessage 콜백 호출');
           setMessages(prev => {
             // 중복 메시지 체크
             const isDuplicate = prev.some(msg => msg.id === formattedMessage.id);
             if (isDuplicate) {
-              // console.log('중복 메시지 감지, 추가하지 않음:', formattedMessage.id);
               return prev;
             }
             const newMessages = [...prev, formattedMessage];
@@ -177,16 +149,12 @@ export const useWebSocket = ({
             onNewMessage?.(formattedMessage);
             return newMessages;
           });
-        } else {
-          // console.log('메시지 필터링됨 - 다른 사용자의 메시지');
         }
       } else {
-        // console.log('관리자 모드 또는 userEmail 없음 - 모든 메시지 추가');
         setMessages(prev => {
           // 중복 메시지 체크
           const isDuplicate = prev.some(msg => msg.id === formattedMessage.id);
           if (isDuplicate) {
-            // console.log('중복 메시지 감지, 추가하지 않음:', formattedMessage.id);
             return prev;
           }
           const newMessages = [...prev, formattedMessage];
@@ -334,7 +302,6 @@ export const useWebSocket = ({
   // 연결 해제
   const disconnect = useCallback(() => {
     if (socketRef.current) {
-      console.log('WebSocket 연결 해제 중...');
       socketRef.current.disconnect();
       socketRef.current = null;
       connectionAttemptedRef.current = false;

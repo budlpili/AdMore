@@ -360,15 +360,10 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
   };
 
   const checkLoginStatus = () => {
-    console.log('checkLoginStatus - userEmail:', userEmail);
-    console.log('checkLoginStatus - actualUserEmail:', actualUserEmail);
-    
     if (!actualUserEmail || actualUserEmail === 'guest@example.com') {
-      console.log('로그인 필요 - 로그인 모달 표시');
       setShowLoginModal(true);
       return false;
     }
-    console.log('로그인 상태 확인됨');
     return true;
   };
 
@@ -767,15 +762,6 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                                     max-w-[100%]">
                                   {/* 파일이 있는 경우 파일 표시 */}
                                   {(() => {
-                                    console.log('관리자 메시지 파일 정보:', {
-                                      file: msg.file ? '있음' : '없음',
-                                      fileName: msg.fileName,
-                                      fileType: msg.fileType,
-                                      isImage: msg.fileType && msg.fileType.startsWith('image/'),
-                                      fileLength: msg.file ? msg.file.length : 0,
-                                      fileStart: msg.file ? msg.file.substring(0, 50) : '없음'
-                                    });
-                                    
                                     if (msg.file && msg.fileType && msg.fileType.startsWith('image/')) {
                                       return (
                                         <div className="mb-2">
@@ -784,8 +770,8 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                                             alt={msg.fileName || '첨부된 이미지'} 
                                             className="max-w-full h-auto rounded-lg"
                                             style={{ maxHeight: '200px' }}
-                                            onLoad={() => console.log('이미지 로드 성공:', msg.fileName)}
-                                            onError={(e) => console.error('이미지 로드 실패:', msg.fileName, e)}
+                                            onLoad={() => {}}
+                                            onError={() => {}}
                                           />
                                         </div>
                                       );
