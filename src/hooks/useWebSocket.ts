@@ -226,7 +226,10 @@ export const useWebSocket = ({
       console.error('❌ WebSocket이 연결되지 않았습니다. 연결을 시도합니다.');
       // 연결 시도 중이 아닐 때만 연결 시도
       if (!connectionAttemptedRef.current) {
+        console.log('🔄 연결 시도 중...');
         connect();
+      } else {
+        console.log('⏳ 이미 연결 시도 중입니다. 잠시 대기...');
       }
       return;
     }
@@ -322,37 +325,32 @@ export const useWebSocket = ({
   }, []);
 
   useEffect(() => {
-    // console.log('useWebSocket useEffect 실행:', { userEmail, isAdmin });
-    
     // userEmail이 없으면 연결하지 않음
     if (!userEmail) {
-      // console.log('userEmail이 없어서 WebSocket 연결을 건너뜀');
       return;
     }
     
     // guest@example.com인 경우 연결하지 않음
     if (userEmail === 'guest@example.com') {
-      // console.log('게스트 사용자이므로 WebSocket 연결을 건너뜀');
       return;
     }
     
-    // 이미 연결 시도 중이면 건너뜀
-    if (connectionAttemptedRef.current) {
-      // console.log('이미 연결 시도 중입니다. 건너뜀');
-      return;
-    }
-    
-    // 기존 연결이 있으면 해제
-    if (socketRef.current?.connected) {
-      // console.log('기존 연결 해제 후 재연결');
+    // 이미 연결된 소켓이 있으면 해제
+    if (socketRef.current) {
+      console.log('🔌 기존 소켓 연결 해제 후 재연결');
       socketRef.current.disconnect();
       socketRef.current = null;
+      connectionAttemptedRef.current = false;
     }
     
-    // connectionAttemptedRef 설정
-    connectionAttemptedRef.current = true;
+    // 연결 시도 중이면 건너뜀
+    if (connectionAttemptedRef.current) {
+      console.log('⏳ 이미 연결 시도 중입니다. 건너뜀');
+      return;
+    }
     
     // 새로운 연결
+    console.log('🚀 WebSocket 연결 시작 - userEmail:', userEmail);
     connect();
     
     // 관리자인 경우에만 기존 메시지 로드
@@ -364,7 +362,7 @@ export const useWebSocket = ({
       // 컴포넌트 언마운트 시에만 연결 해제
       // disconnect();
     };
-  }, [userEmail, effectiveIsAdmin]); // userEmail이 변경될 때마다 재연결
+  }, [userEmail, effectiveIsAdmin, connect, loadMessages]); // 의존성 배열 수정
 
   return {
     isConnected,
