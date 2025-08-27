@@ -1,9 +1,7 @@
 import { Product, Category, Tag, Order, User } from '../types';
 
-// 백엔드 API URL 설정 (로컬 개발 환경)
-const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? 'https://port-0-admore-me83wyv0a5a64d5a.sel5.cloudtype.app/api'
-  : 'http://localhost:5001/api';
+// 백엔드 API URL 설정 (CloudType 백엔드 사용)
+const API_BASE_URL = 'https://port-0-admore-me83wyv0a5a64d5a.sel5.cloudtype.app/api';
 
 console.log('API Base URL:', API_BASE_URL);
 
