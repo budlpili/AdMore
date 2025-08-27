@@ -1471,12 +1471,15 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                     return dateA.getTime() - dateB.getTime();
                   })
                   .map((message, idx, messages) => {
+                    // message.id가 undefined일 수 있으므로 안전한 키 생성
+                    const safeKey = message.id || `msg-${idx}-${message.timestamp}-${message.user}`;
+                    
                     // 날짜 구분선 렌더링
                     const showDateDivider = () => {
                       if (idx === 0) {
                         // 첫 번째 메시지인 경우 해당 날짜 표시
                         return (
-                          <div key={`date-${message.id}-${idx}`} className="flex justify-center mb-4">
+                          <div key={`date-${safeKey}-${idx}`} className="flex justify-center mb-4">
                             <div className="bg-gray-200 text-gray-600 px-3 py-1 rounded-full text-xs font-medium">
                               {formatDate(message.timestamp)}
                             </div>
@@ -1490,7 +1493,7 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                       
                       if (prevMsgDate && !isSameDate(currentMsgDate, prevMsgDate)) {
                         return (
-                          <div key={`date-${message.id}-${idx}`} className="flex justify-center mb-4">
+                          <div key={`date-${safeKey}-${idx}`} className="flex justify-center mb-4">
                             <div className="bg-gray-200 text-gray-600 px-3 py-1 rounded-full text-xs font-medium">
                               {formatDate(currentMsgDate)}
                             </div>
@@ -1504,7 +1507,7 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                     const dateDivider = showDateDivider();
 
                     return (
-                      <React.Fragment key={`${message.id}-${idx}`}>
+                      <React.Fragment key={safeKey}>
                         {dateDivider}
                         <div className={`flex flex-col ${
                           (message.message === '유저가 채팅종료를 하였습니다.' || message.message === '관리자가 답변을 완료하였습니다.') 

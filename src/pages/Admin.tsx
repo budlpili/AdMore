@@ -2522,8 +2522,8 @@ const Admin: React.FC = () => {
                           </tr>
                         </thead>
                         <tbody>
-                                                  {filteredRecentOrders.slice(0, 10).map((order) => (
-                          <tr key={order.orderId || `order-${order.date}`} className="border-b border-gray-100 hover:bg-gray-50">
+                                                  {filteredRecentOrders.slice(0, 10).map((order, index) => (
+                          <tr key={order.orderId || `order-${index}-${order.date}`} className="border-b border-gray-100 hover:bg-gray-50">
                               <td className="py-2 px-2 text-xs text-gray-600">
                                 {formatKoreanDate(order.date)}
                               </td>
@@ -2668,7 +2668,7 @@ const Admin: React.FC = () => {
                       {/* 최근 주문 활동 */}
                       {orders.slice(0, 5).map((order, index) => (
                         <div 
-                          key={order.orderId || `order-${index}`} 
+                          key={order.orderId || `order-${index}-${order.date}`} 
                           className="recent-activity-item flex items-center justify-between px-3 py-2 bg-gray-50 rounded-lg"
                         >
                           <div className="flex-1">
@@ -2700,7 +2700,7 @@ const Admin: React.FC = () => {
                       {/* 최근 리뷰 활동 */}
                       {reviews.slice(0, 3).map((review, index) => (
                         <div 
-                          key={review.id || `review-${index}`} 
+                          key={review.id || `review-${index}-${review.time}`} 
                           className="recent-activity-item flex items-center justify-between px-3 py-2 bg-gray-50 rounded-lg"
                         >
                           <div className="flex-1">
@@ -2731,7 +2731,7 @@ const Admin: React.FC = () => {
                       {/* 최근 문의 활동 */}
                       {chatMessages.slice(0, 2).map((message, index) => (
                         <div 
-                          key={message.id || `message-${index}`} 
+                          key={message.id || `message-${index}-${message.timestamp}`} 
                           className="recent-activity-item flex items-center justify-between px-3 py-2 bg-gray-50 rounded-lg"
                         >
                           
@@ -2993,8 +2993,8 @@ const Admin: React.FC = () => {
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
-                        {currentOrders.map((order) => (
-                          <tr key={order.orderId || `order-${order.date}`} className="hover:bg-gray-50">
+                        {currentOrders.map((order, index) => (
+                          <tr key={order.orderId || `order-${index}-${order.date}`} className="hover:bg-gray-50">
                             <td className="px-3 py-4 whitespace-nowrap">
                               <input
                                 type="checkbox"
@@ -3757,7 +3757,7 @@ const Admin: React.FC = () => {
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
                         {currentUsers.map((user, idx) => (
-                          <tr key={user._id || `user-${idx}`} className="hover:bg-gray-50">
+                          <tr key={user._id || `user-${idx}-${user.email}`} className="hover:bg-gray-50">
                             <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500 flex justify-center">
                               <input
                                 type="checkbox"
