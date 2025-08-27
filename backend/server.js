@@ -403,9 +403,11 @@ const saveChatMessagesToFile = async () => {
     // 전체 메시지와 유저별 메시지를 각각 저장
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     
-    // exports 디렉토리 생성
-    const exportsDir = path.join(__dirname, 'chat_exports');
-    fs.mkdirSync(exportsDir, { recursive: true });
+    // exports 디렉토리 생성 (CloudType 환경에서는 /tmp 사용)
+    const exportsDir = process.env.NODE_ENV === 'production' ? '/tmp' : path.join(__dirname, 'chat_exports');
+    if (process.env.NODE_ENV !== 'production') {
+      fs.mkdirSync(exportsDir, { recursive: true });
+    }
     
     // 전체 메시지 TXT 저장
     const allMessagesTxtFile = path.join(exportsDir, `all_messages_${timestamp}.txt`);
@@ -445,7 +447,7 @@ app.post('/api/chat/messages/export', async (req, res) => {
     await saveChatMessagesToFile();
     res.json({ 
       message: '채팅 메시지가 파일로 저장되었습니다.',
-      location: path.join(__dirname, 'chat_exports')
+      location: process.env.NODE_ENV === 'production' ? '/tmp' : path.join(__dirname, 'chat_exports')
     });
   } catch (error) {
     console.error('파일 저장 오류:', error);
@@ -470,10 +472,14 @@ app.post('/api/chat/messages/export/user/:userEmail', async (req, res) => {
     }
     
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const userTxtFile = path.join(__dirname, 'chat_exports', `user_${userEmail.replace(/[@.]/g, '_')}_${timestamp}.txt`);
+    const userTxtFile = process.env.NODE_ENV === 'production' 
+      ? path.join('/tmp', `user_${userEmail.replace(/[@.]/g, '_')}_${timestamp}.txt`)
+      : path.join(__dirname, 'chat_exports', `user_${userEmail.replace(/[@.]/g, '_')}_${timestamp}.txt`);
     
-    // exports 디렉토리 생성
-    fs.mkdirSync(path.dirname(userTxtFile), { recursive: true });
+    // exports 디렉토리 생성 (CloudType 환경에서는 /tmp 사용)
+    if (process.env.NODE_ENV !== 'production') {
+      fs.mkdirSync(path.dirname(userTxtFile), { recursive: true });
+    }
     
     // TXT 파일 생성
     let txtContent = `=== ${userEmail} 채팅 메시지 ===\n\n`;
