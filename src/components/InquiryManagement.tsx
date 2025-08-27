@@ -395,7 +395,12 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
   };
 
   const handleSendMessage = () => {
-    if ((!messageInput.trim() && !selectedFile) || !selectedMessage || isSending) return;
+    if (!selectedMessage) {
+      alert('메시지를 보낼 사용자를 선택해주세요.');
+      return;
+    }
+    
+    if ((!messageInput.trim() && !selectedFile) || isSending) return;
 
     const messageToSend = messageInput.trim();
     
@@ -1595,10 +1600,18 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                 )}
                 
                 <div className={`relative pr-20 flex items-center transition-all duration-200 ${
-                  selectedMessage && isChatCompleted(selectedMessage.user)
+                  !selectedMessage || (selectedMessage && isChatCompleted(selectedMessage.user))
                     ? 'opacity-60'
                     : ''
                 }`}>
+                  {!selectedMessage && (
+                    <div className="absolute top-0 left-0 right-0 bottom-0 bg-gray-50 bg-opacity-50 rounded-lg flex items-center justify-center z-10">
+                      <div className="flex items-center gap-2 text-gray-500 text-xs">
+                        <FontAwesomeIcon icon={faUser} className="text-gray-400" />
+                        <span>메시지를 보낼 사용자를 선택해주세요</span>
+                      </div>
+                    </div>
+                  )}
                   {selectedMessage && isChatCompleted(selectedMessage.user) && (
                     <div className="absolute top-0 left-0 right-0 bottom-0 bg-gray-50 bg-opacity-50 rounded-lg flex items-center justify-center z-10">
                       <div className="flex items-center gap-2 text-gray-500 text-xs">
@@ -1612,24 +1625,25 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                     onChange={(e) => setMessageInput(e.target.value)}
                     onKeyDown={handleMessageInputKeyDown}
                     rows={1}
-                    placeholder={selectedMessage && isChatCompleted(selectedMessage.user) ? "채팅이 종료되었습니다" : `메시지를 입력하세요. 
-(Enter: 줄바꿈 / Ctrl+Enter: 전송)`}
+                    placeholder={!selectedMessage ? "메시지를 보낼 사용자를 선택해주세요" : 
+                      (selectedMessage && isChatCompleted(selectedMessage.user) ? "채팅이 종료되었습니다" : 
+                      `메시지를 입력하세요. (Enter: 줄바꿈 / Ctrl+Enter: 전송)`)}
                     className={`w-full pl-4 pr-4 py-2 bg-transparent border resize-none
                       focus:outline-none focus:ring-2 text-xs placeholder-gray-400 h-[48px] rounded-lg overflow-hidden transition-all duration-200 ${
-                        selectedMessage && isChatCompleted(selectedMessage.user)
+                        !selectedMessage || (selectedMessage && isChatCompleted(selectedMessage.user))
                           ? 'border-gray-200 bg-gray-50 text-gray-500 cursor-not-allowed focus:ring-gray-200 h-[80px]'
                           : 'border-gray-300 focus:ring-orange-500'
                       }`}
-                    disabled={selectedMessage && isChatCompleted(selectedMessage.user)}
+                    disabled={!selectedMessage || (selectedMessage && isChatCompleted(selectedMessage.user))}
                   />
                   <div className="flex items-center justify-end absolute bottom-[6px] right-[6px] gap-2">
                   <div className="flex gap-2">
                     <button 
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      disabled={selectedMessage && isChatCompleted(selectedMessage.user)}
+                      disabled={!selectedMessage || (selectedMessage && isChatCompleted(selectedMessage.user))}
                       className={`transition-colors flex items-center gap-2 p-2 rounded-lg ${
-                        selectedMessage && isChatCompleted(selectedMessage.user)
+                        !selectedMessage || (selectedMessage && isChatCompleted(selectedMessage.user))
                           ? 'text-gray-300 cursor-not-allowed'
                           : 'text-gray-500 hover:text-gray-700'
                       }`}
@@ -1637,7 +1651,7 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                       <FontAwesomeIcon 
                         icon={faPaperclip} 
                         className={`text-base transition-colors ${
-                          selectedMessage && isChatCompleted(selectedMessage.user)
+                          !selectedMessage || (selectedMessage && isChatCompleted(selectedMessage.user))
                             ? 'text-gray-300'
                             : 'text-gray-400 hover:text-gray-700'
                         }`} 
@@ -1650,14 +1664,14 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                       onChange={handleFileChange}
                       className="hidden"
                       accept="image/*,.pdf,.doc,.docx,.txt"
-                      disabled={selectedMessage && isChatCompleted(selectedMessage.user)}
+                      disabled={!selectedMessage || (selectedMessage && isChatCompleted(selectedMessage.user))}
                     />
                   </div>
                   <button 
                     onClick={handleSendMessage}
-                    disabled={(!messageInput.trim() && !selectedFile) || isSending || (selectedMessage && isChatCompleted(selectedMessage.user))}
+                    disabled={!selectedMessage || (!messageInput.trim() && !selectedFile) || isSending || (selectedMessage && isChatCompleted(selectedMessage.user))}
                     className={`flex items-center p-2 rounded-lg transition-all duration-200 ${
-                      selectedMessage && isChatCompleted(selectedMessage.user)
+                      !selectedMessage || (selectedMessage && isChatCompleted(selectedMessage.user))
                         ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                         : (messageInput.trim() || selectedFile) && !isSending
                           ? 'text-white bg-orange-500 hover:bg-orange-600 shadow-sm' 

@@ -181,21 +181,27 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
       timestamp: message.timestamp // 메시지 생성 시간 추가
     };
     
-    // 중복 메시지 방지 로직 개선: ID 기반으로 확인
+    // 중복 메시지 방지 로직 강화
     setMessages(prev => {
-      // ID가 있으면 ID로 중복 확인, 없으면 내용과 시간으로 확인
-      const isDuplicate = message.id 
-        ? prev.some(msg => msg.id === message.id)
-        : prev.some(msg => 
-            msg.text === message.message && 
-            msg.from === (message.type === 'admin' ? 'admin' : 'user') &&
-            Math.abs(new Date().getTime() - (msg.timestamp ? new Date(msg.timestamp).getTime() : 0)) < 2000 // 2초 이내
-          );
-      
-      if (isDuplicate) {
+      // ID가 있으면 ID로 중복 확인
+      if (message.id && prev.some(msg => msg.id === message.id)) {
+        console.log('🔄 ID 중복 메시지 무시:', message.id);
         return prev;
       }
       
+      // 내용과 시간으로 중복 확인 (2초 이내)
+      const isDuplicate = prev.some(msg => 
+        msg.text === message.message && 
+        msg.from === (message.type === 'admin' ? 'admin' : 'user') &&
+        Math.abs(new Date().getTime() - (msg.timestamp ? new Date(msg.timestamp).getTime() : 0)) < 2000
+      );
+      
+      if (isDuplicate) {
+        console.log('🔄 내용 중복 메시지 무시:', message.message);
+        return prev;
+      }
+      
+      console.log('✅ 새 메시지 추가:', newMessage);
       return [...prev, newMessage];
     });
   }, []); // 의존성 배열을 비워서 함수가 재생성되지 않도록 함

@@ -53,12 +53,6 @@ export const useWebSocket = ({
       socketRef.current.disconnect();
       socketRef.current = null;
     }
-    
-    // 연결 시도 중이면 대기
-    if (connectionAttemptedRef.current) {
-      console.log('⏳ 이미 연결 시도 중입니다. 대기 중...');
-      return;
-    }
 
     // 현재 접속한 URL을 기반으로 WebSocket URL 설정
     const currentHost = window.location.hostname;
@@ -66,7 +60,7 @@ export const useWebSocket = ({
       ? 'http://localhost:5001'
       : 'https://port-0-admore-me83wyv0a5a64d5a.sel5.cloudtype.app';
     
-        console.log('🚀 WebSocket 연결 시도:', wsUrl);
+    console.log('🚀 WebSocket 연결 시도:', wsUrl);
     connectionAttemptedRef.current = true;
 
     const socket = io(wsUrl, {
@@ -97,111 +91,37 @@ export const useWebSocket = ({
 
     socket.on('connect_error', (error) => {
       console.error('❌ WebSocket 연결 오류:', error.message);
-      console.error('연결 시도 URL:', wsUrl);
-      console.error('사용자 이메일:', userEmail);
       setIsConnected(false);
       connectionAttemptedRef.current = false;
       
-      // 연결 오류 시 5초 후 재시도 (무한 루프 방지)
+      // 3초 후 재연결 시도
       setTimeout(() => {
-        if (!connectionAttemptedRef.current && !socketRef.current?.connected) {
-          console.log('🔄 5초 후 재연결 시도...');
+        if (!connectionAttemptedRef.current) {
+          console.log('🔄 연결 오류 후 재연결 시도...');
           connect();
         }
-      }, 5000);
+      }, 3000);
     });
 
     socket.on('disconnect', (reason) => {
+      console.log('🔌 WebSocket 연결 해제:', reason);
       setIsConnected(false);
       connectionAttemptedRef.current = false;
-    });
-
-    socket.on('reconnect', (attemptNumber) => {
-      setIsConnected(true);
-    });
-
-    socket.on('reconnect_error', (error) => {
-      // 재연결 오류 시 추가 처리 없음
-    });
-
-    socket.on('reconnect_failed', () => {
-      setIsConnected(false);
-      connectionAttemptedRef.current = false;
-    });
-
-    socket.on('new_message', (message: any) => {
-      // userEmail 필드를 user로 매핑, id는 문자열로 변환
-      const formattedMessage = {
-        ...message,
-        user: message.userEmail || message.user,
-        id: String(message.id),
-        file: message.file || null,
-        fileName: message.fileName || undefined,
-        fileType: message.fileType || undefined
-      };
       
-      // 관리자가 아닌 경우 현재 사용자의 메시지만 추가
-      if (!isAdmin && userEmail) {
-        // 이메일 부분만 비교 (세션 ID 제외)
-        const currentUserEmail = userEmail.split('_')[0];
-        const messageUserEmail = formattedMessage.user.split('_')[0];
-        
-        if (messageUserEmail === currentUserEmail || formattedMessage.type === 'admin') {
-          setMessages(prev => {
-            // 중복 메시지 체크
-            const isDuplicate = prev.some(msg => msg.id === formattedMessage.id);
-            if (isDuplicate) {
-              return prev;
-            }
-            const newMessages = [...prev, formattedMessage];
-            // onNewMessage 콜백 호출 (실시간 업데이트를 위해)
-            onNewMessage?.(formattedMessage);
-            return newMessages;
-          });
-        }
-      } else {
-        setMessages(prev => {
-          // 중복 메시지 체크
-          const isDuplicate = prev.some(msg => msg.id === formattedMessage.id);
-          if (isDuplicate) {
-            return prev;
+      // 연결 해제 후 재연결 시도 (의도적인 연결 해제가 아닌 경우)
+      if (reason !== 'io client disconnect') {
+        setTimeout(() => {
+          if (!connectionAttemptedRef.current) {
+            console.log('🔄 연결 해제 후 재연결 시도...');
+            connect();
           }
-          const newMessages = [...prev, formattedMessage];
-          // onNewMessage 콜백 호출 (실시간 업데이트를 위해)
-          onNewMessage?.(formattedMessage);
-          return newMessages;
-        });
+        }, 2000);
       }
     });
 
-    socket.on('message_status_updated', (data: { userEmail: string; status: string }) => {
-      console.log('메시지 상태 업데이트:', data);
-      setMessages(prev => 
-        prev.map(msg => 
-          msg.user === data.userEmail 
-            ? { ...msg, status: data.status as 'pending' | 'answered' | 'closed' }
-            : msg
-        )
-      );
-      onStatusUpdate?.(data);
-    });
-
-    socket.on('user_connected', (userEmail: string) => {
-      console.log('사용자 연결됨:', userEmail);
-      onUserConnected?.(userEmail);
-    });
-
-    socket.on('user_disconnected', (userEmail: string) => {
-      console.log('사용자 연결 해제됨:', userEmail);
-      onUserDisconnected?.(userEmail);
-    });
-
-    socket.on('message_error', (error: { error: string }) => {
-      console.error('메시지 오류:', error);
-    });
-
+    // 항상 소켓 반환
     return socket;
-  }, [userEmail, isAdmin, onNewMessage, onStatusUpdate, onUserConnected, onUserDisconnected]);
+  }, [userEmail, effectiveIsAdmin]);
 
   // 메시지 전송
   const sendMessage = useCallback((messageData: {
@@ -221,16 +141,46 @@ export const useWebSocket = ({
     fileType?: string;
 
   }) => {
-    // 연결 상태 확인
+    // 연결 상태 확인 및 자동 연결 시도
     if (!socketRef.current || !socketRef.current.connected) {
-      console.error('❌ WebSocket이 연결되지 않았습니다. 연결을 시도합니다.');
-      // 연결 시도 중이 아닐 때만 연결 시도
+      console.log('🔄 WebSocket이 연결되지 않았습니다. 연결을 시도합니다...');
+      
+      // 연결 시도 중이 아니면 연결 시도
       if (!connectionAttemptedRef.current) {
-        console.log('🔄 연결 시도 중...');
         connect();
-      } else {
-        console.log('⏳ 이미 연결 시도 중입니다. 잠시 대기...');
       }
+      
+      // 연결 대기 후 재시도 (무한 재귀 방지)
+      setTimeout(() => {
+        if (socketRef.current?.connected) {
+          console.log('✅ 연결 성공! 메시지 전송을 재시도합니다.');
+          // 무한 재귀 방지를 위해 직접 emit
+          const data = {
+            userEmail: isAdmin ? (messageData.targetUserEmail || 'admin') : userEmail,
+            ...messageData
+          };
+          socketRef.current.emit('send_message', data);
+          
+          // 로컬 상태 업데이트
+          if (onNewMessage) {
+            const localMessage = {
+              id: Date.now().toString(),
+              user: isAdmin ? (messageData.targetUserEmail || 'admin') : (userEmail || 'unknown'),
+              message: data.message,
+              type: data.type,
+              timestamp: new Date().toISOString(),
+              file: data.file,
+              fileName: data.fileName,
+              fileType: data.fileType
+            };
+            console.log('📨 로컬 메시지 추가:', localMessage);
+            onNewMessage(localMessage);
+          }
+        } else {
+          console.error('❌ WebSocket 연결 실패로 메시지 전송이 불가능합니다.');
+        }
+      }, 2000);
+      
       return;
     }
 
@@ -245,13 +195,14 @@ export const useWebSocket = ({
       ...messageData
     };
 
+    console.log('📤 메시지 전송:', data);
     socketRef.current.emit('send_message', data);
     
     // 메시지 전송 성공 시 로컬 상태 업데이트
-    if (onNewMessage && data.userEmail) {
+    if (onNewMessage) {
       const localMessage = {
         id: Date.now().toString(),
-        user: data.userEmail,
+        user: isAdmin ? (messageData.targetUserEmail || 'admin') : (userEmail || 'unknown'),
         message: data.message,
         type: data.type,
         timestamp: new Date().toISOString(),
@@ -259,9 +210,10 @@ export const useWebSocket = ({
         fileName: data.fileName,
         fileType: data.fileType
       };
+      console.log('📨 로컬 메시지 추가:', localMessage);
       onNewMessage(localMessage);
     }
-  }, [userEmail, connect, onNewMessage]);
+  }, [userEmail, isAdmin, onNewMessage]);
 
   // 메시지 상태 업데이트
   const updateMessageStatus = useCallback((status: 'pending' | 'answered' | 'closed') => {
@@ -329,40 +281,93 @@ export const useWebSocket = ({
     if (!userEmail) {
       return;
     }
-    
-    // guest@example.com인 경우 연결하지 않음
-    if (userEmail === 'guest@example.com') {
+
+    // 이미 연결된 소켓이 있으면 건너뜀
+    if (socketRef.current?.connected) {
+      console.log('✅ 이미 연결된 소켓이 있습니다.');
       return;
     }
-    
-    // 이미 연결된 소켓이 있으면 해제
+
+    // 연결 시도 중이면 건너뜀
+    if (connectionAttemptedRef.current) {
+      console.log('⏳ 이미 연결 시도 중입니다. 대기 중...');
+      return;
+    }
+
+    console.log('🚀 WebSocket 연결 시작 - userEmail:', userEmail);
+    connectionAttemptedRef.current = true;
+
+    // 기존 소켓이 있으면 연결 해제
     if (socketRef.current) {
       console.log('🔌 기존 소켓 연결 해제 후 재연결');
       socketRef.current.disconnect();
       socketRef.current = null;
-      connectionAttemptedRef.current = false;
     }
+
+    const socket = connect();
     
-    // 연결 시도 중이면 건너뜀
-    if (connectionAttemptedRef.current) {
-      console.log('⏳ 이미 연결 시도 중입니다. 건너뜀');
+    // socket이 undefined인 경우 처리
+    if (!socket) {
+      console.error('❌ WebSocket 연결 실패');
+      connectionAttemptedRef.current = false;
       return;
     }
     
-    // 새로운 연결
-    console.log('🚀 WebSocket 연결 시작 - userEmail:', userEmail);
-    connect();
-    
-    // 관리자인 경우에만 기존 메시지 로드
-    if (effectiveIsAdmin) {
-      loadMessages();
-    }
+    // 이벤트 리스너 등록 전에 기존 리스너 제거
+    socket.off('new_message');
+    socket.off('message_status_updated');
+    socket.off('user_connected');
+    socket.off('user_disconnected');
+    socket.off('message_error');
 
+    // 새 메시지 수신
+    socket.on('new_message', (message) => {
+      console.log('📨 새 메시지 수신:', message);
+      if (onNewMessage) {
+        onNewMessage(message);
+      }
+    });
+
+    // 메시지 상태 업데이트
+    socket.on('message_status_updated', (data) => {
+      console.log('📊 메시지 상태 업데이트:', data);
+      if (onStatusUpdate) {
+        onStatusUpdate(data);
+      }
+    });
+
+    // 사용자 연결
+    socket.on('user_connected', (userEmail) => {
+      console.log('👤 사용자 연결:', userEmail);
+      if (onUserConnected) {
+        onUserConnected(userEmail);
+      }
+    });
+
+    // 사용자 연결 해제
+    socket.on('user_disconnected', (userEmail) => {
+      console.log('👤 사용자 연결 해제:', userEmail);
+      if (onUserDisconnected) {
+        onUserDisconnected(userEmail);
+      }
+    });
+
+    // 메시지 오류
+    socket.on('message_error', (error) => {
+      console.error('❌ 메시지 오류:', error);
+    });
+
+    // cleanup 함수는 컴포넌트 언마운트 시에만 실행
     return () => {
       // 컴포넌트 언마운트 시에만 연결 해제
-      // disconnect();
+      console.log('🔌 컴포넌트 언마운트 시 연결 해제');
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+      connectionAttemptedRef.current = false;
     };
-  }, [userEmail, effectiveIsAdmin, connect, loadMessages]); // 의존성 배열 수정
+  }, []); // 의존성 배열을 비워서 한 번만 실행
 
   return {
     isConnected,

@@ -137,6 +137,64 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 const connectedUsers = new Map(); // socketId -> userEmail
 const userSockets = new Map(); // userEmail -> socketId
 
+// MongoDB 모델 import
+const ChatMessage = require('./models/ChatMessage');
+
+// 중복 메시지 전송 방지를 위한 메모리 캐시
+const recentMessages = new Map();
+
+// 메시지 처리 함수
+async function processMessage(userEmail, messageData, socket) {
+  const { message, type, inquiryType, productInfo, paymentInfo, file, fileName, fileType } = messageData;
+  
+  try {
+    // MongoDB에 메시지 저장
+    const chatMessage = new ChatMessage({
+      userId: userEmail,
+      user: userEmail,
+      message,
+      type,
+      timestamp: new Date(),
+      productInfo: productInfo || '',
+      file: file || '',
+      fileName: fileName || '',
+      fileType: fileType || ''
+    });
+
+    const savedMessage = await chatMessage.save();
+    console.log('✅ MongoDB에 메시지 저장 완료:', savedMessage);
+
+    // 중복 메시지 전송 방지: 같은 내용의 메시지가 2초 이내에 전송되면 무시
+    const messageKey = `${userEmail}_${message}_${type}`;
+    const now = Date.now();
+    
+    if (recentMessages.has(messageKey)) {
+      const lastTime = recentMessages.get(messageKey);
+      if (now - lastTime < 2000) { // 2초 이내
+        console.log('🔄 중복 메시지 전송 방지:', message);
+        return;
+      }
+    }
+    
+    // 메시지 키와 시간 저장
+    recentMessages.set(messageKey, now);
+    
+    // 5초 후 메시지 키 제거 (메모리 정리)
+    setTimeout(() => {
+      recentMessages.delete(messageKey);
+    }, 5000);
+
+    // 모든 클라이언트에게 메시지 브로드캐스트
+    io.emit('new_message', savedMessage);
+    
+    console.log(`메시지 전송: ${userEmail} -> ${message}`);
+    console.log(`연결된 클라이언트 수: ${io.engine.clientsCount}`);
+  } catch (error) {
+    console.error('❌ 메시지 저장 실패:', error);
+    socket.emit('message_error', { error: '메시지 저장에 실패했습니다.' });
+  }
+}
+
 // WebSocket 이벤트 핸들러
 io.on('connection', (socket) => {
   console.log('새로운 클라이언트 연결:', socket.id);
@@ -186,86 +244,8 @@ io.on('connection', (socket) => {
         fileType
       });
       
-      // userEmail에서 실제 이메일 추출 (세션 ID에서 타임스탬프 제거)
-      const actualEmail = userEmail.includes('_') ? userEmail.split('_')[0] : userEmail;
-      
-      // 프론트엔드에서 보낸 userEmail이 이미 세션 ID인지 확인
-      if (userEmail.includes('_')) {
-        // 이미 세션 ID가 있으면 그대로 사용
-        console.log(`프론트엔드에서 세션 ID 전송됨: ${userEmail}`);
-        processMessage(userEmail);
-      } else {
-        // 일반 이메일이면 기존 활성 세션 확인
-        const checkActiveSessionQuery = `
-          SELECT user FROM chat_messages 
-          WHERE user LIKE ? AND type = 'user'
-          ORDER BY timestamp DESC
-          LIMIT 1
-        `;
-        
-        const emailPattern = `${actualEmail}_%`;
-        console.log(`활성 세션 확인: ${actualEmail}, 패턴: ${emailPattern}`);
-        
-        // db.get(checkActiveSessionQuery, [emailPattern], (err, row) => { // SQLite 제거
-        //   if (err) {
-        //     console.error('활성 세션 확인 오류:', err);
-        //     // 오류 발생 시 새로운 세션 생성
-        //     const newSessionId = `${actualEmail}_${Date.now()}`;
-        //     console.log(`오류 발생, 새로운 세션 생성: ${newSessionId}`);
-        //     socket.emit('new_session_created', { sessionId: newSessionId });
-        //     processMessage(newSessionId);
-        //     return;
-        //   }
-          
-        //   if (row && row.user) {
-        //     // 기존 활성 세션이 있으면 그 세션 사용
-        //     console.log(`기존 활성 세션 발견: ${row.user}`);
-        //     processMessage(row.user);
-        //   } else {
-        //     // 활성 세션이 없으면 새로운 세션 ID 생성
-        //     const newSessionId = `${actualEmail}_${Date.now()}`;
-        //     console.log(`활성 세션 없음, 새로운 세션 생성: ${newSessionId}`);
-        //     // 새로운 세션 ID를 클라이언트에게 알림
-        //     socket.emit('new_session_created', { sessionId: newSessionId });
-        //     processMessage(newSessionId);
-        //   }
-        // });
-      }
-      
-      function processMessage(sessionId) {
-      // 한국 시간(KST)으로 현재 시간 생성
-      const now = new Date();
-      const kstTime = new Date(now.getTime() + (9 * 60 * 60 * 1000)); // UTC+9
-      const timestamp = kstTime.toISOString();
-      
-      const savedMessage = {
-        id: Date.now().toString(),
-        user: sessionId,
-        message,
-        type,
-        timestamp: timestamp,
-        file: file || null,
-        fileName: fileName || null,
-        fileType: fileType || null
-      };
-
-      console.log('저장된 메시지:', savedMessage);
-
-      // 모든 클라이언트에게 메시지 브로드캐스트
-      io.emit('new_message', savedMessage);
-      
-      // 새로운 세션 ID가 생성된 경우, 해당 세션 ID로 메시지를 다시 전송
-      if (sessionId !== userEmail) {
-        console.log(`새로운 세션 ID로 메시지 재전송: ${sessionId}`);
-        socket.emit('message_for_session', { 
-          sessionId: sessionId, 
-          message: savedMessage 
-        });
-      }
-      
-      console.log(`메시지 전송: ${userEmail} -> ${message}`);
-      console.log(`연결된 클라이언트 수: ${Object.keys(io.sockets.sockets).length}`);
-    }
+      // 메시지 처리 함수 호출
+      processMessage(userEmail, messageData, socket);
     } catch (error) {
       console.error('메시지 처리 오류:', error);
       socket.emit('message_error', { error: '메시지 처리에 실패했습니다.' });
@@ -331,28 +311,28 @@ app.use('/api/coupons', require('./routes/coupons'));
 app.use('/api/migration', require('./routes/migration'));
 
 // 채팅 관련 API
-app.get('/api/chat/messages', (req, res) => {
-  const query = `
-    SELECT * FROM chat_messages 
-    ORDER BY timestamp ASC
-  `;
-  
-  // db.all(query, [], (err, rows) => { // SQLite 제거
-  //   if (err) {
-  //     console.error('메시지 조회 오류:', err);
-  //     return res.status(500).json({ error: '메시지 조회에 실패했습니다.' });
-  //   }
-    
-  //   const messages = rows.map(row => ({
-  //     id: row.id,
-  //     user: row.user,
-  //     message: row.message,
-  //     timestamp: row.timestamp,
-  //     type: row.type
-  //   }));
-    
-  //   res.json(messages);
-  // });
+app.get('/api/chat/messages', async (req, res) => {
+  try {
+    const messages = await ChatMessage.find().sort({ timestamp: 1 });
+    console.log('✅ 채팅 메시지 조회 완료:', messages.length);
+    res.json(messages);
+  } catch (error) {
+    console.error('❌ 메시지 조회 오류:', error);
+    res.status(500).json({ error: '메시지 조회에 실패했습니다.' });
+  }
+});
+
+// 사용자별 채팅 메시지 조회
+app.get('/api/chat/messages/:userEmail', async (req, res) => {
+  try {
+    const { userEmail } = req.params;
+    const messages = await ChatMessage.find({ user: userEmail }).sort({ timestamp: 1 });
+    console.log(`✅ ${userEmail} 사용자 메시지 조회 완료:`, messages.length);
+    res.json(messages);
+  } catch (error) {
+    console.error('❌ 사용자별 메시지 조회 오류:', error);
+    res.status(500).json({ error: '사용자별 메시지 조회에 실패했습니다.' });
+  }
 });
 
 // 현재 채팅 중인 유저 목록 가져오기

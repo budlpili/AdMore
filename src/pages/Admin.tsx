@@ -215,6 +215,8 @@ const Admin: React.FC = () => {
     isAdmin: true,
     onNewMessage: (message) => {
       console.log('관리자 페이지: 새로운 메시지 수신', message);
+      console.log('관리자 페이지: 현재 chatMessages 상태', chatMessages.length);
+      
       // 새로운 메시지가 도착하면 chatMessages에 추가
       setChatMessages(prev => {
         const isDuplicate = prev.some(msg => msg.id === message.id);
@@ -228,7 +230,7 @@ const Admin: React.FC = () => {
           console.log('관리자 페이지: 채팅 완료 메시지 감지, 채팅 완료 상태로 표시');
           // 해당 사용자의 채팅을 완료 상태로 표시
           setCompletedChats(prev => [...prev, message.user]);
-          return []; // 채팅 내용은 숨김
+          return prev; // 기존 메시지는 유지
         }
         
         // 완료된 사용자의 새로운 메시지는 무시
@@ -237,8 +239,10 @@ const Admin: React.FC = () => {
           return prev;
         }
         
-        console.log('관리자 페이지: 새 메시지 추가됨');
-        return [...prev, message];
+        console.log('관리자 페이지: 새 메시지 추가됨 - 사용자:', message.user, '메시지:', message.message);
+        const newMessages = [...prev, message];
+        console.log('관리자 페이지: 업데이트된 메시지 수:', newMessages.length);
+        return newMessages;
       });
     },
     onStatusUpdate: (data) => {
@@ -2087,9 +2091,9 @@ const Admin: React.FC = () => {
                           <p className="text-sm">알림이 없습니다</p>
                         </div>
                       ) : (
-                        notifications.slice(0, 10).map((notification) => (
+                        notifications.slice(0, 10).map((notification, index) => (
                           <div 
-                            key={notification.id}
+                            key={notification.id || `notification-${index}`}
                             onClick={() => handleNotificationClick(notification)}
                             className={`px-3 py-2 hover:bg-gray-50 border-b border-gray-100 cursor-pointer ${
                               !notification.isRead ? 'bg-blue-50' : ''
@@ -2514,8 +2518,8 @@ const Admin: React.FC = () => {
                           </tr>
                         </thead>
                         <tbody>
-                          {filteredRecentOrders.slice(0, 10).map((order) => (
-                            <tr key={order.orderId} className="border-b border-gray-100 hover:bg-gray-50">
+                                                  {filteredRecentOrders.slice(0, 10).map((order) => (
+                          <tr key={order.orderId || `order-${order.date}`} className="border-b border-gray-100 hover:bg-gray-50">
                               <td className="py-2 px-2 text-xs text-gray-600">
                                 {formatKoreanDate(order.date)}
                               </td>
@@ -2660,7 +2664,7 @@ const Admin: React.FC = () => {
                       {/* 최근 주문 활동 */}
                       {orders.slice(0, 5).map((order, index) => (
                         <div 
-                          key={order.orderId} 
+                          key={order.orderId || `order-${index}`} 
                           className="recent-activity-item flex items-center justify-between px-3 py-2 bg-gray-50 rounded-lg"
                         >
                           <div className="flex-1">
@@ -2692,7 +2696,7 @@ const Admin: React.FC = () => {
                       {/* 최근 리뷰 활동 */}
                       {reviews.slice(0, 3).map((review, index) => (
                         <div 
-                          key={review.id} 
+                          key={review.id || `review-${index}`} 
                           className="recent-activity-item flex items-center justify-between px-3 py-2 bg-gray-50 rounded-lg"
                         >
                           <div className="flex-1">
@@ -2723,7 +2727,7 @@ const Admin: React.FC = () => {
                       {/* 최근 문의 활동 */}
                       {chatMessages.slice(0, 2).map((message, index) => (
                         <div 
-                          key={message.id} 
+                          key={message.id || `message-${index}`} 
                           className="recent-activity-item flex items-center justify-between px-3 py-2 bg-gray-50 rounded-lg"
                         >
                           
@@ -2986,7 +2990,7 @@ const Admin: React.FC = () => {
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
                         {currentOrders.map((order) => (
-                          <tr key={order.orderId} className="hover:bg-gray-50">
+                          <tr key={order.orderId || `order-${order.date}`} className="hover:bg-gray-50">
                             <td className="px-3 py-4 whitespace-nowrap">
                               <input
                                 type="checkbox"
@@ -3749,7 +3753,7 @@ const Admin: React.FC = () => {
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
                         {currentUsers.map((user, idx) => (
-                          <tr key={user._id} className="hover:bg-gray-50">
+                          <tr key={user._id || `user-${idx}`} className="hover:bg-gray-50">
                             <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500 flex justify-center">
                               <input
                                 type="checkbox"
