@@ -233,69 +233,38 @@ io.on('connection', (socket) => {
       }
       
       function processMessage(sessionId) {
-      const insertQuery = `
-        INSERT INTO chat_messages (user, message, type, timestamp, file, file_name, file_type)
-        VALUES (?, ?, ?, datetime('now', 'localtime'), ?, ?, ?)
-      `;
+      // 한국 시간(KST)으로 현재 시간 생성
+      const now = new Date();
+      const kstTime = new Date(now.getTime() + (9 * 60 * 60 * 1000)); // UTC+9
+      const timestamp = kstTime.toISOString();
       
-      const paymentInfoJson = paymentInfo ? JSON.stringify(paymentInfo) : null;
-      
-      console.log('데이터베이스 저장 시도:', [
-        sessionId, 
-        message, 
+      const savedMessage = {
+        id: Date.now().toString(),
+        user: sessionId,
+        message,
         type,
-        file || null,
-        fileName || null,
-        fileType || null
-      ]);
+        timestamp: timestamp,
+        file: file || null,
+        fileName: fileName || null,
+        fileType: fileType || null
+      };
+
+      console.log('저장된 메시지:', savedMessage);
+
+      // 모든 클라이언트에게 메시지 브로드캐스트
+      io.emit('new_message', savedMessage);
       
-      // db.run(insertQuery, [ // SQLite 제거
-      //   sessionId, 
-      //   message, 
-      //   type,
-      //   file || null,
-      //   fileName || null,
-      //   fileType || null
-      // ], function(err) {
-      //   if (err) {
-      //     console.error('메시지 저장 오류:', err);
-      //     socket.emit('message_error', { error: '메시지 저장에 실패했습니다.' });
-      //     return;
-      //   }
-
-      //   // 한국 시간(KST)으로 현재 시간 생성
-      //   const now = new Date();
-      //   const kstTime = new Date(now.getTime() + (9 * 60 * 60 * 1000)); // UTC+9
-      //   const timestamp = kstTime.toISOString().slice(0, 16).replace('T', ' ');
-        
-      //   const savedMessage = {
-      //     id: this.lastID,
-      //     user: sessionId,
-      //     message,
-      //     timestamp: timestamp,
-      //     type,
-      //     file: file || null,
-      //     fileName: fileName || null,
-      //     fileType: fileType || null
-      //   };
-
-      //   console.log('저장된 메시지:', savedMessage);
-
-      //   // 모든 클라이언트에게 메시지 브로드캐스트
-      //   io.emit('new_message', savedMessage);
-        
-      //   // 새로운 세션 ID가 생성된 경우, 해당 세션 ID로 메시지를 다시 전송
-      //   if (sessionId !== userEmail) {
-      //     console.log(`새로운 세션 ID로 메시지 재전송: ${sessionId}`);
-      //     socket.emit('message_for_session', { 
-      //       sessionId: sessionId, 
-      //       message: savedMessage 
-      //     });
-      //   }
-        
-      //   console.log(`메시지 전송: ${userEmail} -> ${message}`);
-      //   console.log(`연결된 클라이언트 수: ${Object.keys(io.sockets.sockets).length}`);
-      // });
+      // 새로운 세션 ID가 생성된 경우, 해당 세션 ID로 메시지를 다시 전송
+      if (sessionId !== userEmail) {
+        console.log(`새로운 세션 ID로 메시지 재전송: ${sessionId}`);
+        socket.emit('message_for_session', { 
+          sessionId: sessionId, 
+          message: savedMessage 
+        });
+      }
+      
+      console.log(`메시지 전송: ${userEmail} -> ${message}`);
+      console.log(`연결된 클라이언트 수: ${Object.keys(io.sockets.sockets).length}`);
     }
     } catch (error) {
       console.error('메시지 처리 오류:', error);
