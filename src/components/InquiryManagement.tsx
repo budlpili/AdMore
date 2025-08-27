@@ -1469,6 +1469,11 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
               <div className="space-y-4">
                 {chatMessages
                   .filter(msg => {
+                    // selectedMessage.user가 유효한 경우에만 필터링
+                    if (!selectedMessage || !selectedMessage.user) {
+                      return false; // 선택된 사용자가 없으면 메시지 표시 안함
+                    }
+                    
                     // 선택된 사용자의 메시지이거나, 관리자 메시지
                     const isRelevantMessage = msg.user === selectedMessage.user || 
                                             msg.user === '관리자';
