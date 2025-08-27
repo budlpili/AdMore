@@ -953,7 +953,7 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
               <div className="text-sm font-medium text-red-700 mb-2">삭제된 유저 ({deletedUsers.size}명)</div>
               <div className="space-y-1">
                 {Array.from(deletedUsers).map(user => (
-                  <div key={user} className="flex items-center justify-between text-xs text-red-600">
+                  <div key={`delete-${user}`} className="flex items-center justify-between text-xs text-red-600">
                     <span>{getUserName(user)}</span>
                     <button
                       onClick={() => setDeletedUsers(prev => {
@@ -984,7 +984,7 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
               {Array.from(new Set(filteredMessages.map(msg => msg.user)))
                 .filter(user => user !== '관리자') // 관리자 제외
                 .filter(user => !deletedUsers.has(user)) // 삭제된 유저 제외
-                .map((user) => {
+                .map((user, index) => {
                   const userMessages = filteredMessages.filter(msg => msg.user === user);
                   const latestMessage = userMessages[userMessages.length - 1];
                   // const pendingCount = userMessages.filter(msg => msg.status === 'pending').length;
@@ -992,7 +992,7 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                   
                   return (
                     <div 
-                      key={user}
+                      key={user || `user-${index}`}
                       className={`p-4 cursor-pointer hover:bg-gray-50 transition-colors ${
                         selectedMessage?.user === user ? 'bg-orange-50 border-r-2 border-orange-500' : ''
                       } ${isCompleted ? 'opacity-60 bg-gray-100' : ''}`}
@@ -1344,7 +1344,7 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                           
                           return (
                             <div 
-                              key={user}
+                              key={`export-${user}`}
                               className={`p-3 cursor-pointer hover:bg-gray-50 transition-colors ${
                                 selectedMessage?.user === user ? 'bg-orange-50' : ''
                               }`}
