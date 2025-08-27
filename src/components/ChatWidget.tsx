@@ -42,40 +42,24 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
   // userEmail을 actualUserEmail로 통일하여 WebSocket 연결 문제 해결
   const effectiveUserEmail = actualUserEmail !== 'guest@example.com' ? actualUserEmail : userEmail;
   
-  // 디버깅: 로컬 스토리지 상태 확인
-  console.log('=== 로컬 스토리지 디버깅 ===');
-  console.log('actualUserEmail:', actualUserEmail);
-  console.log('localStorage keys:', Object.keys(localStorage));
-  console.log('chat_messages keys:', Object.keys(localStorage).filter(key => key.startsWith('chat_messages_')));
-  console.log('current_session keys:', Object.keys(localStorage).filter(key => key.startsWith('current_session_')));
+  // 로컬 스토리지 상태 확인 (디버깅 로그 제거)
   
   // 강제로 메시지 로드 시도 (useState 선언 후에 실행)
   const forceLoadMessages = () => {
-    console.log('강제 메시지 로드 시도, 현재 sessionId:', sessionId);
-    
     // 새로운 세션인지 확인 (타임스탬프가 포함된 세션 ID)
     const isNewSession = sessionId.match(/_session_\d+$/);
-    console.log('새로운 세션 여부:', isNewSession);
     
     // 새로운 세션인 경우 기존 메시지를 불러오지 않음
     if (isNewSession) {
-      console.log('새로운 세션이므로 기존 메시지를 불러오지 않음');
       return null;
     }
     
-    // 안정적인 세션 ID 사용
-    const stableSessionId = `${actualUserEmail}_session`;
-    console.log('안정적인 세션 ID:', stableSessionId);
-    
     // 현재 sessionId로 시도
     let savedMessages = localStorage.getItem(`chat_messages_${sessionId}`);
-    console.log('현재 sessionId로 로드 결과:', savedMessages);
     
     // 만약 현재 sessionId에 메시지가 없거나 기본 메시지만 있다면, 
     // 이 사용자의 다른 키들에서 실제 대화 내용을 찾아보기
     if (!savedMessages || savedMessages.includes('고객님 반갑습니다')) {
-      console.log('기본 메시지만 있거나 없음, 다른 키들에서 찾기 시작');
-      
       // 이 사용자의 모든 chat_messages 키들을 찾기
       const allKeys = Object.keys(localStorage);
       const userMessageKeys = allKeys.filter(key => 
@@ -83,8 +67,6 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
         key !== `chat_messages_${sessionId}` &&
         key !== `chat_messages_${actualUserEmail}_temp`
       );
-      
-      console.log('사용자 메시지 키들:', userMessageKeys);
       
       // 각 키를 확인하여 실제 대화 내용이 있는지 확인
       for (const key of userMessageKeys) {
@@ -114,7 +96,6 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                   !msg.text.includes('관리자가 답변을 완료하였습니다')
                 );
                 
-                console.log('실제 대화 내용 발견 (채팅 종료 메시지 제외):', key, filteredMessages);
                 savedMessages = JSON.stringify(filteredMessages);
                 break;
               }
@@ -126,11 +107,10 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
       }
     }
     
-    console.log('최종 강제 로드 결과:', savedMessages);
     return savedMessages;
   };
   
-  console.log('=== 디버깅 끝 ===');
+
   // 오늘 날짜를 한국어로 포맷팅하는 함수
   const getTodayDate = () => {
     const today = new Date();
@@ -177,23 +157,10 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
 
   // 메시지가 변경될 때마다 로컬 스토리지에 저장 (사용자별 키 사용)
   useEffect(() => {
-    console.log('=== 메시지 저장 시작 ===');
-    console.log('messages:', messages);
-    console.log('messages 길이:', messages.length);
-    
     if (messages.length > 0) {
       const messageData = JSON.stringify(messages);
       const storageKey = `chat_messages_${sessionId}`;
-      console.log('저장할 메시지 데이터:', messageData);
-      console.log('저장 키:', storageKey);
       localStorage.setItem(storageKey, messageData);
-      console.log('메시지 저장 완료');
-      
-      // 저장 확인
-      const savedData = localStorage.getItem(storageKey);
-      console.log('저장 확인:', savedData);
-    } else {
-      console.log('메시지가 비어있어서 저장하지 않음');
     }
   }, [messages, sessionId]);
 
@@ -203,21 +170,13 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     const chatMessageKeys = allKeys.filter(key => key.startsWith('chat_messages_'));
     const currentSessionKeys = allKeys.filter(key => key.startsWith('current_session_'));
     
-    console.log('=== 로컬 스토리지 정리 시작 ===');
-    console.log('총 chat_messages 키 수:', chatMessageKeys.length);
-    console.log('총 current_session 키 수:', currentSessionKeys.length);
-    
     // 현재 사용자의 키만 유지하고 나머지는 정리
     const currentUserKeys = chatMessageKeys.filter(key => key.includes(actualUserEmail));
     const otherUserKeys = chatMessageKeys.filter(key => !key.includes(actualUserEmail));
     
-    console.log('현재 사용자 키 수:', currentUserKeys.length);
-    console.log('다른 사용자 키 수:', otherUserKeys.length);
-    
     // 다른 사용자의 키들 정리
     otherUserKeys.forEach(key => {
       localStorage.removeItem(key);
-      console.log('제거된 키:', key);
     });
     
     // current_session도 현재 사용자 것만 유지
@@ -225,10 +184,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     
     otherUserSessionKeys.forEach(key => {
       localStorage.removeItem(key);
-      console.log('제거된 세션 키:', key);
     });
-    
-    console.log('=== 로컬 스토리지 정리 완료 ===');
   }, [actualUserEmail]);
 
   // 컴포넌트 마운트 시 로컬 스토리지 정리
@@ -240,14 +196,9 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
 
   // 컴포넌트 마운트 시 기존 메시지 로드 (강제 로드 함수 사용)
   useEffect(() => {
-    console.log('=== 컴포넌트 마운트 시 메시지 로드 ===');
-    console.log('sessionId:', sessionId);
-    console.log('actualUserEmail:', actualUserEmail);
-    
     // 새로운 세션인 경우 메시지를 불러오지 않음
     const isNewSession = sessionId.includes('_session_');
     if (isNewSession) {
-      console.log('새로운 세션이므로 기존 메시지를 불러오지 않음');
       return;
     }
     
@@ -255,21 +206,17 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     if (messages.length === 1 && 
         messages[0].from === 'admin' && 
         messages[0].text?.includes('고객님 반갑습니다')) {
-      console.log('현재 환영 메시지만 있는 상태이므로 기존 메시지를 불러오지 않음');
       return;
     }
     
     // 강제 로드 함수 사용
     const savedMessages = forceLoadMessages();
-    console.log('저장된 메시지:', savedMessages);
     
     if (savedMessages) {
       try {
         const parsed = JSON.parse(savedMessages);
-        console.log('파싱된 메시지:', parsed);
         if (parsed.length > 0) {
           setMessages(parsed);
-          console.log('메시지 복원됨:', parsed);
         }
       } catch (error) {
         console.error('저장된 메시지 파싱 오류:', error);
@@ -485,7 +432,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
   // isChatOpen이 true로 변경될 때 handleOpen 실행 (무한 루프 방지)
   useEffect(() => {
     if (isChatOpen && !sessionId.includes('_session_')) {
-      console.log('isChatOpen이 true로 변경됨, handleOpen 실행');
+      // console.log('isChatOpen이 true로 변경됨, handleOpen 실행');
       handleOpen();
     }
   }, [isChatOpen]); // sessionId 의존성 제거로 무한 루프 방지
@@ -611,9 +558,9 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
   };
 
   const handleOpen = () => {
-    console.log('handleOpen 호출됨');
-    console.log('userEmail:', userEmail);
-    console.log('actualUserEmail:', actualUserEmail);
+    // console.log('handleOpen 호출됨');
+    // console.log('userEmail:', userEmail);
+    // console.log('actualUserEmail:', actualUserEmail);
     
     // 로그인하지 않은 사용자 체크
     if (!checkLoginStatus()) {
@@ -623,11 +570,11 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     
     // 이미 열려있는 경우 중복 실행 방지
     if (isChatOpen && sessionId.includes('_session_')) {
-      console.log('이미 채팅창이 열려있어서 중복 실행 방지');
+      // console.log('이미 채팅창이 열려있어서 중복 실행 방지');
       return;
     }
     
-    console.log('채팅창 열기 시도');
+    // console.log('채팅창 열기 시도');
     // 채팅창 열기
     setIsChatOpen(true);
     
@@ -661,7 +608,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
           timestamp: new Date().toISOString()
         };
         initialMessages.push(productInquiryMessage);
-        console.log('상품 문의 메시지 추가됨:', productInquiryMessage);
+        // console.log('상품 문의 메시지 추가됨:', productInquiryMessage);
       } catch (error) {
         console.error('상품 정보 파싱 오류:', error);
       }
@@ -682,12 +629,12 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     );
     oldSessionKeys.forEach(key => {
       localStorage.removeItem(key);
-      console.log('기존 세션 키 삭제:', key);
+      // console.log('기존 세션 키 삭제:', key);
     });
     
     localStorage.setItem(`current_session_${actualUserEmail}`, newSessionId);
-    console.log('채팅창 열기 완료 - 세션 ID:', newSessionId);
-    console.log('기본 환영 메시지 설정 및 로컬 스토리지 초기화 완료');
+    // console.log('채팅창 열기 완료 - 세션 ID:', newSessionId);
+    // console.log('기본 환영 메시지 설정 및 로컬 스토리지 초기화 완료');
   };
 
   const handleClose = () => {
@@ -767,8 +714,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     <>
       {/* 문의하기 플로팅 버튼 (데스크탑만, 상품 상세 페이지에서는 숨김) */}
       {(() => {
-        console.log('ChatWidget - hideFloatingButton:', hideFloatingButton);
-        console.log('ChatWidget - 플로팅 버튼 표시 여부:', !hideFloatingButton);
+          // 플로팅 버튼 표시 여부 (디버깅 로그 제거)
         return !hideFloatingButton;
               })() && (
           <button
