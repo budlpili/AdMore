@@ -734,6 +734,12 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
           return result;
         } catch (error) {
           console.error(`Error deleting messages for ${userEmail}:`, error);
+          console.error('Error details:', {
+            message: error instanceof Error ? error.message : 'Unknown error',
+            stack: error instanceof Error ? error.stack : 'No stack trace',
+            name: error instanceof Error ? error.name : 'Unknown',
+            userEmail: userEmail
+          });
           throw error;
         }
       });
@@ -763,6 +769,11 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
       alert(`다음 유저들의 채팅 기록이 성공적으로 삭제되었습니다:\n\n${deletedUserNames.join('\n')}`);
     } catch (error) {
       console.error('Error deleting user chats:', error);
+      console.error('Main error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : 'No stack trace',
+        name: error instanceof Error ? error.name : 'Unknown'
+      });
       alert('채팅 삭제 중 오류가 발생했습니다. 다시 시도해주세요.');
     }
   };
