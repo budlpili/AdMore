@@ -264,7 +264,7 @@ export const useWebSocket = ({
     socketRef.current.emit('send_message', data);
     
     // 메시지 전송 성공 시 로컬 상태 업데이트
-    if (onNewMessage) {
+    if (onNewMessage && data.userEmail) {
       const localMessage = {
         id: Date.now().toString(),
         user: data.userEmail,
