@@ -349,7 +349,7 @@ const SignUp: React.FC = () => {
 
   return (
     <div className="min-h-[calc(100vh-200px)] bg-gray-50 pt-12 pb-24">
-      <div className="max-w-md mx-auto">
+      <div className="max-w-md mx-auto px-4">
         <div className="bg-white rounded-lg shadow-md p-8">
           {/* Header */}
           <div className="text-center mb-8">
@@ -403,7 +403,7 @@ const SignUp: React.FC = () => {
                   type="button"
                   onClick={() => requestEmailVerification(formData.email)}
                   disabled={isSubmitting || isEmailVerifying || isEmailVerified || !formData.email}
-                  className={`w-[96px] px-4 py-3 rounded-md text-sm font-medium transition duration-200 ${
+                  className={`w-[96px] px-2 py-2 xs:px-4 xs:py-3 rounded-md text-xs xs:text-sm font-medium transition duration-200 ${
                     isEmailVerified
                       ? 'bg-green-500 text-white cursor-not-allowed'
                       : isEmailVerifying

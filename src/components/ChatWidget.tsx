@@ -44,71 +44,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
   
   // 로컬 스토리지 상태 확인 (디버깅 로그 제거)
   
-  // 강제로 메시지 로드 시도 (useState 선언 후에 실행)
-  const forceLoadMessages = () => {
-    // 새로운 세션인지 확인 (타임스탬프가 포함된 세션 ID)
-    const isNewSession = sessionId.match(/_session_\d+$/);
-    
-    // 새로운 세션인 경우 기존 메시지를 불러오지 않음
-    if (isNewSession) {
-      return null;
-    }
-    
-    // 현재 sessionId로 시도
-    let savedMessages = localStorage.getItem(`chat_messages_${sessionId}`);
-    
-    // 만약 현재 sessionId에 메시지가 없거나 기본 메시지만 있다면, 
-    // 이 사용자의 다른 키들에서 실제 대화 내용을 찾아보기
-    if (!savedMessages || savedMessages.includes('고객님 반갑습니다')) {
-      // 이 사용자의 모든 chat_messages 키들을 찾기
-      const allKeys = Object.keys(localStorage);
-      const userMessageKeys = allKeys.filter(key => 
-        key.startsWith(`chat_messages_${actualUserEmail}`) && 
-        key !== `chat_messages_${sessionId}` &&
-        key !== `chat_messages_${actualUserEmail}_temp`
-      );
-      
-      // 각 키를 확인하여 실제 대화 내용이 있는지 확인
-      for (const key of userMessageKeys) {
-        const messages = localStorage.getItem(key);
-        if (messages) {
-          try {
-            const parsed = JSON.parse(messages);
-            // 채팅 종료 메시지가 포함된 대화는 제외하고, 실제 대화 내용이 있는지 확인
-            const hasCompletionMessage = parsed.some((msg: any) => 
-              msg.text && 
-              (msg.text.includes('유저가 채팅종료를 하였습니다') || 
-               msg.text.includes('관리자가 답변을 완료하였습니다'))
-            );
-            
-            // 채팅 종료 메시지가 없고, 실제 대화 내용이 있는 경우만 로드
-            if (!hasCompletionMessage) {
-              const hasRealConversation = parsed.some((msg: any) => 
-                msg.text && 
-                !msg.text.includes('고객님 반갑습니다') && 
-                !msg.text.includes('상담 운영 시간 안내')
-              );
-              
-              if (hasRealConversation && parsed.length > 1) {
-                // 채팅 종료 메시지를 제외한 메시지만 필터링
-                const filteredMessages = parsed.filter((msg: any) => 
-                  !msg.text.includes('유저가 채팅종료를 하였습니다') && 
-                  !msg.text.includes('관리자가 답변을 완료하였습니다')
-                );
-                
-                savedMessages = JSON.stringify(filteredMessages);
-                break;
-              }
-            }
-          } catch (error) {
-            console.error('키 파싱 오류:', key, error);
-          }
-        }
-      }
-    }
-    
-    return savedMessages;
-  };
+  // 메시지는 WebSocket을 통해 관리되므로 로컬 스토리지에서 로드하지 않음
   
 
   // 오늘 날짜를 한국어로 포맷팅하는 함수
@@ -209,43 +145,18 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
       return;
     }
     
-    // 강제 로드 함수 사용
-    const savedMessages = forceLoadMessages();
-    
-    if (savedMessages) {
-      try {
-        const parsed = JSON.parse(savedMessages);
-        if (parsed.length > 0) {
-          setMessages(parsed);
-        }
-      } catch (error) {
-        console.error('저장된 메시지 파싱 오류:', error);
-      }
-    } else {
-      console.log('저장된 메시지 없음');
-    }
+    // 메시지는 WebSocket을 통해 관리되므로 로컬 스토리지에서 로드하지 않음
   }, [sessionId, actualUserEmail, messages]);
 
   // onNewMessage 콜백을 useCallback으로 안정화
   const handleNewMessage = useCallback((message: any) => {
-    console.log('새 메시지 수신:', message);
-    console.log('파일 데이터 확인:', {
-      file: message.file ? '있음' : '없음',
-      fileName: message.fileName,
-      fileType: message.fileType,
-      fileLength: message.file ? message.file.length : 0,
-      fileStart: message.file ? message.file.substring(0, 50) : '없음'
-    });
-    
     // 홈페이지에서는 "유저가 채팅종료를 하였습니다." 메시지를 필터링
     if (message.message === '유저가 채팅종료를 하였습니다.') {
-      console.log('홈페이지에서 채팅종료 메시지 필터링됨:', message.message);
       return;
     }
     
     // 관리자의 답변완료 메시지 처리
     if (message.message === '관리자가 답변을 완료하였습니다.') {
-      console.log('관리자 답변완료 메시지 수신:', message.message);
       setIsChatCompleted(true);
       
       // 답변완료 메시지를 채팅에 추가
@@ -270,17 +181,8 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
       timestamp: message.timestamp // 메시지 생성 시간 추가
     };
     
-    console.log('새 메시지 추가 시도:', newMessage);
-    console.log('파일 정보:', {
-      file: newMessage.file ? '있음' : '없음',
-      fileName: newMessage.fileName,
-      fileType: newMessage.fileType
-    });
-    
     // 중복 메시지 방지 로직 개선: ID 기반으로 확인
     setMessages(prev => {
-      console.log('이전 메시지들:', prev);
-      
       // ID가 있으면 ID로 중복 확인, 없으면 내용과 시간으로 확인
       const isDuplicate = message.id 
         ? prev.some(msg => msg.id === message.id)
@@ -291,13 +193,10 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
           );
       
       if (isDuplicate) {
-        console.log('중복 메시지 감지, 추가하지 않음:', message.message);
         return prev;
       }
       
-      const newMessages = [...prev, newMessage];
-      console.log('새 메시지 추가됨, 총 메시지 수:', newMessages.length);
-      return newMessages;
+      return [...prev, newMessage];
     });
   }, []); // 의존성 배열을 비워서 함수가 재생성되지 않도록 함
 
@@ -315,7 +214,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
 
   // sessionId가 변경될 때 WebSocket 재연결을 위한 useEffect
   useEffect(() => {
-    console.log('sessionId 변경됨, WebSocket 재연결 필요:', sessionId);
+    // console.log('sessionId 변경됨, WebSocket 재연결 필요:', sessionId);
   }, [sessionId]);
 
   // 새로운 세션 ID 수신 처리
@@ -326,21 +225,21 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
       socket.off('message_for_session');
       
       socket.on('new_session_created', (data: { sessionId: string }) => {
-        console.log('새로운 세션 ID 수신:', data.sessionId);
+        // console.log('새로운 세션 ID 수신:', data.sessionId);
         setSessionId(data.sessionId);
         // 새로운 세션 ID로 WebSocket 재연결
-        console.log('새로운 세션 ID로 WebSocket 재연결 필요');
+        // console.log('새로운 세션 ID로 WebSocket 재연결 필요');
       });
       
       socket.on('message_for_session', (data: { sessionId: string; message: any }) => {
-        console.log('세션별 메시지 수신:', data);
-        console.log('현재 sessionId:', sessionId);
-        console.log('수신된 sessionId:', data.sessionId);
+        // console.log('세션별 메시지 수신:', data);
+        // console.log('현재 sessionId:', sessionId);
+        // console.log('수신된 sessionId:', data.sessionId);
         if (data.sessionId === sessionId) {
-          console.log('현재 세션에 맞는 메시지, 처리 중...');
+          // console.log('현재 세션에 맞는 메시지, 처리 중...');
           handleNewMessage(data.message);
         } else {
-          console.log('세션 ID 불일치, 메시지 무시');
+          // console.log('세션 ID 불일치, 메시지 무시');
         }
       });
     }
@@ -355,15 +254,11 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
 
   // WebSocket에서 받은 메시지를 로컬 상태와 동기화 (사용자별 키 사용)
   useEffect(() => {
-    console.log('wsMessages 변경됨:', wsMessages);
     if (wsMessages && Array.isArray(wsMessages) && wsMessages.length > 0) {
-      console.log('WebSocket 메시지 로드됨:', wsMessages.length);
-      
       // 현재 세션이 새로운 세션인지 확인 (타임스탬프가 포함된 세션 ID)
       const isNewSession = sessionId.includes('_session_');
       
       if (isNewSession) {
-        console.log('새로운 세션이므로 WebSocket 메시지를 덮어쓰지 않음');
         return;
       }
       
@@ -374,7 +269,6 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
       );
       
       if (hasCompletionMessage) {
-        console.log('채팅 완료 메시지가 포함되어 있으므로 WebSocket 메시지를 덮어쓰지 않음');
         return;
       }
       
@@ -383,13 +277,11 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
       if (currentMessages.length === 1 && 
           currentMessages[0].from === 'admin' && 
           currentMessages[0].text?.includes('고객님 반갑습니다')) {
-        console.log('현재 환영 메시지만 있는 상태이므로 WebSocket 메시지를 덮어쓰지 않음');
         return;
       }
       
       // 새로운 세션이 시작된 후 WebSocket 메시지가 로드되는 것을 방지
       if (isChatOpen && mode === 'chat') {
-        console.log('채팅 모드에서 새로운 세션 메시지 로드 방지');
         return;
       }
       
@@ -401,10 +293,6 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
         timestamp: msg.timestamp
       }));
       setMessages(convertedMessages);
-      // 사용자별 키로 localStorage에 저장
-      const storageKey = `chat_messages_${sessionId}`;
-      localStorage.setItem(storageKey, JSON.stringify(convertedMessages));
-      console.log('메시지를 localStorage에 저장함, 키:', storageKey);
     }
   }, [wsMessages, sessionId, messages, isChatOpen, mode]);
 
@@ -506,36 +394,54 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     setIsSending(true);
     
     if (inputValue.trim()) {
-      console.log('메시지 전송 시도:', {
-        message: inputValue,
-        userEmail,
-        isConnected
-      });
+      // 로컬 상태에 즉시 메시지 추가 (사용자 경험 향상)
+      const newMessage: Message = {
+        id: Date.now().toString(),
+        from: 'user',
+        text: inputValue,
+        timestamp: new Date().toISOString()
+      };
+      
+      setMessages(prev => [...prev, newMessage]);
       
       // WebSocket을 통해 메시지 전송
-      sendMessage({
-        message: inputValue,
-        type: 'user',
-        inquiryType,
-        productInfo,
-        paymentInfo
-      });
+      if (sendMessage) {
+        sendMessage({
+          message: inputValue,
+          type: 'user',
+          inquiryType,
+          productInfo,
+          paymentInfo
+        });
+      } else {
+        console.error('sendMessage 함수가 없습니다.');
+      }
     }
     
     if (file) {
-      console.log('파일 전송 시도:', file.name, file.type);
+      // 파일 메시지도 로컬 상태에 즉시 추가
+      const fileMessage: Message = {
+        id: Date.now().toString(),
+        from: 'user',
+        text: `파일: ${file.name}`,
+        timestamp: new Date().toISOString()
+      };
+      
+      setMessages(prev => [...prev, fileMessage]);
       
       // WebSocket을 통해 파일 메시지 전송
-      sendMessage({
-        message: '', // 파일명을 메시지에 포함하지 않음
-        type: 'user',
-        inquiryType,
-        productInfo,
-        paymentInfo,
-        file: filePreview,
-        fileName: file.name,
-        fileType: file.type
-      });
+      if (sendMessage) {
+        sendMessage({
+          message: '', // 파일명을 메시지에 포함하지 않음
+          type: 'user',
+          inquiryType,
+          productInfo,
+          paymentInfo,
+          file: filePreview,
+          fileName: file.name,
+          fileType: file.type
+        });
+      }
       
       setFile(null);
       setFilePreview(null);
@@ -617,21 +523,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     // 메시지 상태를 즉시 초기화
     setMessages(initialMessages);
     
-    // 새로운 세션의 로컬 스토리지 키도 초기화
-    const newStorageKey = `chat_messages_${newSessionId}`;
-    localStorage.setItem(newStorageKey, JSON.stringify(initialMessages));
-    
-    // 기존 세션의 로컬 스토리지 키들 정리
-    const keys = Object.keys(localStorage);
-    const oldSessionKeys = keys.filter(key => 
-      key.startsWith(`chat_messages_${actualUserEmail}_session_`) && 
-      key !== newStorageKey
-    );
-    oldSessionKeys.forEach(key => {
-      localStorage.removeItem(key);
-      // console.log('기존 세션 키 삭제:', key);
-    });
-    
+    // 세션 ID만 저장 (메시지는 WebSocket을 통해 관리)
     localStorage.setItem(`current_session_${actualUserEmail}`, newSessionId);
     // console.log('채팅창 열기 완료 - 세션 ID:', newSessionId);
     // console.log('기본 환영 메시지 설정 및 로컬 스토리지 초기화 완료');

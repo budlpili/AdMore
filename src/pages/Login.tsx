@@ -119,8 +119,8 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-[calc(100vh-200px)] bg-gray-50 py-12">
-      <div className="max-w-md mx-auto">
+    <div className="min-h-[calc(100vh-320px)] bg-gray-50 py-12">
+      <div className="max-w-md mx-auto px-4">
         <div className="bg-white rounded-lg shadow-md p-8">
           {/* Header */}
           <div className="text-center mb-8">

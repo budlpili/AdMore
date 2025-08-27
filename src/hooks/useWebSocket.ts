@@ -244,16 +244,8 @@ export const useWebSocket = ({
     fileType?: string;
 
   }) => {
-    console.log('=== sendMessage 호출됨 ===');
-    console.log('socketConnected:', socketRef.current?.connected);
-    console.log('userEmail:', userEmail);
-    console.log('isAdmin:', isAdmin);
-    console.log('messageData:', messageData);
-    
     if (!socketRef.current?.connected) {
-      console.error('=== WebSocket 연결 오류 ===');
       console.error('WebSocket이 연결되지 않았습니다. 연결을 시도합니다.');
-      console.error('socketRef.current:', socketRef.current);
       connect();
       return;
     }
@@ -269,16 +261,23 @@ export const useWebSocket = ({
       ...messageData
     };
 
-    console.log('=== WebSocket으로 메시지 전송 ===');
-    console.log('전송할 데이터:', data);
-    console.log('파일 데이터 확인:', {
-      file: data.file ? '있음' : '없음',
-      fileName: data.fileName,
-      fileType: data.fileType
-    });
     socketRef.current.emit('send_message', data);
-    console.log('메시지 전송 완료');
-  }, [userEmail, connect]);
+    
+    // 메시지 전송 성공 시 로컬 상태 업데이트
+    if (onNewMessage) {
+      const localMessage = {
+        id: Date.now().toString(),
+        user: data.userEmail,
+        message: data.message,
+        type: data.type,
+        timestamp: new Date().toISOString(),
+        file: data.file,
+        fileName: data.fileName,
+        fileType: data.fileType
+      };
+      onNewMessage(localMessage);
+    }
+  }, [userEmail, connect, onNewMessage]);
 
   // 메시지 상태 업데이트
   const updateMessageStatus = useCallback((status: 'pending' | 'answered' | 'closed') => {
@@ -298,7 +297,6 @@ export const useWebSocket = ({
     try {
       // 새로운 세션인 경우 메시지를 로드하지 않음
       if (userEmail && userEmail.includes('_session_')) {
-        console.log('새로운 세션이므로 기존 메시지를 로드하지 않음:', userEmail);
         return;
       }
       
