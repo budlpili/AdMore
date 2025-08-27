@@ -404,78 +404,70 @@ app.delete('/api/chat/messages/user/:userEmail', (req, res) => {
 });
 
 // 채팅 메시지를 파일로 저장하는 함수
-const saveChatMessagesToFile = () => {
-  const query = `
-    SELECT * FROM chat_messages 
-    ORDER BY timestamp ASC
-  `;
-  
-  // db.all(query, [], (err, rows) => { // SQLite 제거
-  //   if (err) {
-  //     console.error('메시지 조회 오류:', err);
-  //     return;
-  //   }
+const saveChatMessagesToFile = async () => {
+  try {
+    // MongoDB에서 모든 메시지 조회
+    const messages = await ChatMessage.find().sort({ timestamp: 1 });
     
-  //   const messages = rows.map(row => ({
-  //     id: row.id,
-  //     user: row.user,
-  //     message: row.message,
-  //     timestamp: row.timestamp,
-  //     type: row.type,
-  //     status: row.status,
-  //     file: row.file,
-  //     fileName: row.file_name,
-  //     fileType: row.file_type
-  //   }));
+    if (messages.length === 0) {
+      console.log('저장할 채팅 메시지가 없습니다.');
+      return;
+    }
     
-  //   // 유저별로 메시지 그룹화
-  //   const userMessages = {};
-  //   messages.forEach(msg => {
-  //     if (msg.user !== '관리자') {
-  //       if (!userMessages[msg.user]) {
-  //         userMessages[msg.user] = [];
-  //       }
-  //       userMessages[msg.user].push(msg);
-  //     }
-  //   });
+    // 유저별로 메시지 그룹화
+    const userMessages = {};
+    messages.forEach(msg => {
+      if (msg.user !== '관리자') {
+        if (!userMessages[msg.user]) {
+          userMessages[msg.user] = [];
+        }
+        userMessages[msg.user].push(msg);
+      }
+    });
     
-  //   // 전체 메시지와 유저별 메시지를 각각 저장
-  //   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    // 전체 메시지와 유저별 메시지를 각각 저장
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     
-  //   // 전체 메시지 TXT 저장
-  //   const allMessagesTxtFile = path.join(__dirname, 'chat_exports', `all_messages_${timestamp}.txt`);
-  //   fs.mkdirSync(path.dirname(allMessagesTxtFile), { recursive: true });
-  //   let txtContent = '=== 전체 채팅 메시지 ===\n\n';
-  //   messages.forEach(msg => {
-  //     const date = new Date(msg.timestamp).toLocaleString('ko-KR');
-  //     const type = msg.type === 'admin' ? '[관리자]' : '[사용자]';
-  //     const fileInfo = msg.file ? ` (첨부파일: ${msg.fileName})` : '';
-  //     txtContent += `[${date}] ${type} ${msg.user}: ${msg.message}${fileInfo}\n`;
-  //   });
-  //   fs.writeFileSync(allMessagesTxtFile, txtContent, 'utf8');
+    // exports 디렉토리 생성
+    const exportsDir = path.join(__dirname, 'chat_exports');
+    fs.mkdirSync(exportsDir, { recursive: true });
     
-  //   // 유저별 메시지 저장 (TXT만)
-  //   Object.keys(userMessages).forEach(userEmail => {
-  //     // 유저별 TXT 파일 저장
-  //     const userTxtFile = path.join(__dirname, 'chat_exports', `user_${userEmail.replace(/[@.]/g, '_')}_${timestamp}.txt`);
-  //     let userTxtContent = `=== ${userEmail} 채팅 메시지 ===\n\n`;
-  //     userMessages[userEmail].forEach(msg => {
-  //       const date = new Date(msg.timestamp).toLocaleString('ko-KR');
-  //       const type = msg.type === 'admin' ? '[관리자]' : '[사용자]';
-  //       const fileInfo = msg.file ? ` (첨부파일: ${msg.fileName})` : '';
-  //       userTxtContent += `[${date}] ${type} ${msg.user}: ${msg.message}${fileInfo}\n`;
-  //     });
-  //     fs.writeFileSync(userTxtFile, userTxtContent, 'utf8');
-  //   });
+    // 전체 메시지 TXT 저장
+    const allMessagesTxtFile = path.join(exportsDir, `all_messages_${timestamp}.txt`);
+    let txtContent = '=== 전체 채팅 메시지 ===\n\n';
+    messages.forEach(msg => {
+      const date = new Date(msg.timestamp).toLocaleString('ko-KR');
+      const type = msg.type === 'admin' ? '[관리자]' : '[사용자]';
+      const fileInfo = msg.file ? ` (첨부파일: ${msg.fileName})` : '';
+      txtContent += `[${date}] ${type} ${msg.user}: ${msg.message}${fileInfo}\n`;
+    });
+    fs.writeFileSync(allMessagesTxtFile, txtContent, 'utf8');
     
-  //   console.log(`채팅 메시지가 TXT 파일로 저장되었습니다. 전체: ${allMessagesTxtFile}`);
-  // });
+    // 유저별 메시지 저장 (TXT만)
+    Object.keys(userMessages).forEach(userEmail => {
+      // 유저별 TXT 파일 저장
+      const userTxtFile = path.join(exportsDir, `user_${userEmail.replace(/[@.]/g, '_')}_${timestamp}.txt`);
+      let userTxtContent = `=== ${userEmail} 채팅 메시지 ===\n\n`;
+      userMessages[userEmail].forEach(msg => {
+        const date = new Date(msg.timestamp).toLocaleString('ko-KR');
+        const type = msg.type === 'admin' ? '[관리자]' : '[사용자]';
+        const fileInfo = msg.file ? ` (첨부파일: ${msg.fileName})` : '';
+        userTxtContent += `[${date}] ${type} ${msg.user}: ${msg.message}${fileInfo}\n`;
+      });
+      fs.writeFileSync(userTxtFile, userTxtContent, 'utf8');
+    });
+    
+    console.log(`채팅 메시지가 TXT 파일로 저장되었습니다. 전체: ${allMessagesTxtFile}`);
+  } catch (error) {
+    console.error('메시지 저장 오류:', error);
+    throw error;
+  }
 };
 
 // 채팅 메시지를 파일로 저장하는 API
-app.post('/api/chat/messages/export', (req, res) => {
+app.post('/api/chat/messages/export', async (req, res) => {
   try {
-    saveChatMessagesToFile();
+    await saveChatMessagesToFile();
     res.json({ 
       message: '채팅 메시지가 파일로 저장되었습니다.',
       location: path.join(__dirname, 'chat_exports')
@@ -487,7 +479,7 @@ app.post('/api/chat/messages/export', (req, res) => {
 });
 
 // 특정 유저의 채팅 메시지를 파일로 저장하는 API
-app.post('/api/chat/messages/export/user/:userEmail', (req, res) => {
+app.post('/api/chat/messages/export/user/:userEmail', async (req, res) => {
   const { userEmail } = req.params;
   
   if (!userEmail) {
@@ -495,57 +487,63 @@ app.post('/api/chat/messages/export/user/:userEmail', (req, res) => {
   }
   
   try {
-    const query = `
-      SELECT * FROM chat_messages 
-      WHERE user = ?
-      ORDER BY timestamp ASC
-    `;
+    // MongoDB에서 해당 유저의 메시지 조회
+    const messages = await ChatMessage.find({ user: userEmail }).sort({ timestamp: 1 });
     
-    // db.all(query, [ // SQLite 제거
-    //   userEmail
-    // ], (err, rows) => {
-    //   if (err) {
-    //     console.error('유저 메시지 조회 오류:', err);
-    //     return res.status(500).json({ error: '유저 메시지 조회에 실패했습니다.' });
-    //   }
-      
-    //   const messages = rows.map(row => ({
-    //     id: row.id,
-    //     user: row.user,
-    //     message: row.message,
-    //     timestamp: row.timestamp,
-    //     type: row.type,
-    //     status: row.status,
-    //     file: row.file,
-    //     fileName: row.file_name,
-    //     fileType: row.file_type
-    //   }));
-      
-    //   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    //   const userTxtFile = path.join(__dirname, 'chat_exports', `user_${userEmail.replace(/[@.]/g, '_')}_${timestamp}.txt`);
-      
-    //   fs.mkdirSync(path.dirname(userTxtFile), { recursive: true });
-      
-    //   // TXT 파일 생성
-    //   let txtContent = `=== ${userEmail} 채팅 메시지 ===\n\n`;
-    //   messages.forEach(msg => {
-    //     const date = new Date(msg.timestamp).toLocaleString('ko-KR');
-    //     const type = msg.type === 'admin' ? '[관리자]' : '[사용자]';
-    //     const fileInfo = msg.file ? ` (첨부파일: ${msg.fileName})` : '';
-    //     txtContent += `[${date}] ${type} ${msg.user}: ${msg.message}${fileInfo}\n`;
-    //   });
-    //   fs.writeFileSync(userTxtFile, txtContent, 'utf8');
-      
-    //   console.log(`유저 ${userEmail}의 메시지가 TXT 파일로 저장되었습니다: ${userTxtFile}`);
-    //   res.json({ 
-    //     message: `${userEmail}의 채팅 메시지가 TXT 파일로 저장되었습니다.`,
-    //     location: userTxtFile,
-    //     messageCount: messages.length
-    //   });
-    // });
+    if (messages.length === 0) {
+      return res.status(404).json({ error: `${userEmail}의 채팅 메시지를 찾을 수 없습니다.` });
+    }
+    
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const userTxtFile = path.join(__dirname, 'chat_exports', `user_${userEmail.replace(/[@.]/g, '_')}_${timestamp}.txt`);
+    
+    // exports 디렉토리 생성
+    fs.mkdirSync(path.dirname(userTxtFile), { recursive: true });
+    
+    // TXT 파일 생성
+    let txtContent = `=== ${userEmail} 채팅 메시지 ===\n\n`;
+    messages.forEach(msg => {
+      const date = new Date(msg.timestamp).toLocaleString('ko-KR');
+      const type = msg.type === 'admin' ? '[관리자]' : '[사용자]';
+      const fileInfo = msg.file ? ` (첨부파일: ${msg.fileName})` : '';
+      txtContent += `[${date}] ${type} ${msg.user}: ${msg.message}${fileInfo}\n`;
+    });
+    
+    fs.writeFileSync(userTxtFile, txtContent, 'utf8');
+    
+    console.log(`유저 ${userEmail}의 메시지가 TXT 파일로 저장되었습니다: ${userTxtFile}`);
+    res.json({ 
+      message: `${userEmail}의 채팅 메시지가 TXT 파일로 저장되었습니다.`,
+      location: userTxtFile,
+      messageCount: messages.length
+    });
   } catch (error) {
     console.error('파일 저장 오류:', error);
     res.status(500).json({ error: '파일 저장에 실패했습니다.' });
+  }
+});
+
+// 특정 유저의 채팅 메시지 삭제 API
+app.delete('/api/chat/messages/user/:userEmail', async (req, res) => {
+  const { userEmail } = req.params;
+  
+  if (!userEmail) {
+    return res.status(400).json({ error: '유저 이메일이 필요합니다.' });
+  }
+  
+  try {
+    // MongoDB에서 해당 유저의 메시지 삭제
+    const deleteResult = await ChatMessage.deleteMany({ user: userEmail });
+    
+    console.log(`유저 ${userEmail}의 메시지 삭제 완료: ${deleteResult.deletedCount}개`);
+    
+    res.json({ 
+      message: `${userEmail}의 채팅 메시지가 삭제되었습니다.`,
+      deletedCount: deleteResult.deletedCount
+    });
+  } catch (error) {
+    console.error('메시지 삭제 오류:', error);
+    res.status(500).json({ error: '메시지 삭제에 실패했습니다.' });
   }
 });
 

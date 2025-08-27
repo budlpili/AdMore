@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faHeadset, faTrash, faClock, faPhone, faEnvelope, faCheckCircle, faHourglassHalf, faExclamationCircle, faSearch, faStar, faShieldAlt, faExclamationTriangle, faUser, faBuilding, faFileInvoice, faChartLine, faCreditCard, faXmark, faDownload, faChevronLeft, faChevronRight, faChevronDown, faPaperclip, faPaperPlane } from '@fortawesome/free-solid-svg-icons';
+import { faHeadset, faTrash, faClock, faPhone, faEnvelope, faCheckCircle, faHourglassHalf, faExclamationCircle, faSearch, faStar, faShieldAlt, faExclamationTriangle, faUser, faBuilding, faFileInvoice, faChartLine, faCreditCard, faXmark, faDownload, faChevronLeft, faChevronRight, faChevronDown, faPaperclip, faPaperPlane, faRefresh } from '@fortawesome/free-solid-svg-icons';
 import { usersAPI, chatAPI } from '../services/api';
 
 interface ChatMessage {
@@ -130,12 +130,14 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
   };
 
   // 파일 다운로드 함수
-  const handleDownloadFile = (filename: string) => {
+  const handleDownloadFile = async (filename: string) => {
     try {
-      chatAPI.downloadFile(filename);
+      console.log(`파일 다운로드 시작: ${filename}`);
+      await chatAPI.downloadFile(filename);
+      console.log(`파일 다운로드 완료: ${filename}`);
     } catch (error) {
       console.error('파일 다운로드 오류:', error);
-      alert('파일 다운로드 중 오류가 발생했습니다.');
+      alert(`파일 다운로드 중 오류가 발생했습니다.\n\n파일명: ${filename}\n오류: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);
     }
   };
 
@@ -168,7 +170,7 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
     // 상태 계산 - 실제 데이터 기반으로 정확하게 계산
     let status: 'pending' | 'answered' | 'closed' = 'pending';
     
-    // 완료 메시지가 있으면 완료
+    // 유저가 채팅을 완료했거나 관리자가 답변을 완료했으면 완료
     if (isLatestMessageCompletion) {
       status = 'closed';
     } else {
@@ -297,35 +299,43 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
 
   const confirmCloseChat = () => {
     if (closingMessage) {
-      // 답변완료 메시지 생성
-      const completionMessage: ChatMessage = {
-        id: Date.now().toString(),
-        user: closingMessage.user,
-        message: '관리자가 답변을 완료하였습니다.',
-        timestamp: new Date().toISOString().slice(0, 16).replace('T', ' '),
-        type: 'admin',
-        status: 'closed'
-      };
-      
-      // 유저에게 답변완료 메시지 전송
-      if (sendMessage) {
-        sendMessage({
+      try {
+        // 답변완료 메시지 생성
+        const completionMessage: ChatMessage = {
+          id: Date.now().toString(),
+          user: closingMessage.user,
           message: '관리자가 답변을 완료하였습니다.',
+          timestamp: new Date().toISOString().slice(0, 16).replace('T', ' '),
           type: 'admin',
-          targetUserEmail: closingMessage.user
-        });
+          status: 'closed'
+        };
+        
+        // 유저에게 답변완료 메시지 전송
+        if (sendMessage) {
+          sendMessage({
+            message: '관리자가 답변을 완료하였습니다.',
+            type: 'admin',
+            targetUserEmail: closingMessage.user
+          });
+        }
+        
+        // 답변완료 메시지를 chatMessages에 추가
+        const updatedMessages = [...chatMessages, completionMessage];
+        onChatMessagesChange(updatedMessages);
+        
+        // selectedMessage도 업데이트
+        const updatedSelectedMessage = { ...closingMessage, status: 'closed' as const };
+        setSelectedMessage(updatedSelectedMessage);
+        
+        // 성공 메시지 표시
+        alert('채팅이 성공적으로 완료되었습니다.');
+        
+        setShowCloseConfirmModal(false);
+        setClosingMessage(null);
+      } catch (error) {
+        console.error('채팅 완료 처리 중 오류 발생:', error);
+        alert('채팅 완료 처리 중 오류가 발생했습니다.');
       }
-      
-      // 답변완료 메시지를 chatMessages에 추가
-      const updatedMessages = [...chatMessages, completionMessage];
-      onChatMessagesChange(updatedMessages);
-      
-      // selectedMessage도 업데이트
-      const updatedSelectedMessage = { ...closingMessage, status: 'closed' as const };
-      setSelectedMessage(updatedSelectedMessage);
-      
-      setShowCloseConfirmModal(false);
-      setClosingMessage(null);
     }
   };
 
@@ -490,8 +500,29 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
     }
   };
 
+  // 사용자별 상세 상태 텍스트 반환 함수
+  const getDetailedStatusText = (userEmail: string, status?: string) => {
+    if (isUserChatCompleted(userEmail)) {
+      return '유저완료';
+    }
+    if (isAdminResponseCompleted(userEmail)) {
+      return '관리자완료';
+    }
+    
+    switch (status) {
+      case 'pending':
+        return '답변대기';
+      case 'answered':
+        return '답변중';
+      case 'closed':
+        return '채팅완료';
+      default:
+        return '답변대기';
+    }
+  };
+
   // 채팅이 완료되었는지 확인하는 함수
-  const isChatCompleted = (userEmail: string) => {
+  const isChatCompleted = useCallback((userEmail: string) => {
     // 해당 유저의 메시지만 확인
     const userMessages = chatMessages.filter(msg => msg.user === userEmail);
     
@@ -514,18 +545,21 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
     // 새로운 세션인지 확인 (타임스탬프가 포함된 세션 ID)
     const isNewSession = userEmail.includes('_session_');
     
-    console.log(`isChatCompleted for ${userEmail}:`, {
-      userMessages: userMessages.map(msg => ({ message: msg.message, type: msg.type, timestamp: msg.timestamp })),
-      latestMessage: latestMessage.message,
-      isLatestMessageCompletion,
-      hasCompletionMessage,
-      messageCount: userMessages.length,
-      isNewSession
-    });
-    
     // 새로운 세션이어도 채팅 종료 메시지가 있으면 완료된 것으로 간주
     return isLatestMessageCompletion || hasCompletionMessage;
-  };
+  }, [chatMessages]);
+
+  // 유저가 채팅을 완료했는지 확인하는 함수
+  const isUserChatCompleted = useCallback((userEmail: string) => {
+    const userMessages = chatMessages.filter(msg => msg.user === userEmail);
+    return userMessages.some(msg => msg.message === '유저가 채팅종료를 하였습니다.');
+  }, [chatMessages]);
+
+  // 관리자가 답변을 완료했는지 확인하는 함수
+  const isAdminResponseCompleted = useCallback((userEmail: string) => {
+    const userMessages = chatMessages.filter(msg => msg.user === userEmail);
+    return userMessages.some(msg => msg.message === '관리자가 답변을 완료하였습니다.');
+  }, [chatMessages]);
 
   // 이메일에서 이니셜 추출 함수
   const getInitials = (email: string) => {
@@ -549,7 +583,7 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
   };
 
   // 유저 이름 가져오기 함수
-  const getUserName = (email: string) => {
+  const getUserName = useCallback((email: string) => {
     // 세션 ID가 포함된 이메일인 경우 원래 이메일 추출
     const originalEmail = email.includes('_') ? email.split('_')[0] : email;
     
@@ -563,17 +597,17 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
     }
     
     return originalEmail;
-  };
+  }, [userNames, users]);
 
   // 선택된 유저의 표시 이름 가져오기 함수
-  const getSelectedUserDisplayName = () => {
+  const getSelectedUserDisplayName = useCallback(() => {
     if (!selectedMessage) return '';
     
     return getUserName(selectedMessage.user);
-  };
+  }, [selectedMessage, getUserName]);
 
   // 날짜 형식 통일 함수 (KST로 변환)
-  const formatTimestamp = (timestamp: string) => {
+  const formatTimestamp = useCallback((timestamp: string) => {
     try {
       // 백엔드에서 KST로 저장된 시간을 올바르게 파싱
       const date = new Date(timestamp + ':00');
@@ -592,10 +626,10 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
       console.error('Timestamp formatting error:', error);
       return timestamp;
     }
-  };
+  }, []);
 
   // 날짜를 한국어로 포맷팅하는 함수
-  const formatDate = (dateString: string) => {
+  const formatDate = useCallback((dateString: string) => {
     const date = new Date(dateString);
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -604,7 +638,7 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
     const weekday = weekdays[date.getDay()];
     
     return `${year}년 ${month}월 ${day}일 (${weekday})`;
-  };
+  }, []);
 
   // 날짜가 같은지 확인하는 함수
   const isSameDate = (date1: string, date2: string) => {
@@ -692,22 +726,16 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
     }
 
     try {
-      // 백엔드 API를 통해 각 유저의 메시지 삭제
+      // chatAPI를 통해 각 유저의 메시지 삭제
       const deletePromises = Array.from(selectedUsersForDelete).map(async (userEmail) => {
-        const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/chat/messages/user/${encodeURIComponent(userEmail)}`, {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`Failed to delete messages for ${userEmail}: ${response.statusText}`);
+        try {
+          const result = await chatAPI.deleteUserMessages(userEmail);
+          console.log(`Deleted messages for ${userEmail}:`, result);
+          return result;
+        } catch (error) {
+          console.error(`Error deleting messages for ${userEmail}:`, error);
+          throw error;
         }
-
-        const result = await response.json();
-        console.log(`Deleted messages for ${userEmail}:`, result);
-        return result;
       });
 
       await Promise.all(deletePromises);
@@ -728,10 +756,14 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
       setIsDeleteMode(false);
       setSelectedUsersForDelete(new Set());
 
-      console.log(`Successfully deleted chat messages for users: ${Array.from(selectedUsersForDelete).join(', ')}`);
+      const deletedUserNames = Array.from(selectedUsersForDelete).map(email => getUserName(email));
+      console.log(`Successfully deleted chat messages for users: ${deletedUserNames.join(', ')}`);
+      
+      // 성공 메시지 표시
+      alert(`다음 유저들의 채팅 기록이 성공적으로 삭제되었습니다:\n\n${deletedUserNames.join('\n')}`);
     } catch (error) {
       console.error('Error deleting user chats:', error);
-      alert('채팅 삭제 중 오류가 발생했습니다.');
+      alert('채팅 삭제 중 오류가 발생했습니다. 다시 시도해주세요.');
     }
   };
 
@@ -775,12 +807,29 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
     setIsExporting(true);
     try {
       const exportPromises = Array.from(selectedUsersForExport).map(async (userEmail) => {
-        const result = await chatAPI.exportUserMessages(userEmail);
-        console.log(`Exported messages for ${userEmail}:`, result);
-        return result;
+        try {
+          const result = await chatAPI.exportUserMessages(userEmail);
+          console.log(`Exported messages for ${userEmail}:`, result);
+          return { success: true, userEmail, result };
+        } catch (error) {
+          console.error(`Failed to export messages for ${userEmail}:`, error);
+          return { success: false, userEmail, error };
+        }
       });
 
-      await Promise.all(exportPromises);
+      const exportResults = await Promise.all(exportPromises);
+      const successfulExports = exportResults.filter(result => result.success);
+      const failedExports = exportResults.filter(result => !result.success);
+
+      if (successfulExports.length > 0) {
+        const successfulUserNames = successfulExports.map(result => getUserName(result.userEmail));
+        alert(`다음 유저들의 채팅 메시지가 성공적으로 파일로 저장되었습니다:\n\n${successfulUserNames.join('\n')}`);
+      }
+      
+      if (failedExports.length > 0) {
+        const failedUserNames = failedExports.map(result => getUserName(result.userEmail));
+        alert(`일부 유저의 채팅 메시지 저장에 실패했습니다:\n\n${failedUserNames.join('\n')}\n\n성공한 저장만 완료되었습니다.`);
+      }
 
       // 저장 모드 종료 및 선택 초기화
       setIsExportMode(false);
@@ -790,10 +839,11 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
       await loadExportedFiles();
       setShowFileList(true);
 
-      alert('선택된 유저들의 채팅 메시지가 성공적으로 파일로 저장되었습니다.');
+      const exportedUserNames = Array.from(selectedUsersForExport).map(email => getUserName(email));
+      alert(`다음 유저들의 채팅 메시지가 성공적으로 파일로 저장되었습니다:\n\n${exportedUserNames.join('\n')}`);
     } catch (error) {
       console.error('Export error:', error);
-      alert('파일 저장 중 오류가 발생했습니다.');
+      alert('파일 저장 중 오류가 발생했습니다. 다시 시도해주세요.');
     } finally {
       setIsExporting(false);
     }
@@ -948,26 +998,38 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                           </div>
                           <div className="flex items-center gap-1 mt-4">
                             {isDeleteMode && (
-                              <input
-                                type="checkbox"
-                                checked={selectedUsersForDelete.has(user)}
-                                onChange={(e) => {
-                                  e.stopPropagation();
-                                  toggleUserForDelete(user);
-                                }}
-                                className="w-4 h-4 text-orange-500 bg-gray-100 border-gray-300 rounded focus:ring-orange-500 focus:ring-1"
-                              />
+                              <div className="flex flex-col items-center gap-1">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedUsersForDelete.has(user)}
+                                  onChange={(e) => {
+                                    e.stopPropagation();
+                                    toggleUserForDelete(user);
+                                  }}
+                                  className="w-4 h-4 text-red-500 bg-gray-100 border-gray-300 rounded focus:ring-red-500 focus:ring-1"
+                                />
+                                <span className="text-xs text-red-600 font-medium">삭제</span>
+                                {selectedUsersForDelete.has(user) && (
+                                  <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                                )}
+                              </div>
                             )}
                             {isExportMode && (
-                              <input
-                                type="checkbox"
-                                checked={selectedUsersForExport.has(user)}
-                                onChange={(e) => {
-                                  e.stopPropagation();
-                                  toggleUserForExport(user);
-                                }}
-                                className="w-4 h-4 text-blue-500 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-1"
-                              />
+                              <div className="flex flex-col items-center gap-1">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedUsersForExport.has(user)}
+                                  onChange={(e) => {
+                                    e.stopPropagation();
+                                    toggleUserForExport(user);
+                                  }}
+                                  className="w-4 h-4 text-blue-500 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-1"
+                                />
+                                <span className="text-xs text-blue-600 font-medium">저장</span>
+                                {selectedUsersForExport.has(user) && (
+                                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                                )}
+                              </div>
                             )}
                             {!isDeleteMode && !isExportMode && (
                               <button
@@ -998,11 +1060,17 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                                 <>
                                   <FontAwesomeIcon icon={faCheckCircle} className="text-green-500 text-xs" />
                                   <span className="text-xs text-green-600">채팅완료</span>
+                                  {isUserChatCompleted(user) && (
+                                    <span className="text-xs text-orange-600"></span>
+                                  )}
+                                  {isAdminResponseCompleted(user) && (
+                                    <span className="text-xs text-purple-600"></span>
+                                  )}
                                 </>
                               ) : (
                                 <>
                                   {getStatusIcon(latestMessage.status)}
-                                  <span className="text-xs text-gray-600">{getStatusText(latestMessage.status)}</span>
+                                  <span className="text-xs text-gray-600">{getDetailedStatusText(user, latestMessage.status)}</span>
                                 </>
                               )}
                             </div>
@@ -1057,9 +1125,16 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
               <button
                 onClick={handleDeleteSelectedUsers}
                 disabled={selectedUsersForDelete.size === 0}
-                className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
               >
-                선택 삭제 ({selectedUsersForDelete.size})
+                {isExporting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    삭제 중...
+                  </>
+                ) : (
+                  `선택 삭제 (${selectedUsersForDelete.size})`
+                )}
               </button>
               <button
                 onClick={toggleDeleteMode}
@@ -1073,9 +1148,16 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
               <button
                 onClick={handleExportSelectedUsers}
                 disabled={selectedUsersForExport.size === 0}
-                className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
               >
-                선택 저장 ({selectedUsersForExport.size})
+                {isExporting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    저장 중...
+                  </>
+                ) : (
+                  `선택 저장 (${selectedUsersForExport.size})`
+                )}
               </button>
               <button
                 onClick={toggleExportMode}
@@ -1090,40 +1172,62 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
          {/* 저장된 파일 목록 */}
         {showFileList && (
           <div className="border-t border-gray-200 p-4 bg-gray-50">
-            <h4 className="text-xs font-medium text-gray-700 mb-2">저장된 파일 목록</h4>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <h4 className="text-sm font-medium text-gray-700">저장된 파일 목록</h4>
+                <button
+                  onClick={loadExportedFiles}
+                  disabled={isExporting}
+                  className="p-1 text-gray-400 hover:text-gray-600 disabled:text-gray-300 disabled:cursor-not-allowed"
+                  title="새로고침"
+                >
+                  <FontAwesomeIcon icon={faRefresh} className="text-sm" />
+                </button>
+              </div>
+              <button
+                onClick={() => setShowFileList(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <FontAwesomeIcon icon={faXmark} className="text-sm" />
+              </button>
+            </div>
             {exportedFiles.length === 0 ? (
-              <p className="text-sm text-gray-500">저장된 파일이 없습니다.</p>
+              <div className="text-center py-4">
+                <FontAwesomeIcon icon={faFileInvoice} className="text-2xl text-gray-300 mb-2" />
+                <p className="text-sm text-gray-500">저장된 파일이 없습니다.</p>
+              </div>
             ) : (
-                              <div className="space-y-2 max-h-40 overflow-y-auto">
-                  {exportedFiles.map((file, index) => (
-                    <div key={index} className="flex items-center justify-between p-2 bg-white rounded border">
-                      <div className="w-full">
-                        <div className="text-xs font-medium text-gray-900 break-all" title={file.name}>
-                          {file.name}
-                        </div>
-                        <div className="text-[10px] text-gray-500 mt-1">
-                          크기: {(file.size / 1024).toFixed(1)}KB <br />
-                          생성: {new Date(file.created).toLocaleString('ko-KR', {
-                            year: 'numeric',
-                           month: '2-digit',
-                           day: '2-digit',
-                           hour: '2-digit',
-                           minute: '2-digit'
-                         })}
-                       </div>
-                     </div>
-                     <button
-                       onClick={() => handleDownloadFile(file.name)}
-                       className="w-8 h-8 ml-2 flex items-center justify-center bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-                       title="다운로드"
-                     >
-                       <FontAwesomeIcon icon={faDownload} className="text-xs" />
-                     </button>
-                   </div>
-                 ))}
-               </div>
-             )}
-           </div>
+              <div className="space-y-2 max-h-40 overflow-y-auto">
+                {exportedFiles.map((file, index) => (
+                  <div key={index} className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 hover:border-gray-300 transition-colors">
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-gray-900 truncate" title={file.name}>
+                        {file.name}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1 space-y-1">
+                        <div>크기: {(file.size / 1024).toFixed(1)}KB</div>
+                        <div>생성: {new Date(file.created).toLocaleString('ko-KR', {
+                          year: 'numeric',
+                          month: '2-digit',
+                          day: '2-digit',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}</div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleDownloadFile(file.name)}
+                      className="ml-3 px-3 py-2 flex items-center justify-center bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors text-sm"
+                      title="다운로드"
+                    >
+                      <FontAwesomeIcon icon={faDownload} className="text-xs mr-1" />
+                      다운로드
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         )}
       </div>
 

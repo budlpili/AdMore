@@ -100,6 +100,24 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     }
   }, [messages, sessionId]);
 
+  // 새로운 세션 시작 시 이전 세션의 로컬 스토리지 정리
+  useEffect(() => {
+    if (sessionId.includes('_session_')) {
+      // 이전 세션의 로컬 스토리지 정리
+      const allKeys = Object.keys(localStorage);
+      const chatMessageKeys = allKeys.filter(key => key.startsWith('chat_messages_'));
+      
+      // 현재 사용자의 이전 세션 키들 정리
+      const currentUserKeys = chatMessageKeys.filter(key => key.includes(actualUserEmail));
+      const oldSessionKeys = currentUserKeys.filter(key => !key.includes(sessionId));
+      
+      oldSessionKeys.forEach(key => {
+        localStorage.removeItem(key);
+        console.log('이전 세션 로컬 스토리지 정리:', key);
+      });
+    }
+  }, [sessionId, actualUserEmail]);
+
   // 로컬 스토리지 정리 함수
   const cleanupLocalStorage = useCallback(() => {
     const allKeys = Object.keys(localStorage);
@@ -150,8 +168,24 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
 
   // onNewMessage 콜백을 useCallback으로 안정화
   const handleNewMessage = useCallback((message: any) => {
-    // 홈페이지에서는 "유저가 채팅종료를 하였습니다." 메시지를 필터링
+    // 유저가 채팅종료를 했을 때 처리
     if (message.message === '유저가 채팅종료를 하였습니다.') {
+      setIsChatCompleted(true);
+      
+      // 유저 채팅종료 메시지를 채팅에 추가
+      const completionMessage: Message = {
+        from: 'user',
+        text: '유저가 채팅을 종료하였습니다.',
+        timestamp: new Date().toISOString()
+      };
+      
+      setMessages(prev => [...prev, completionMessage]);
+      
+      // 채팅 완료 후 3초 뒤에 새로운 세션 시작
+      setTimeout(() => {
+        startNewChatSession();
+      }, 3000);
+      
       return;
     }
     
@@ -167,6 +201,12 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
       };
       
       setMessages(prev => [...prev, completionMessage]);
+      
+      // 채팅 완료 후 3초 뒤에 새로운 세션 시작
+      setTimeout(() => {
+        startNewChatSession();
+      }, 3000);
+      
       return;
     }
     
@@ -214,9 +254,15 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     loadMessages,
     socket
   } = useWebSocket({
-    userEmail: effectiveUserEmail, // 통일된 사용자 이메일 사용
+    userEmail: sessionId, // sessionId를 포함한 사용자 이메일 사용
     onNewMessage: handleNewMessage,
     onMessagesLoad: (loadedMessages) => {
+      // 새로운 세션인 경우 이전 메시지를 로드하지 않음
+      if (sessionId.includes('_session_')) {
+        console.log('새로운 세션 감지, onMessagesLoad에서 이전 메시지 로드 건너뜀');
+        return;
+      }
+      
       // WebSocket에서 로드된 메시지를 로컬 상태와 병합
       if (loadedMessages && loadedMessages.length > 0) {
         // ChatMessage를 Message 형식으로 변환
@@ -242,9 +288,95 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     }
   });
 
+  // WebSocket에서 받은 메시지를 로컬 상태와 동기화 (실시간 메시지 수신)
+  useEffect(() => {
+    if (wsMessages && Array.isArray(wsMessages) && wsMessages.length > 0) {
+      // 새로운 세션인 경우 이전 메시지를 로드하지 않음
+      if (sessionId.includes('_session_')) {
+        console.log('새로운 세션 감지, 이전 메시지 로드 건너뜀');
+        return;
+      }
+      
+      // 현재 사용자의 메시지만 필터링 (관리자 메시지 포함)
+      const currentUserEmail = effectiveUserEmail.split('_')[0];
+      const userMessages = wsMessages.filter((msg: any) => {
+        const messageUserEmail = msg.user?.split('_')[0];
+        return messageUserEmail === currentUserEmail || msg.type === 'admin';
+      });
+      
+      // ChatMessage를 Message 형식으로 변환
+      const convertedMessages: Message[] = userMessages.map((msg: any) => ({
+        id: msg.id,
+        from: msg.type === 'admin' ? 'admin' : 'user',
+        text: msg.message,
+        timestamp: msg.timestamp
+      }));
+      
+      // 기존 메시지와 병합하여 중복 제거
+      setMessages(prevMessages => {
+        const existingIds = new Set(prevMessages.map(m => m.id));
+        const newMessages = convertedMessages.filter(msg => !existingIds.has(msg.id));
+        
+        if (newMessages.length > 0) {
+          console.log('새로운 WebSocket 메시지 추가:', newMessages.length, '개');
+          return [...prevMessages, ...newMessages];
+        }
+        
+        return prevMessages;
+      });
+    }
+  }, [wsMessages, effectiveUserEmail, sessionId]);
+
+  // 새로운 채팅 세션 시작 함수
+  const startNewChatSession = useCallback(() => {
+    // 현재 시간을 포함한 새로운 세션 ID 생성
+    const timestamp = Date.now();
+    const newSessionId = `${actualUserEmail}_session_${timestamp}`;
+    
+    console.log('새로운 채팅 세션 시작:', newSessionId);
+    
+    // 메시지를 먼저 초기화 (환영 메시지만)
+    setMessages([
+      { 
+        from: 'admin', 
+        text: '고객님 반갑습니다!\n\n상담 운영 시간 안내\n· 평일 10:00 ~ 17:00\n· 주말, 공휴일 휴무\n순차적으로 확인하여 답변드리도록 하겠습니다.' 
+      }
+    ]);
+    
+    // 채팅 완료 상태 초기화
+    setIsChatCompleted(false);
+    
+    // 새로운 세션 ID 설정 (메시지 초기화 후)
+    setSessionId(newSessionId);
+    
+    // 채팅 모드로 전환
+    setMode('chat');
+    
+    // WebSocket 연결 재설정을 위해 effectiveUserEmail 업데이트
+    // (useWebSocket 훅에서 새로운 세션 감지 시 자동으로 재연결됨)
+    
+    console.log('새로운 채팅 세션 완료, 메시지 초기화됨');
+  }, [actualUserEmail]);
+
   // sessionId가 변경될 때 WebSocket 재연결을 위한 useEffect
   useEffect(() => {
-    // console.log('sessionId 변경됨, WebSocket 재연결 필요:', sessionId);
+    console.log('sessionId 변경됨, WebSocket 재연결 필요:', sessionId);
+    
+    // 새로운 세션이 시작되면 WebSocket 연결 상태 초기화
+    if (sessionId.includes('_session_')) {
+      console.log('새로운 세션 시작, WebSocket 연결 초기화');
+      
+      // 새로운 세션일 때 메시지를 환영 메시지만으로 강제 초기화
+      setMessages([
+        { 
+          from: 'admin', 
+          text: '고객님 반갑습니다!\n\n상담 운영 시간 안내\n· 평일 10:00 ~ 17:00\n· 주말, 공휴일 휴무\n순차적으로 확인하여 답변드리도록 하겠습니다.' 
+        }
+      ]);
+      
+      // 채팅 완료 상태 초기화
+      setIsChatCompleted(false);
+    }
   }, [sessionId]);
 
   // 새로운 세션 ID 수신 처리
@@ -405,6 +537,12 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     // 로그인하지 않은 사용자 체크
     if (!checkLoginStatus()) return;
     
+    // WebSocket 연결 상태 확인
+    if (!isConnected) {
+      alert('서버와의 연결이 원활하지 않습니다. 잠시 후 다시 시도해주세요.');
+      return;
+    }
+    
     setIsSending(true);
     
     if (inputValue.trim()) {
@@ -420,13 +558,24 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
       
       // WebSocket을 통해 메시지 전송
       if (sendMessage) {
-        sendMessage({
-          message: inputValue,
-          type: 'user',
-          inquiryType,
-          productInfo,
-          paymentInfo
-        });
+        try {
+          sendMessage({
+            message: inputValue,
+            type: 'user',
+            inquiryType,
+            productInfo,
+            paymentInfo
+          });
+          
+          // 메시지 전송 성공 시 로그
+          console.log('메시지 전송 성공:', inputValue);
+        } catch (error) {
+          console.error('메시지 전송 실패:', error);
+          // 전송 실패 시에도 로컬에는 표시되어 있음 (사용자 경험 향상)
+          
+          // 사용자에게 전송 실패 알림
+          alert('메시지 전송에 실패했습니다. 잠시 후 다시 시도해주세요.');
+        }
       } else {
         console.error('sendMessage 함수가 없습니다.');
       }
@@ -534,14 +683,33 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
       }
     }
     
-    // 메시지 상태를 즉시 초기화
-    setMessages(initialMessages);
+    // 기존 세션의 메시지가 있는지 확인하고 복원
+    const existingStorageKey = `chat_messages_${newSessionId}`;
+    const existingMessages = localStorage.getItem(existingStorageKey);
     
-    // 세션 ID만 저장 (메시지는 WebSocket을 통해 관리)
+    if (existingMessages) {
+      try {
+        const parsedMessages = JSON.parse(existingMessages);
+        if (Array.isArray(parsedMessages) && parsedMessages.length > 0) {
+          console.log('기존 메시지 복원:', parsedMessages.length, '개');
+          setMessages(parsedMessages);
+        } else {
+          setMessages(initialMessages);
+        }
+      } catch (error) {
+        console.error('기존 메시지 파싱 오류:', error);
+        setMessages(initialMessages);
+      }
+    } else {
+      // 기존 메시지가 없으면 초기 메시지 설정
+      setMessages(initialMessages);
+    }
+    
+    // 세션 ID 저장
     localStorage.setItem(`current_session_${actualUserEmail}`, newSessionId);
     
-    // WebSocket에서 기존 메시지 로드
-    if (loadMessages) {
+    // WebSocket에서 기존 메시지 로드 (새로운 세션이 아닌 경우에만)
+    if (loadMessages && !newSessionId.includes('_session_')) {
       loadMessages();
     }
     
@@ -556,11 +724,19 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
       return;
     }
     
-    // 일반적인 닫기
+    // 일반적인 채팅창 닫기 (메시지는 보존됨)
     closeChat();
   };
 
   const closeChat = () => {
+    // 메시지를 로컬 스토리지에 최종 저장 (보존을 위해)
+    if (messages.length > 0) {
+      const messageData = JSON.stringify(messages);
+      const storageKey = `chat_messages_${sessionId}`;
+      localStorage.setItem(storageKey, messageData);
+      console.log('채팅창 닫기 전 메시지 저장:', storageKey, '메시지 수:', messages.length);
+    }
+    
     setIsChatOpen(false);
     setMode('home');
     setIsChatCompleted(false);
@@ -570,6 +746,9 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
     // 새로운 채팅을 시작할 때만 새로운 sessionId 생성
     
     // 메시지는 로컬 스토리지에 그대로 유지 (관리자가 확인할 수 있도록)
+    // 채팅창을 닫는 것은 채팅을 종료하는 것이 아님
+    
+    console.log('채팅창 닫기 - 메시지 보존됨, sessionId:', sessionId);
   };
 
   const handleCompleteChat = () => {
@@ -600,6 +779,9 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
       const storageKey = `chat_messages_${sessionId}`;
       localStorage.removeItem(storageKey);
       console.log('채팅 완료 후 이전 대화 내용 삭제:', storageKey);
+      
+      // 새로운 세션 시작을 위한 준비
+      console.log('채팅 완료됨, 새로운 세션 시작 준비');
     }
   };
 
@@ -645,6 +827,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
             {/* 상단바 */}
             <div className="flex items-center justify-between px-6 py-6 border-b">
               <div className="flex items-center">
+                
                 {mode === 'chat' && (
                   <button onClick={() => setMode('home')} className="mr-4 text-gray-500 hover:text-gray-700 text-base">
                     <FontAwesomeIcon icon={faChevronLeft} />
@@ -670,12 +853,13 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                 )}
               </div>
               <div>
-                {/* 답변완료 버튼 - 채팅 모드에서만 표시 */}
+                {/* 채팅완료 버튼 - 실제로 채팅을 종료하고 메시지를 삭제 */}
                 {mode === 'chat' && !isChatCompleted && (
                   <button 
                     onClick={handleCompleteChat} 
                     className="text-xs bg-blue-600 text-white p-2 w-18 h-8 rounded-md hover:bg-blue-700 
                       transition-colors font-medium mr-4 shadow-md shadow-blue-500/50 border border-blue-600"
+                    title="채팅을 완료하고 메시지를 삭제합니다"
                   >
                     채팅완료
                   </button>
@@ -683,7 +867,12 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
               </div>
               <div className="flex items-center">
                 
-                <button onClick={handleClose} className="text-gray-500 hover:text-gray-700 text-base">
+                {/* X 버튼 - 채팅창을 닫기만 하고 메시지는 보존 */}
+                <button 
+                  onClick={handleClose} 
+                  className="text-gray-500 hover:text-gray-700 text-base"
+                  title="채팅창을 닫습니다 (메시지는 보존됨)"
+                >
                   <FontAwesomeIcon icon={faXmark} />
                 </button>
               </div>
@@ -868,9 +1057,15 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                   <form className="relative flex items-center border-t px-3 py-3 gap-2" onSubmit={e => { e.preventDefault(); handleSend(); }}>
                     {/* 채팅 완료 시 입력창 비활성화 오버레이 */}
                     {isChatCompleted && (
-                      <div className="absolute inset-0 bg-gray-100 flex flex-col items-center justify-center rounded-md gap-2 z-10">
+                      <div className="absolute inset-0 bg-gray-100 flex flex-col items-center justify-center rounded-md gap-3 z-10">
                         <span className="text-gray-500 text-sm font-medium">상담이 완료되었습니다</span>
                         <span className="text-gray-400 text-xs">더 이상 메시지를 주고받을 수 없습니다</span>
+                        <button
+                          onClick={startNewChatSession}
+                          className="px-4 py-2 bg-orange-500 text-white text-sm rounded-md hover:bg-orange-600 transition-colors"
+                        >
+                          새로운 상담 시작
+                        </button>
                       </div>
                     )}
                     

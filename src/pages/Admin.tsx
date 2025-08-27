@@ -212,6 +212,7 @@ const Admin: React.FC = () => {
     updateMessageStatus,
     loadMessages
   } = useWebSocket({
+    userEmail: 'admin', // 관리자 이메일 명시
     isAdmin: true,
     onNewMessage: (message) => {
       console.log('관리자 페이지: 새로운 메시지 수신', message);
@@ -233,11 +234,14 @@ const Admin: React.FC = () => {
           return prev; // 기존 메시지는 유지
         }
         
-        // 완료된 사용자의 새로운 메시지는 무시
-        if (completedChats.includes(message.user)) {
-          console.log('관리자 페이지: 완료된 사용자의 새로운 메시지 무시');
-          return prev;
-        }
+        // 완료된 사용자의 새로운 메시지는 무시 (최신 상태 참조)
+        setCompletedChats(prevCompletedChats => {
+          if (prevCompletedChats.includes(message.user)) {
+            console.log('관리자 페이지: 완료된 사용자의 새로운 메시지 무시');
+            return prevCompletedChats;
+          }
+          return prevCompletedChats;
+        });
         
         console.log('관리자 페이지: 새 메시지 추가됨 - 사용자:', message.user, '메시지:', message.message);
         const newMessages = [...prev, message];

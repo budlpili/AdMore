@@ -724,6 +724,13 @@ export const chatAPI = {
     });
   },
 
+  // 사용자별 채팅 메시지 삭제
+  deleteUserMessages: async (userEmail: string) => {
+    return apiRequest(`/chat/messages/user/${encodeURIComponent(userEmail)}`, {
+      method: 'DELETE',
+    });
+  },
+
   exportMessages: () => apiRequest('/chat/messages/export', {
     method: 'POST',
   }),
@@ -731,14 +738,38 @@ export const chatAPI = {
     method: 'POST',
   }),
   getExports: () => apiRequest('/chat/messages/exports'),
-  downloadFile: (filename: string) => {
-    const url = `${API_BASE_URL}/chat/messages/download/${encodeURIComponent(filename)}`;
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  downloadFile: async (filename: string) => {
+    try {
+      const url = `${API_BASE_URL}/chat/messages/download/${encodeURIComponent(filename)}`;
+      
+      // 토큰이 있으면 헤더에 추가
+      const token = localStorage.getItem('token');
+      const headers: HeadersInit = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
+      const response = await fetch(url, { headers });
+      
+      if (!response.ok) {
+        throw new Error(`파일 다운로드 실패: ${response.status}`);
+      }
+      
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+      
+      console.log('파일 다운로드 성공:', filename);
+    } catch (error) {
+      console.error('파일 다운로드 오류:', error);
+      throw error;
+    }
   },
 };
 

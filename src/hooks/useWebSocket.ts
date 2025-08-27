@@ -46,6 +46,7 @@ export const useWebSocket = ({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const socketRef = useRef<Socket | null>(null);
   const connectionAttemptedRef = useRef(false);
+  const reconnectAttemptsRef = useRef(0);
 
   // WebSocket 연결
   const connect = useCallback(() => {
@@ -80,6 +81,7 @@ export const useWebSocket = ({
       console.log('✅ WebSocket 연결 성공! Socket ID:', socket.id);
       setIsConnected(true);
       connectionAttemptedRef.current = false;
+      reconnectAttemptsRef.current = 0; // 재연결 시도 횟수 초기화
       
       // 사용자 또는 관리자 로그인
       if (effectiveIsAdmin) {
@@ -89,6 +91,58 @@ export const useWebSocket = ({
         console.log('사용자 로그인 이벤트 전송:', userEmail);
         socket.emit('user_login', userEmail);
       }
+
+      // 연결 성공 후 이벤트 리스너 등록
+      // 이벤트 리스너 등록 전에 기존 리스너 제거
+      socket.off('new_message');
+      socket.off('message_status_updated');
+      socket.off('user_connected');
+      socket.off('user_disconnected');
+      socket.off('message_error');
+
+          // 새 메시지 수신
+    socket.on('new_message', (message) => {
+      console.log('📨 새 메시지 수신:', message);
+      
+      // 새로운 세션인 경우 이전 메시지를 처리하지 않음
+      if (userEmail && userEmail.includes('_session_')) {
+        console.log('새로운 세션 감지, 새 메시지 처리 건너뜀:', message.message);
+        return;
+      }
+      
+      if (onNewMessage) {
+        onNewMessage(message);
+      }
+    });
+
+      // 메시지 상태 업데이트
+      socket.on('message_status_updated', (data) => {
+        console.log('📊 메시지 상태 업데이트:', data);
+        if (onStatusUpdate) {
+          onStatusUpdate(data);
+        }
+      });
+
+      // 사용자 연결
+      socket.on('user_connected', (userEmail) => {
+        console.log('👤 사용자 연결:', userEmail);
+        if (onUserConnected) {
+          onUserConnected(userEmail);
+        }
+      });
+
+      // 사용자 연결 해제
+      socket.on('user_disconnected', (userEmail) => {
+        console.log('👤 사용자 연결 해제:', userEmail);
+        if (onUserDisconnected) {
+          onUserDisconnected(userEmail);
+        }
+      });
+
+      // 메시지 오류
+      socket.on('message_error', (error) => {
+        console.error('❌ 메시지 오류:', error);
+      });
     });
 
     socket.on('connect_error', (error) => {
@@ -96,13 +150,19 @@ export const useWebSocket = ({
       setIsConnected(false);
       connectionAttemptedRef.current = false;
       
-      // 3초 후 재연결 시도
-      setTimeout(() => {
-        if (!connectionAttemptedRef.current) {
-          console.log('🔄 연결 오류 후 재연결 시도...');
-          connect();
-        }
-      }, 3000);
+      // 연결 실패 시 재시도 (최대 3회)
+      if (reconnectAttemptsRef.current < 3) {
+        reconnectAttemptsRef.current++;
+        console.log(`🔄 연결 오류 후 재연결 시도 ${reconnectAttemptsRef.current}/3...`);
+        
+        setTimeout(() => {
+          if (!connectionAttemptedRef.current) {
+            connect();
+          }
+        }, 3000 * reconnectAttemptsRef.current); // 지수 백오프
+      } else {
+        console.error('❌ WebSocket 연결 최대 재시도 횟수 초과');
+      }
     });
 
     socket.on('disconnect', (reason) => {
@@ -235,6 +295,7 @@ export const useWebSocket = ({
     try {
       // 새로운 세션인 경우 메시지를 로드하지 않음
       if (userEmail && userEmail.includes('_session_')) {
+        console.log('새로운 세션 감지, 기존 메시지 로드 건너뜀:', userEmail);
         return;
       }
       
@@ -291,6 +352,16 @@ export const useWebSocket = ({
       return;
     }
 
+    // 새로운 세션인 경우 기존 연결 해제 후 재연결
+    if (userEmail.includes('_session_')) {
+      console.log('🔄 새로운 세션 감지, WebSocket 재연결');
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+      connectionAttemptedRef.current = false;
+    }
+
     // 이미 연결된 소켓이 있으면 건너뜀
     if (socketRef.current?.connected) {
       console.log('✅ 이미 연결된 소켓이 있습니다.');
@@ -313,58 +384,7 @@ export const useWebSocket = ({
       socketRef.current = null;
     }
 
-    const socket = connect();
-    
-    // socket이 undefined인 경우 처리
-    if (!socket) {
-      console.error('❌ WebSocket 연결 실패');
-      connectionAttemptedRef.current = false;
-      return;
-    }
-    
-    // 이벤트 리스너 등록 전에 기존 리스너 제거
-    socket.off('new_message');
-    socket.off('message_status_updated');
-    socket.off('user_connected');
-    socket.off('user_disconnected');
-    socket.off('message_error');
-
-    // 새 메시지 수신
-    socket.on('new_message', (message) => {
-      console.log('📨 새 메시지 수신:', message);
-      if (onNewMessage) {
-        onNewMessage(message);
-      }
-    });
-
-    // 메시지 상태 업데이트
-    socket.on('message_status_updated', (data) => {
-      console.log('📊 메시지 상태 업데이트:', data);
-      if (onStatusUpdate) {
-        onStatusUpdate(data);
-      }
-    });
-
-    // 사용자 연결
-    socket.on('user_connected', (userEmail) => {
-      console.log('👤 사용자 연결:', userEmail);
-      if (onUserConnected) {
-        onUserConnected(userEmail);
-      }
-    });
-
-    // 사용자 연결 해제
-    socket.on('user_disconnected', (userEmail) => {
-      console.log('👤 사용자 연결 해제:', userEmail);
-      if (onUserDisconnected) {
-        onUserDisconnected(userEmail);
-      }
-    });
-
-    // 메시지 오류
-    socket.on('message_error', (error) => {
-      console.error('❌ 메시지 오류:', error);
-    });
+    connect();
 
     // cleanup 함수는 컴포넌트 언마운트 시에만 실행
     return () => {
@@ -376,7 +396,7 @@ export const useWebSocket = ({
       }
       connectionAttemptedRef.current = false;
     };
-  }, []); // 의존성 배열을 비워서 한 번만 실행
+  }, [userEmail, connect]); // userEmail과 connect 함수를 의존성 배열에 추가
 
   return {
     isConnected,
