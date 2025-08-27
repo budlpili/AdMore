@@ -57,10 +57,11 @@ export const useWebSocket = ({
       return socketRef.current;
     }
 
-    // 개발 환경과 배포 환경에 따라 WebSocket URL 설정
-    const wsUrl = process.env.NODE_ENV === 'production' 
-      ? 'https://port-0-admore-me83wyv0a5a64d5a.sel5.cloudtype.app'
-      : 'http://localhost:5001';
+    // 현재 접속한 URL을 기반으로 WebSocket URL 설정
+    const currentHost = window.location.hostname;
+    const wsUrl = currentHost === 'localhost' || currentHost === '127.0.0.1'
+      ? 'http://localhost:5001'
+      : 'https://port-0-admore-me83wyv0a5a64d5a.sel5.cloudtype.app';
     
     console.log('🚀 WebSocket 연결 시도:', wsUrl);
     connectionAttemptedRef.current = true;
