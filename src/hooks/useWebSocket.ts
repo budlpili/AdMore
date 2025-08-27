@@ -242,7 +242,15 @@ export const useWebSocket = ({
       const wsUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
         ? 'http://localhost:5001'
         : 'https://port-0-admore-me83wyv0a5a64d5a.sel5.cloudtype.app';
-      const response = await fetch(`${wsUrl}/api/chat/messages`);
+      
+      // 관리자가 아닌 경우 사용자별 메시지만 가져오기
+      let response;
+      if (!effectiveIsAdmin && userEmail) {
+        const currentUserEmail = userEmail.split('_')[0];
+        response = await fetch(`${wsUrl}/api/chat/messages/${currentUserEmail}`);
+      } else {
+        response = await fetch(`${wsUrl}/api/chat/messages`);
+      }
       if (response.ok) {
         const data = await response.json();
         // console.log('로드된 메시지:', data);
@@ -253,26 +261,12 @@ export const useWebSocket = ({
           id: String(message.id)
         }));
         
-        // 관리자가 아닌 경우 현재 사용자의 메시지만 필터링
-        if (!effectiveIsAdmin && userEmail) {
-          const currentUserEmail = userEmail.split('_')[0];
-          const userMessages = formattedData.filter((message: any) => {
-            const messageUserEmail = message.user.split('_')[0];
-            return messageUserEmail === currentUserEmail || message.type === 'admin';
-          });
-          setMessages(userMessages);
-          
-          // ChatWidget에 메시지 로드 완료 알림
-          if (onMessagesLoad) {
-            onMessagesLoad(userMessages);
-          }
-        } else {
-          setMessages(formattedData);
-          
-          // ChatWidget에 메시지 로드 완료 알림
-          if (onMessagesLoad) {
-            onMessagesLoad(formattedData);
-          }
+        // 백엔드에서 이미 필터링된 메시지를 받았으므로 그대로 사용
+        setMessages(formattedData);
+        
+        // ChatWidget에 메시지 로드 완료 알림
+        if (onMessagesLoad) {
+          onMessagesLoad(formattedData);
         }
       } else {
         console.error('메시지 로드 실패:', response.status);
