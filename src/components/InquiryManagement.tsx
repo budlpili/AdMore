@@ -837,13 +837,15 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
 
     setIsExporting(true);
     try {
+      console.log('🔄 선택된 유저들 채팅 메시지 저장 시작:', Array.from(selectedUsersForExport));
+      
       const exportPromises = Array.from(selectedUsersForExport).map(async (userEmail) => {
         try {
           const result = await chatAPI.exportUserMessages(userEmail);
-          console.log(`Exported messages for ${userEmail}:`, result);
+          console.log(`✅ ${userEmail} 채팅 메시지 저장 성공:`, result);
           return { success: true, userEmail, result };
         } catch (error) {
-          console.error(`Failed to export messages for ${userEmail}:`, error);
+          console.error(`❌ ${userEmail} 채팅 메시지 저장 실패:`, error);
           return { success: false, userEmail, error };
         }
       });
@@ -870,11 +872,19 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
       await loadExportedFiles();
       setShowFileList(true);
 
-      const exportedUserNames = Array.from(selectedUsersForExport).map(email => getUserName(email));
-      alert(`다음 유저들의 채팅 메시지가 성공적으로 파일로 저장되었습니다:\n\n${exportedUserNames.join('\n')}`);
+      console.log('🎉 선택된 유저들 채팅 메시지 저장 완료:', {
+        성공: successfulExports.length,
+        실패: failedExports.length,
+        총: selectedUsersForExport.size
+      });
     } catch (error) {
-      console.error('Export error:', error);
-      alert('파일 저장 중 오류가 발생했습니다. 다시 시도해주세요.');
+      console.error('❌ 선택된 유저들 채팅 메시지 저장 중 오류:', error);
+      console.error('오류 상세 정보:', {
+        message: error instanceof Error ? error.message : '알 수 없는 오류',
+        stack: error instanceof Error ? error.stack : '스택 트레이스 없음',
+        name: error instanceof Error ? error.name : '알 수 없는 오류 타입'
+      });
+      alert('파일 저장 중 오류가 발생했습니다. 다시 시도해주세요.\n\n오류: ' + (error instanceof Error ? error.message : '알 수 없는 오류'));
     } finally {
       setIsExporting(false);
     }
@@ -889,12 +899,25 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
 
     setIsExporting(true);
     try {
+      console.log('🔄 사용자 채팅 메시지 저장 시작:', userEmail);
       const result = await chatAPI.exportUserMessages(userEmail);
+      console.log('✅ 사용자 채팅 메시지 저장 성공:', result);
+      
+      // 저장된 파일 목록 새로고침
+      await loadExportedFiles();
+      
+      // 저장된 파일 섹션 표시
+      setShowFileList(true);
+      
       alert(`${userName}님의 채팅 메시지가 성공적으로 파일로 저장되었습니다.`);
-      console.log('Export user result:', result);
     } catch (error) {
-      console.error('Export user error:', error);
-      alert('파일 저장 중 오류가 발생했습니다.');
+      console.error('❌ 사용자 채팅 메시지 저장 오류:', error);
+      console.error('오류 상세 정보:', {
+        message: error instanceof Error ? error.message : '알 수 없는 오류',
+        stack: error instanceof Error ? error.stack : '스택 트레이스 없음',
+        name: error instanceof Error ? error.name : '알 수 없는 오류 타입'
+      });
+      alert('파일 저장 중 오류가 발생했습니다.\n\n오류: ' + (error instanceof Error ? error.message : '알 수 없는 오류'));
     } finally {
       setIsExporting(false);
     }
@@ -1072,12 +1095,7 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                                 <>
                                   <FontAwesomeIcon icon={faCheckCircle} className="text-green-500 text-xs" />
                                   <span className="text-xs text-green-600">채팅완료</span>
-                                  {isUserChatCompleted(user) && (
-                                    <span className="text-xs text-orange-600"></span>
-                                  )}
-                                  {isAdminResponseCompleted(user) && (
-                                    <span className="text-xs text-purple-600"></span>
-                                  )}
+                                  
                                 </>
                               ) : (
                                 <>
