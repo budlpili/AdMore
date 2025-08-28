@@ -216,8 +216,11 @@ io.on('connection', (socket) => {
     userSockets.set(userEmail, socket.id);
     console.log(`사용자 로그인: ${userEmail}`);
     
-    // 관리자에게 새 사용자 알림
-    socket.broadcast.emit('user_connected', userEmail);
+    // 관리자에게 새 사용자 알림 (admin_room에 있는 관리자들에게만)
+    socket.to('admin_room').emit('user_connected', userEmail);
+    
+    // 모든 클라이언트에게도 알림 (관리자 페이지에서 감지할 수 있도록)
+    io.emit('user_connected', userEmail);
   });
 
   // 관리자 로그인

@@ -228,7 +228,28 @@ const Admin: React.FC = () => {
           return prev;
         }
         
-        // 완료 메시지가 도착하면 해당 사용자의 채팅을 완료 상태로 표시
+        // 답변완료 메시지가 도착하면 해당 사용자의 채팅을 완료 상태로 표시
+        if (message.message.includes('관리자가 답변을 완료하였습니다') && message.type === 'admin') {
+          console.log('관리자 페이지: 답변완료 메시지 감지, 채팅 완료 상태로 표시');
+          
+          // 해당 사용자의 모든 메시지를 'closed' 상태로 업데이트
+          const updatedMessages = prev.map(msg => {
+            if (msg.user === message.user) {
+              return { ...msg, status: 'closed' as const };
+            }
+            return msg;
+          });
+          
+          // 완료된 사용자 목록에 추가
+          setCompletedChats(prev => [...prev, message.user]);
+          
+          // 로컬 스토리지 업데이트
+          localStorage.setItem('chatMessages', JSON.stringify(updatedMessages));
+          
+          return updatedMessages;
+        }
+        
+        // 상담완료 메시지가 도착하면 해당 사용자의 채팅을 완료 상태로 표시
         if ((message.message.includes('상담이 완료되었습니다') || message.message.includes('유저가 채팅종료를 하였습니다')) && message.type === 'admin') {
           console.log('관리자 페이지: 채팅 완료 메시지 감지, 채팅 완료 상태로 표시');
           // 해당 사용자의 채팅을 완료 상태로 표시
@@ -254,6 +275,35 @@ const Admin: React.FC = () => {
         
         return newMessages;
       });
+    },
+    onUserConnected: (userEmail) => {
+      console.log('관리자 페이지: 새로운 사용자 연결됨:', userEmail);
+      
+      // 새로운 사용자가 연결되면 해당 사용자의 기존 메시지가 있는지 확인
+      // 만약 없다면 빈 채팅으로 시작할 수 있도록 처리
+      setChatMessages(prev => {
+        const existingUser = prev.some(msg => msg.user === userEmail);
+        if (!existingUser) {
+          console.log('관리자 페이지: 새로운 사용자 채팅 시작:', userEmail);
+          // 새로운 사용자의 첫 메시지로 시스템 메시지 추가
+          const systemMessage: ChatMessage = {
+            id: `system_${Date.now()}`,
+            user: userEmail,
+            message: '새로운 채팅이 시작되었습니다.',
+            timestamp: new Date().toISOString(),
+            type: 'user',
+            status: 'pending'
+          };
+          
+          const newMessages = [...prev, systemMessage];
+          localStorage.setItem('chatMessages', JSON.stringify(newMessages));
+          return newMessages;
+        }
+        return prev;
+      });
+    },
+    onUserDisconnected: (userEmail) => {
+      console.log('관리자 페이지: 사용자 연결 해제됨:', userEmail);
     },
     onStatusUpdate: (data) => {
       // 메시지 상태 업데이트
