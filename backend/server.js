@@ -16,8 +16,17 @@ const app = express();
 const server = http.createServer(app);
 
 // MongoDB 연결 초기화
-connectMongoDB().then(() => {
+connectMongoDB().then(async () => {
   console.log('MongoDB 연결 완료, 서버 시작 중...');
+  
+  // ExportedFile 모델 테스트
+  try {
+    const ExportedFile = require('./models/ExportedFile');
+    const count = await ExportedFile.countDocuments();
+    console.log('✅ ExportedFile 모델 로드 성공, 현재 저장된 파일 수:', count);
+  } catch (error) {
+    console.error('❌ ExportedFile 모델 로드 실패:', error);
+  }
 }).catch(err => {
   console.error('MongoDB 연결 실패:', err);
   process.exit(1);
@@ -185,10 +194,17 @@ async function processMessage(userEmail, messageData, socket) {
       recentMessages.delete(messageKey);
     }, 5000);
 
-    // 모든 클라이언트에게 메시지 브로드캐스트
-    io.emit('new_message', savedMessage);
+    // 메시지 타입에 따라 적절한 대상에게 전송
+    if (type === 'admin') {
+      // 관리자 메시지는 특정 유저에게만 전송
+      socket.broadcast.emit('new_message', savedMessage);
+      console.log(`관리자 메시지 전송: ${userEmail} -> ${message}`);
+    } else {
+      // 사용자 메시지는 모든 클라이언트에게 전송
+      io.emit('new_message', savedMessage);
+      console.log(`사용자 메시지 전송: ${userEmail} -> ${message}`);
+    }
     
-    console.log(`메시지 전송: ${userEmail} -> ${message}`);
     console.log(`연결된 클라이언트 수: ${io.engine.clientsCount}`);
   } catch (error) {
     console.error('❌ 메시지 저장 실패:', error);
@@ -385,8 +401,11 @@ app.delete('/api/chat/messages/clear', (req, res) => {
 // 채팅 메시지를 MongoDB에 저장하는 함수
 const saveChatMessagesToMongoDB = async () => {
   try {
+    console.log('🔄 전체 채팅 메시지 저장 시작...');
+    
     // MongoDB에서 모든 메시지 조회
     const messages = await ChatMessage.find().sort({ timestamp: 1 });
+    console.log('📊 조회된 메시지 수:', messages.length);
     
     if (messages.length === 0) {
       console.log('저장할 채팅 메시지가 없습니다.');
@@ -405,6 +424,8 @@ const saveChatMessagesToMongoDB = async () => {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const filename = `all_messages_${timestamp}.txt`;
     
+    console.log('📝 파일 내용 생성 완료, 크기:', Buffer.byteLength(txtContent, 'utf8'), '바이트');
+    
     // MongoDB에 파일 정보 저장
     const exportedFile = new ExportedFile({
       filename,
@@ -414,11 +435,16 @@ const saveChatMessagesToMongoDB = async () => {
       messageCount: messages.length
     });
     
-    await exportedFile.save();
-    console.log('✅ 전체 채팅 메시지가 MongoDB에 저장되었습니다:', filename);
+    const savedFile = await exportedFile.save();
+    console.log('✅ 전체 채팅 메시지가 MongoDB에 저장되었습니다:', {
+      filename,
+      id: savedFile._id,
+      size: savedFile.size,
+      messageCount: savedFile.messageCount
+    });
     
   } catch (error) {
-    console.error('메시지 저장 오류:', error);
+    console.error('❌ 메시지 저장 오류:', error);
     throw error;
   }
 };
@@ -515,8 +541,16 @@ app.delete('/api/chat/messages/user/:userEmail', async (req, res) => {
 // 저장된 파일 목록 조회 API (MongoDB 기반)
 app.get('/api/chat/messages/exports', async (req, res) => {
   try {
+    console.log('🔄 저장된 파일 목록 조회 시작...');
+    
+    // ExportedFile 모델 확인
+    console.log('📡 ExportedFile 모델 확인:', typeof ExportedFile);
+    console.log('📡 ExportedFile 모델 메서드:', Object.getOwnPropertyNames(ExportedFile));
+    
     // MongoDB에서 저장된 파일 목록 조회
     const files = await ExportedFile.find().sort({ createdAt: -1 });
+    console.log('📊 MongoDB에서 조회된 파일 수:', files.length);
+    console.log('📁 조회된 파일 상세:', files.map(f => ({ id: f._id, filename: f.filename, size: f.size })));
     
     // 프론트엔드에서 기대하는 형식으로 변환
     const formattedFiles = files.map(file => ({
@@ -530,9 +564,15 @@ app.get('/api/chat/messages/exports', async (req, res) => {
     }));
     
     console.log('✅ 저장된 파일 목록 조회 완료:', formattedFiles.length, '개 파일');
+    console.log('📋 변환된 파일 목록:', formattedFiles);
     res.json({ files: formattedFiles });
   } catch (error) {
     console.error('❌ 파일 목록 조회 오류:', error);
+    console.error('오류 상세 정보:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
     res.status(500).json({ error: '파일 목록 조회에 실패했습니다.' });
   }
 });
