@@ -300,12 +300,15 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
   const confirmCloseChat = () => {
     if (closingMessage) {
       try {
-        // 답변완료 메시지 생성
+        // 답변완료 메시지 생성 (한국시간 사용)
+        const now = new Date();
+        const koreanTime = new Date(now.getTime() + (9 * 60 * 60 * 1000)); // UTC+9 (한국시간)
+        
         const completionMessage: ChatMessage = {
           id: Date.now().toString(),
           user: closingMessage.user,
           message: '관리자가 답변을 완료하였습니다.',
-          timestamp: new Date().toISOString().slice(0, 16).replace('T', ' '),
+          timestamp: koreanTime.toISOString().slice(0, 16).replace('T', ' '),
           type: 'admin',
           status: 'closed'
         };
@@ -319,7 +322,8 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
           });
         }
         
-        // 답변완료 메시지를 chatMessages에 추가
+        // 답변완료 메시지를 chatMessages에 추가 (위에 새로 표시되지 않도록)
+        // 기존 메시지들은 그대로 두고 답변완료 메시지만 추가
         const updatedMessages = [...chatMessages, completionMessage];
         onChatMessagesChange(updatedMessages);
         
@@ -607,48 +611,44 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
     return getUserName(selectedMessage.user);
   }, [selectedMessage, getUserName]);
 
-  // 날짜 형식 통일 함수 (KST로 변환)
-  const formatTimestamp = useCallback((timestamp: string) => {
+  // 날짜를 한국어로 포맷팅하는 함수 (한국시간 사용)
+  const formatDate = useCallback((dateString: string) => {
     try {
-      // 백엔드에서 KST로 저장된 시간을 올바르게 파싱
-      const date = new Date(timestamp + ':00');
+      const date = new Date(dateString);
+      // 한국시간으로 변환 (UTC+9)
+      const koreanTime = new Date(date.getTime() + (9 * 60 * 60 * 1000));
       
-      if (!isNaN(date.getTime())) {
-        // 24시간 형식으로 시간만 표시 (HH:MM)
-        return date.toLocaleTimeString('ko-KR', {
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: false
-        });
-      }
+      const year = koreanTime.getFullYear();
+      const month = String(koreanTime.getMonth() + 1).padStart(2, '0');
+      const day = String(koreanTime.getDate()).padStart(2, '0');
+      const weekdays = ['일', '월', '화', '수', '목', '금', '토'];
+      const weekday = weekdays[koreanTime.getDay()];
       
-      return timestamp;
+      return `${year}년 ${month}월 ${day}일 (${weekday})`;
     } catch (error) {
-      console.error('Timestamp formatting error:', error);
-      return timestamp;
+      console.error('Date formatting error:', error);
+      return dateString;
     }
   }, []);
 
-  // 날짜를 한국어로 포맷팅하는 함수
-  const formatDate = useCallback((dateString: string) => {
-    const date = new Date(dateString);
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const weekdays = ['일', '월', '화', '수', '목', '금', '토'];
-    const weekday = weekdays[date.getDay()];
-    
-    return `${year}년 ${month}월 ${day}일 (${weekday})`;
-  }, []);
-
-  // 날짜가 같은지 확인하는 함수
+  // 날짜가 같은지 확인하는 함수 (한국시간 기준)
   const isSameDate = (date1: string, date2: string) => {
-    const d1 = new Date(date1);
-    const d2 = new Date(date2);
-    return d1.toDateString() === d2.toDateString();
+    try {
+      const d1 = new Date(date1);
+      const d2 = new Date(date2);
+      
+      // 한국시간으로 변환
+      const koreanD1 = new Date(d1.getTime() + (9 * 60 * 60 * 1000));
+      const koreanD2 = new Date(d2.getTime() + (9 * 60 * 60 * 1000));
+      
+      return koreanD1.toDateString() === koreanD2.toDateString();
+    } catch (error) {
+      console.error('Date comparison error:', error);
+      return false;
+    }
   };
 
-  // 날짜와 시간을 함께 포맷팅하는 함수
+  // 날짜와 시간을 함께 포맷팅하는 함수 (한국시간 사용)
   const formatDateAndTime = (timestamp: string) => {
     try {
       // timestamp가 YYYY-MM-DD HH:MM 형식인 경우
@@ -659,11 +659,14 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
       // ISO 형식인 경우
       const date = new Date(timestamp);
       if (!isNaN(date.getTime())) {
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        const hours = String(date.getHours()).padStart(2, '0');
-        const minutes = String(date.getMinutes()).padStart(2, '0');
+        // 한국시간으로 변환 (UTC+9)
+        const koreanTime = new Date(date.getTime() + (9 * 60 * 60 * 1000));
+        
+        const year = koreanTime.getFullYear();
+        const month = String(koreanTime.getMonth() + 1).padStart(2, '0');
+        const day = String(koreanTime.getDate()).padStart(2, '0');
+        const hours = String(koreanTime.getHours()).padStart(2, '0');
+        const minutes = String(koreanTime.getMinutes()).padStart(2, '0');
         return `${year}-${month}-${day} ${hours}:${minutes}`;
       }
       
