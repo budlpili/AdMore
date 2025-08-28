@@ -111,7 +111,8 @@ export const useWebSocket = ({
       }
       
       // 사용자 메시지의 경우에만 세션 체크
-      if (!effectiveIsAdmin && userEmail && userEmail.includes('_session_')) {
+      // userEmail이 _session_을 포함하는 경우에만 세션 체크
+      if (!effectiveIsAdmin && userEmail && userEmail.includes('_session_') && message.user && message.user.includes('_session_')) {
         console.log('새로운 세션 감지, 사용자 메시지 처리 건너뜀:', message.message);
         return;
       }
