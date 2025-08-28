@@ -1,9 +1,9 @@
-name: Deploy Frontend to CloudType
+name: Deploy Backend to CloudType
 
 on:
   push:
     branches: [main]
-    paths: ["src/**", "public/**", "package.json", "Dockerfile.frontend", "tailwind.config.js", "postcss.config.js"]
+    paths: ["backend/**", "Dockerfile.backend", "admore-backend-mongodb.yaml"]
   workflow_dispatch:
 
 jobs:
@@ -33,11 +33,14 @@ jobs:
           echo "CloudType 로그인:"
           echo "$CLOUDTYPE_TOKEN" | ctype login -t
 
-      - name: Deploy Frontend
+      - name: Deploy Backend
         env:
           CLOUDTYPE_TOKEN: ${{ secrets.CLOUDTYPE_TOKEN }}
         run: |
-          echo "프론트엔드 배포 시작..."
-          ctype apply -f admore-react-final.yaml
+          echo "백엔드 배포 시작..."
+          ctype apply -f admore-backend-mongodb.yaml
           
-          echo "배포 완료!"
+          echo "MongoDB 배포 시작..."
+          ctype apply -f admore-mongodb.yaml
+          
+          echo "백엔드 배포 완료!"

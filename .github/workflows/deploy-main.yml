@@ -9,10 +9,10 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     
     - name: Set up Node.js
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v4
       with:
         node-version: '18'
     
@@ -28,8 +28,15 @@ jobs:
         ctype --version
         
         echo "CloudType 토큰 로그인:"
-        ctype login -t "$CLOUDTYPE_TOKEN"
+        echo "$CLOUDTYPE_TOKEN" | ctype login -t
         
-        echo "배포 시작:"
-        ctype apply -f admore-frontend.yaml
-        # Trigger workflow execution
+        echo "프론트엔드 배포 시작:"
+        ctype apply -f admore-react-final.yaml
+        
+        echo "백엔드 배포 시작:"
+        ctype apply -f admore-backend-mongodb.yaml
+        
+        echo "MongoDB 배포 시작:"
+        ctype apply -f admore-mongodb.yaml
+        
+        echo "배포 완료!"

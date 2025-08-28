@@ -125,6 +125,14 @@ export interface ChatMessage {
   message: string;
   timestamp: string;
   type: 'user' | 'admin';
+  status?: 'pending' | 'answered' | 'closed';
+  inquiryType?: 'product' | 'payment_cancellation';
+  productInfo?: string;
+  paymentInfo?: {
+    paymentNumber: string;
+    productName: string;
+    amount: string;
+  };
 }
 
 // MongoDB 호환 Coupon 인터페이스
