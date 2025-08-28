@@ -118,18 +118,34 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
     }
   }, [selectedMessage, users]);
 
+  // 컴포넌트 마운트 시 저장된 파일 목록 자동 로드
+  useEffect(() => {
+    console.log('🔄 InquiryManagement 컴포넌트 마운트, 저장된 파일 목록 자동 로드 시작...');
+    loadExportedFiles();
+  }, []);
+
   // 저장된 파일 목록 가져오기
   const loadExportedFiles = async () => {
     try {
       console.log('🔄 저장된 파일 목록 로드 시작...');
+      console.log('📡 API 호출: chatAPI.getExports()');
+      
       const result = await chatAPI.getExports();
       console.log('📁 API 응답 결과:', result);
+      console.log('📁 API 응답 타입:', typeof result);
+      console.log('📁 API 응답 키들:', result ? Object.keys(result) : 'null/undefined');
       
       if (result && result.files) {
         console.log('✅ 파일 목록 로드 성공:', result.files.length, '개 파일');
+        console.log('📁 파일 목록 상세:', result.files);
         setExportedFiles(result.files);
+      } else if (result && Array.isArray(result)) {
+        console.log('⚠️ API 응답이 배열 형태:', result);
+        console.log('📁 배열 길이:', result.length);
+        setExportedFiles(result);
       } else {
         console.log('⚠️ 파일 목록이 비어있거나 잘못된 형식:', result);
+        console.log('📁 result.files 존재 여부:', result && result.files ? '존재' : '존재하지 않음');
         setExportedFiles([]);
       }
     } catch (error) {
@@ -1141,9 +1157,21 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
               </button>
               
               <button
-                onClick={() => {
-                  loadExportedFiles();
-                  setShowFileList(!showFileList);
+                onClick={async () => {
+                  console.log('🖱️ "저장된 파일" 버튼 클릭됨');
+                  console.log('📊 현재 showFileList 상태:', showFileList);
+                  console.log('📊 현재 exportedFiles 상태:', exportedFiles);
+                  console.log('📊 exportedFiles 길이:', exportedFiles.length);
+                  
+                  // 파일 목록 새로고침
+                  await loadExportedFiles();
+                  
+                  // 토글 상태 변경
+                  const newShowFileList = !showFileList;
+                  console.log('🔄 showFileList 상태 변경:', showFileList, '→', newShowFileList);
+                  setShowFileList(newShowFileList);
+                  
+                  console.log('✅ "저장된 파일" 버튼 클릭 처리 완료');
                 }}
                 className="px-3 py-1 text-sm font-medium text-purple-500 hover:text-purple-600 hover:underline transition-colors"
               >
