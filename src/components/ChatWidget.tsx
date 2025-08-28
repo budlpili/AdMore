@@ -168,6 +168,8 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
 
   // onNewMessage 콜백을 useCallback으로 안정화
   const handleNewMessage = useCallback((message: any) => {
+    console.log('ChatWidget: 새 메시지 수신:', message);
+    
     // 유저가 채팅종료를 했을 때 처리
     if (message.message === '유저가 채팅종료를 하였습니다.') {
       setIsChatCompleted(true);
@@ -210,7 +212,47 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
       return;
     }
     
-    // 홈페이지 채팅에서는 모든 메시지 표시 (유저가 보낸 메시지도 포함)
+    // 관리자 메시지인 경우 항상 표시
+    if (message.type === 'admin') {
+      console.log('ChatWidget: 관리자 메시지 처리:', message.message);
+      const newMessage: Message = {
+        id: message.id,
+        from: 'admin',
+        text: message.message,
+        file: message.file || null,
+        fileName: message.fileName || undefined,
+        fileType: message.fileType || undefined,
+        timestamp: message.timestamp || new Date().toISOString()
+      };
+      
+      // 중복 메시지 방지 로직
+      setMessages(prev => {
+        // ID가 있으면 ID로 중복 확인
+        if (message.id && prev.some(msg => msg.id === message.id)) {
+          console.log('🔄 ID 중복 메시지 무시:', message.id);
+          return prev;
+        }
+        
+        // 내용과 시간으로 중복 확인 (2초 이내)
+        const isDuplicate = prev.some(msg => 
+          msg.text === message.message && 
+          msg.from === 'admin' &&
+          Math.abs(new Date().getTime() - (msg.timestamp ? new Date(msg.timestamp).getTime() : 0)) < 2000
+        );
+        
+        if (isDuplicate) {
+          console.log('🔄 내용 중복 메시지 무시:', message.message);
+          return prev;
+        }
+        
+        console.log('✅ 관리자 메시지 추가:', newMessage);
+        return [...prev, newMessage];
+      });
+      
+      return;
+    }
+    
+    // 사용자 메시지 처리 (기존 로직)
     const newMessage: Message = {
       id: message.id,
       from: message.type === 'admin' ? 'admin' : 'user',
@@ -218,7 +260,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
       file: message.file || null,
       fileName: message.fileName || undefined,
       fileType: message.fileType || undefined,
-      timestamp: message.timestamp // 메시지 생성 시간 추가
+      timestamp: message.timestamp || new Date().toISOString()
     };
     
     // 중복 메시지 방지 로직 강화
@@ -297,11 +339,12 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
         return;
       }
       
-      // 현재 사용자의 메시지만 필터링 (관리자 메시지 포함)
+      // 현재 사용자의 메시지와 관리자 메시지를 모두 포함
       const currentUserEmail = effectiveUserEmail.split('_')[0];
       const userMessages = wsMessages.filter((msg: any) => {
         const messageUserEmail = msg.user?.split('_')[0];
-        return messageUserEmail === currentUserEmail || msg.type === 'admin';
+        // 관리자 메시지는 항상 포함, 사용자 메시지는 현재 사용자 것만
+        return msg.type === 'admin' || messageUserEmail === currentUserEmail;
       });
       
       // ChatMessage를 Message 형식으로 변환
