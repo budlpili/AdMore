@@ -11,6 +11,7 @@ require('dotenv').config();
 
 // MongoDB 연결
 const connectMongoDB = require('./config/mongodb');
+const mongoose = require('mongoose');
 
 const app = express();
 const server = http.createServer(app);
@@ -598,6 +599,90 @@ app.get('/api/chat/messages/download/:filename', async (req, res) => {
   } catch (error) {
     console.error('❌ 파일 다운로드 오류:', error);
     res.status(500).json({ error: '파일 다운로드에 실패했습니다.' });
+  }
+});
+
+// MongoDB 상태 확인 엔드포인트
+app.get('/api/health/mongodb', async (req, res) => {
+  try {
+    console.log('🔍 MongoDB 상태 확인 요청...');
+    
+    // MongoDB 연결 상태 확인
+    const dbState = mongoose.connection.readyState;
+    const dbStates = {
+      0: 'disconnected',
+      1: 'connected',
+      2: 'connecting',
+      3: 'disconnecting'
+    };
+    
+    console.log('📊 MongoDB 연결 상태:', dbStates[dbState]);
+    console.log('📊 데이터베이스 이름:', mongoose.connection.name);
+    console.log('📊 호스트:', mongoose.connection.host);
+    console.log('📊 포트:', mongoose.connection.port);
+    
+    // ExportedFile 모델 테스트
+    let exportedFileCount = 0;
+    let exportedFileTest = null;
+    
+    try {
+      exportedFileCount = await ExportedFile.countDocuments();
+      console.log('✅ ExportedFile 모델 테스트 성공, 문서 수:', exportedFileCount);
+      
+      if (exportedFileCount > 0) {
+        exportedFileTest = await ExportedFile.findOne();
+        console.log('📁 샘플 ExportedFile:', {
+          id: exportedFileTest._id,
+          filename: exportedFileTest.filename,
+          size: exportedFileTest.size,
+          createdAt: exportedFileTest.createdAt
+        });
+      }
+    } catch (error) {
+      console.error('❌ ExportedFile 모델 테스트 실패:', error);
+    }
+    
+    // ChatMessage 모델 테스트
+    let chatMessageCount = 0;
+    try {
+      chatMessageCount = await ChatMessage.countDocuments();
+      console.log('✅ ChatMessage 모델 테스트 성공, 문서 수:', chatMessageCount);
+    } catch (error) {
+      console.error('❌ ChatMessage 모델 테스트 실패:', error);
+    }
+    
+    res.json({
+      message: 'MongoDB 상태 확인 완료',
+      mongodb: {
+        connectionState: dbStates[dbState],
+        databaseName: mongoose.connection.name,
+        host: mongoose.connection.host,
+        port: mongoose.connection.port
+      },
+      models: {
+        exportedFile: {
+          status: exportedFileTest ? 'working' : 'no_data',
+          count: exportedFileCount,
+          sample: exportedFileTest ? {
+            id: exportedFileTest._id,
+            filename: exportedFileTest.filename,
+            size: exportedFileTest.size,
+            createdAt: exportedFileTest.createdAt
+          } : null
+        },
+        chatMessage: {
+          status: 'working',
+          count: chatMessageCount
+        }
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ MongoDB 상태 확인 오류:', error);
+    res.status(500).json({ 
+      error: 'MongoDB 상태 확인 실패',
+      details: error.message 
+    });
   }
 });
 

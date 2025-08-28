@@ -1097,12 +1097,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
                       <div className="absolute inset-0 bg-gray-100 flex flex-col items-center justify-center rounded-md gap-3 z-10">
                         <span className="text-gray-500 text-sm font-medium">상담이 완료되었습니다</span>
                         <span className="text-gray-400 text-xs">더 이상 메시지를 주고받을 수 없습니다</span>
-                        <button
-                          onClick={startNewChatSession}
-                          className="px-4 py-2 bg-orange-500 text-white text-sm rounded-md hover:bg-orange-600 transition-colors"
-                        >
-                          새로운 상담 시작
-                        </button>
+                        
                       </div>
                     )}
                     
