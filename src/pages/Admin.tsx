@@ -250,7 +250,7 @@ const Admin: React.FC = () => {
         }
         
         // 상담완료 메시지가 도착하면 해당 사용자의 채팅을 완료 상태로 표시
-        if ((message.message.includes('상담이 완료되었습니다') || message.message.includes('유저가 채팅종료를 하였습니다')) && message.type === 'admin') {
+        if ((message.message.includes('상담이 완료되었습니다') || message.message.includes('유저가 채팅종료를 하였습니다')) && (message.type === 'admin' || message.type === 'user')) {
           console.log('관리자 페이지: 채팅 완료 메시지 감지, 채팅 완료 상태로 표시');
           // 해당 사용자의 채팅을 완료 상태로 표시
           setCompletedChats(prev => [...prev, message.user]);
