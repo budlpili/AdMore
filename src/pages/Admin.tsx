@@ -342,10 +342,19 @@ const Admin: React.FC = () => {
         // 모든 메시지 표시 (완료된 채팅은 InquiryManagement에서 상태로 표시)
         console.log('관리자 페이지: 모든 메시지 표시', wsMessages.length);
         
-        // 현재 chatMessages와 비교하여 중복 제거
+        // 현재 chatMessages와 비교하여 중복 제거 (더 정확한 중복 체크)
         setChatMessages(prev => {
-          const existingIds = new Set(prev.map(msg => msg.id));
-          const newMessages = wsMessages.filter(msg => !existingIds.has(msg.id));
+          // 사용자, 메시지 내용, 타임스탬프, 타입을 모두 확인하여 중복 체크
+          const isDuplicate = (existingMsg: ChatMessage, newMsg: any) => {
+            return existingMsg.user === newMsg.user && 
+                   existingMsg.message === newMsg.message && 
+                   existingMsg.timestamp === newMsg.timestamp &&
+                   existingMsg.type === newMsg.type;
+          };
+          
+          const newMessages = wsMessages.filter(newMsg => 
+            !prev.some(existingMsg => isDuplicate(existingMsg, newMsg))
+          );
           
           if (newMessages.length > 0) {
             console.log('관리자 페이지: 새로운 메시지 추가됨', newMessages.length);

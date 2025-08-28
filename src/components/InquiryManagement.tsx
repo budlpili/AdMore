@@ -1078,10 +1078,10 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                                   <FontAwesomeIcon icon={faCheckCircle} className="text-green-500 text-xs" />
                                   <span className="text-xs text-green-600">채팅완료</span>
                                   {isUserChatCompleted(user) && (
-                                    <span className="text-xs text-orange-600"></span>
+                                    <span className="text-xs text-orange-600">유저완료</span>
                                   )}
                                   {isAdminResponseCompleted(user) && (
-                                    <span className="text-xs text-purple-600"></span>
+                                    <span className="text-xs text-purple-600">답변완료</span>
                                   )}
                                 </>
                               ) : (
@@ -1485,9 +1485,8 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                       return false; // 선택된 사용자가 없으면 메시지 표시 안함
                     }
                     
-                    // 선택된 사용자의 메시지이거나, 관리자 메시지
-                    const isRelevantMessage = msg.user === selectedMessage.user || 
-                                            msg.user === '관리자';
+                    // 선택된 사용자의 메시지만 표시 (관리자 메시지 중복 제거)
+                    const isRelevantMessage = msg.user === selectedMessage.user;
                     console.log('메시지 필터링:', {
                       selectedUser: selectedMessage.user,
                       msgUser: msg.user,
