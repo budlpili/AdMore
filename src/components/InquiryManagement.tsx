@@ -121,10 +121,30 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
   // 저장된 파일 목록 가져오기
   const loadExportedFiles = async () => {
     try {
+      console.log('🔄 저장된 파일 목록 로드 시작...');
       const result = await chatAPI.getExports();
-      setExportedFiles(result.files || []);
+      console.log('📁 API 응답 결과:', result);
+      
+      if (result && result.files) {
+        console.log('✅ 파일 목록 로드 성공:', result.files.length, '개 파일');
+        setExportedFiles(result.files);
+      } else {
+        console.log('⚠️ 파일 목록이 비어있거나 잘못된 형식:', result);
+        setExportedFiles([]);
+      }
     } catch (error) {
-      console.error('파일 목록 로드 오류:', error);
+      console.error('❌ 파일 목록 로드 오류:', error);
+      console.error('오류 상세 정보:', {
+        message: error instanceof Error ? error.message : '알 수 없는 오류',
+        stack: error instanceof Error ? error.stack : '스택 트레이스 없음',
+        name: error instanceof Error ? error.name : '알 수 없는 오류 타입'
+      });
+      
+      // 사용자에게 오류 알림
+      alert('저장된 파일 목록을 불러오는 중 오류가 발생했습니다.\n\n오류: ' + (error instanceof Error ? error.message : '알 수 없는 오류'));
+      
+      // 빈 배열로 설정
+      setExportedFiles([]);
     }
   };
 
@@ -960,7 +980,6 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
               {/* 고유한 유저 목록 생성 */}
               {Array.from(new Set(filteredMessages.map(msg => msg.user)))
                 .filter(user => user !== '관리자') // 관리자 제외
-                .filter(user => !deletedUsers.has(user)) // 삭제된 유저 제외
                 .map((user, index) => {
                   const userMessages = filteredMessages.filter(msg => msg.user === user);
                   const latestMessage = userMessages[userMessages.length - 1];
@@ -1054,10 +1073,10 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                                   <FontAwesomeIcon icon={faCheckCircle} className="text-green-500 text-xs" />
                                   <span className="text-xs text-green-600">채팅완료</span>
                                   {isUserChatCompleted(user) && (
-                                    <span className="text-xs text-orange-600">유저완료</span>
+                                    <span className="text-xs text-orange-600"></span>
                                   )}
                                   {isAdminResponseCompleted(user) && (
-                                    <span className="text-xs text-purple-600">답변완료</span>
+                                    <span className="text-xs text-purple-600"></span>
                                   )}
                                 </>
                               ) : (
