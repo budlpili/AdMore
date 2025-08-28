@@ -24,6 +24,7 @@ const Category = require('../models/Category');
 const Tag = require('../models/Tag');
 const Notice = require('../models/Notice'); // Added
 const ChatMessage = require('../models/ChatMessage'); // Added
+const ExportedFile = require('../models/ExportedFile'); // Added
 const Privacy = require('../models/Privacy'); // Added
 const Terms = require('../models/Terms'); // Added
 
@@ -38,6 +39,7 @@ module.exports = {
   Tag,
   Notice, // Added
   ChatMessage, // Added
+  ExportedFile, // Added
   Privacy, // Added
   Terms // Added
 };

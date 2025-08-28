@@ -139,6 +139,7 @@ const userSockets = new Map(); // userEmail -> socketId
 
 // MongoDB 모델 import
 const ChatMessage = require('./models/ChatMessage');
+const ExportedFile = require('./models/ExportedFile');
 
 // 중복 메시지 전송 방지를 위한 메모리 캐시
 const recentMessages = new Map();
@@ -381,8 +382,8 @@ app.delete('/api/chat/messages/clear', (req, res) => {
 
 // 특정 유저의 채팅 메시지 삭제 API (구버전 SQLite 코드 제거됨)
 
-// 채팅 메시지를 파일로 저장하는 함수
-const saveChatMessagesToFile = async () => {
+// 채팅 메시지를 MongoDB에 저장하는 함수
+const saveChatMessagesToMongoDB = async () => {
   try {
     // MongoDB에서 모든 메시지 조회
     const messages = await ChatMessage.find().sort({ timestamp: 1 });
@@ -392,28 +393,7 @@ const saveChatMessagesToFile = async () => {
       return;
     }
     
-    // 유저별로 메시지 그룹화
-    const userMessages = {};
-    messages.forEach(msg => {
-      if (msg.user !== '관리자') {
-        if (!userMessages[msg.user]) {
-          userMessages[msg.user] = [];
-        }
-        userMessages[msg.user].push(msg);
-      }
-    });
-    
-    // 전체 메시지와 유저별 메시지를 각각 저장
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    
-    // exports 디렉토리 생성 (CloudType 환경에서는 /tmp 사용)
-    const exportsDir = process.env.NODE_ENV === 'production' ? '/tmp' : path.join(__dirname, 'chat_exports');
-    if (process.env.NODE_ENV !== 'production') {
-      fs.mkdirSync(exportsDir, { recursive: true });
-    }
-    
-    // 전체 메시지 TXT 저장
-    const allMessagesTxtFile = path.join(exportsDir, `all_messages_${timestamp}.txt`);
+    // 전체 메시지 내용 생성
     let txtContent = '=== 전체 채팅 메시지 ===\n\n';
     messages.forEach(msg => {
       const date = new Date(msg.timestamp).toLocaleString('ko-KR');
@@ -421,23 +401,22 @@ const saveChatMessagesToFile = async () => {
       const fileInfo = msg.file ? ` (첨부파일: ${msg.fileName})` : '';
       txtContent += `[${date}] ${type} ${msg.user}: ${msg.message}${fileInfo}\n`;
     });
-    fs.writeFileSync(allMessagesTxtFile, txtContent, 'utf8');
     
-    // 유저별 메시지 저장 (TXT만)
-    Object.keys(userMessages).forEach(userEmail => {
-      // 유저별 TXT 파일 저장
-      const userTxtFile = path.join(exportsDir, `user_${userEmail.replace(/[@.]/g, '_')}_${timestamp}.txt`);
-      let userTxtContent = `=== ${userEmail} 채팅 메시지 ===\n\n`;
-      userMessages[userEmail].forEach(msg => {
-        const date = new Date(msg.timestamp).toLocaleString('ko-KR');
-        const type = msg.type === 'admin' ? '[관리자]' : '[사용자]';
-        const fileInfo = msg.file ? ` (첨부파일: ${msg.fileName})` : '';
-        userTxtContent += `[${date}] ${type} ${msg.user}: ${msg.message}${fileInfo}\n`;
-      });
-      fs.writeFileSync(userTxtFile, userTxtContent, 'utf8');
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const filename = `all_messages_${timestamp}.txt`;
+    
+    // MongoDB에 파일 정보 저장
+    const exportedFile = new ExportedFile({
+      filename,
+      content: txtContent,
+      size: Buffer.byteLength(txtContent, 'utf8'),
+      userEmail: null, // 전체 메시지
+      messageCount: messages.length
     });
     
-    console.log(`채팅 메시지가 TXT 파일로 저장되었습니다. 전체: ${allMessagesTxtFile}`);
+    await exportedFile.save();
+    console.log('✅ 전체 채팅 메시지가 MongoDB에 저장되었습니다:', filename);
+    
   } catch (error) {
     console.error('메시지 저장 오류:', error);
     throw error;
@@ -447,7 +426,7 @@ const saveChatMessagesToFile = async () => {
 // 채팅 메시지를 파일로 저장하는 API
 app.post('/api/chat/messages/export', async (req, res) => {
   try {
-    await saveChatMessagesToFile();
+    await saveChatMessagesToMongoDB();
     res.json({ 
       message: '채팅 메시지가 파일로 저장되었습니다.',
       location: process.env.NODE_ENV === 'production' ? '/tmp' : path.join(__dirname, 'chat_exports')
@@ -475,16 +454,9 @@ app.post('/api/chat/messages/export/user/:userEmail', async (req, res) => {
     }
     
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const userTxtFile = process.env.NODE_ENV === 'production' 
-      ? path.join('/tmp', `user_${userEmail.replace(/[@.]/g, '_')}_${timestamp}.txt`)
-      : path.join(__dirname, 'chat_exports', `user_${userEmail.replace(/[@.]/g, '_')}_${timestamp}.txt`);
+    const filename = `user_${userEmail.replace(/[@.]/g, '_')}_${timestamp}.txt`;
     
-    // exports 디렉토리 생성 (CloudType 환경에서는 /tmp 사용)
-    if (process.env.NODE_ENV !== 'production') {
-      fs.mkdirSync(path.dirname(userTxtFile), { recursive: true });
-    }
-    
-    // TXT 파일 생성
+    // TXT 파일 내용 생성
     let txtContent = `=== ${userEmail} 채팅 메시지 ===\n\n`;
     messages.forEach(msg => {
       const date = new Date(msg.timestamp).toLocaleString('ko-KR');
@@ -493,12 +465,21 @@ app.post('/api/chat/messages/export/user/:userEmail', async (req, res) => {
       txtContent += `[${date}] ${type} ${msg.user}: ${msg.message}${fileInfo}\n`;
     });
     
-    fs.writeFileSync(userTxtFile, txtContent, 'utf8');
+    // MongoDB에 파일 정보 저장
+    const exportedFile = new ExportedFile({
+      filename,
+      content: txtContent,
+      size: Buffer.byteLength(txtContent, 'utf8'),
+      userEmail: userEmail,
+      messageCount: messages.length
+    });
     
-    console.log(`유저 ${userEmail}의 메시지가 TXT 파일로 저장되었습니다: ${userTxtFile}`);
+    await exportedFile.save();
+    
+    console.log(`✅ 유저 ${userEmail}의 메시지가 MongoDB에 저장되었습니다: ${filename}`);
     res.json({ 
-      message: `${userEmail}의 채팅 메시지가 TXT 파일로 저장되었습니다.`,
-      location: userTxtFile,
+      message: `${userEmail}의 채팅 메시지가 MongoDB에 저장되었습니다.`,
+      filename: filename,
       messageCount: messages.length
     });
   } catch (error) {
@@ -531,55 +512,53 @@ app.delete('/api/chat/messages/user/:userEmail', async (req, res) => {
   }
 });
 
-// 저장된 파일 목록 조회 API
-app.get('/api/chat/messages/exports', (req, res) => {
-  const exportsDir = process.env.NODE_ENV === 'production' ? '/tmp' : path.join(__dirname, 'chat_exports');
-  
-  if (!fs.existsSync(exportsDir)) {
-    return res.json({ files: [] });
-  }
-  
+// 저장된 파일 목록 조회 API (MongoDB 기반)
+app.get('/api/chat/messages/exports', async (req, res) => {
   try {
-    const files = fs.readdirSync(exportsDir)
-      .filter(file => file.endsWith('.txt'))
-      .map(file => {
-        const filePath = path.join(exportsDir, file);
-        const stats = fs.statSync(filePath);
-        return {
-          name: file,
-          size: stats.size,
-          created: stats.birthtime,
-          path: filePath,
-          type: 'txt'
-        };
-      })
-      .sort((a, b) => b.created - a.created);
+    // MongoDB에서 저장된 파일 목록 조회
+    const files = await ExportedFile.find().sort({ createdAt: -1 });
     
-    res.json({ files });
+    // 프론트엔드에서 기대하는 형식으로 변환
+    const formattedFiles = files.map(file => ({
+      name: file.filename,
+      size: file.size,
+      created: file.createdAt,
+      path: file.filename, // MongoDB ID를 사용하여 다운로드
+      type: 'txt',
+      userEmail: file.userEmail,
+      messageCount: file.messageCount
+    }));
+    
+    console.log('✅ 저장된 파일 목록 조회 완료:', formattedFiles.length, '개 파일');
+    res.json({ files: formattedFiles });
   } catch (error) {
-    console.error('파일 목록 조회 오류:', error);
+    console.error('❌ 파일 목록 조회 오류:', error);
     res.status(500).json({ error: '파일 목록 조회에 실패했습니다.' });
   }
 });
 
-// 파일 다운로드 API
-app.get('/api/chat/messages/download/:filename', (req, res) => {
+// 파일 다운로드 API (MongoDB 기반)
+app.get('/api/chat/messages/download/:filename', async (req, res) => {
   const { filename } = req.params;
-  const exportsDir = process.env.NODE_ENV === 'production' ? '/tmp' : path.join(__dirname, 'chat_exports');
-  const filePath = path.join(exportsDir, filename);
   
-  // 파일 존재 여부 확인
-  if (!fs.existsSync(filePath)) {
-    return res.status(404).json({ error: '파일을 찾을 수 없습니다.' });
-  }
-  
-  // 파일 다운로드
-  res.download(filePath, filename, (err) => {
-    if (err) {
-      console.error('파일 다운로드 오류:', err);
-      res.status(500).json({ error: '파일 다운로드에 실패했습니다.' });
+  try {
+    // MongoDB에서 파일 정보 조회
+    const file = await ExportedFile.findOne({ filename });
+    
+    if (!file) {
+      return res.status(404).json({ error: '파일을 찾을 수 없습니다.' });
     }
-  });
+    
+    // 파일 내용을 응답으로 전송
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(file.content);
+    
+    console.log('✅ 파일 다운로드 완료:', filename);
+  } catch (error) {
+    console.error('❌ 파일 다운로드 오류:', error);
+    res.status(500).json({ error: '파일 다운로드에 실패했습니다.' });
+  }
 });
 
 // 기본 라우트

@@ -183,10 +183,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
       
       setMessages(prev => [...prev, completionMessage]);
       
-      // 채팅 완료 후 3초 뒤에 새로운 세션 시작
-      setTimeout(() => {
-        startNewChatSession();
-      }, 3000);
+      // 채팅 완료 후 자동 재시작 방지
       
       return;
     }
@@ -204,10 +201,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
       
       setMessages(prev => [...prev, completionMessage]);
       
-      // 채팅 완료 후 3초 뒤에 새로운 세션 시작
-      setTimeout(() => {
-        startNewChatSession();
-      }, 3000);
+      // 채팅 완료 후 자동 재시작 방지
       
       return;
     }
