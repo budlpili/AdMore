@@ -121,7 +121,14 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
   // 컴포넌트 마운트 시 저장된 파일 목록 자동 로드
   useEffect(() => {
     console.log('🔄 InquiryManagement 컴포넌트 마운트, 저장된 파일 목록 자동 로드 시작...');
-    loadExportedFiles();
+    console.log('📊 컴포넌트 마운트 시점 exportedFiles 상태:', exportedFiles);
+    console.log('📊 컴포넌트 마운트 시점 showFileList 상태:', showFileList);
+    
+    // 약간의 지연 후 로드 (컴포넌트 완전 마운트 후)
+    setTimeout(() => {
+      console.log('⏰ 지연된 저장된 파일 목록 로드 시작...');
+      loadExportedFiles();
+    }, 1000);
   }, []);
 
   // 저장된 파일 목록 가져오기
@@ -129,25 +136,43 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
     try {
       console.log('🔄 저장된 파일 목록 로드 시작...');
       console.log('📡 API 호출: chatAPI.getExports()');
+      console.log('📡 chatAPI 객체 확인:', chatAPI);
+      console.log('📡 chatAPI.getExports 함수 확인:', typeof chatAPI.getExports);
+      
+      // API 호출 전 상태 확인
+      console.log('📊 API 호출 전 exportedFiles 상태:', exportedFiles);
+      console.log('📊 API 호출 전 exportedFiles 길이:', exportedFiles.length);
       
       const result = await chatAPI.getExports();
       console.log('📁 API 응답 결과:', result);
       console.log('📁 API 응답 타입:', typeof result);
       console.log('📁 API 응답 키들:', result ? Object.keys(result) : 'null/undefined');
+      console.log('📁 API 응답 전체 구조:', JSON.stringify(result, null, 2));
       
       if (result && result.files) {
         console.log('✅ 파일 목록 로드 성공:', result.files.length, '개 파일');
         console.log('📁 파일 목록 상세:', result.files);
         setExportedFiles(result.files);
+        console.log('📊 setExportedFiles 호출 후 상태 업데이트 예정');
       } else if (result && Array.isArray(result)) {
         console.log('⚠️ API 응답이 배열 형태:', result);
         console.log('📁 배열 길이:', result.length);
         setExportedFiles(result);
+        console.log('📊 배열 형태로 setExportedFiles 호출 후 상태 업데이트 예정');
       } else {
         console.log('⚠️ 파일 목록이 비어있거나 잘못된 형식:', result);
         console.log('📁 result.files 존재 여부:', result && result.files ? '존재' : '존재하지 않음');
+        console.log('📁 result가 배열인지:', Array.isArray(result));
         setExportedFiles([]);
+        console.log('📊 빈 배열로 setExportedFiles 호출 후 상태 업데이트 예정');
       }
+      
+      // API 호출 후 상태 확인
+      setTimeout(() => {
+        console.log('📊 API 호출 후 exportedFiles 상태:', exportedFiles);
+        console.log('📊 API 호출 후 exportedFiles 길이:', exportedFiles.length);
+      }, 100);
+      
     } catch (error) {
       console.error('❌ 파일 목록 로드 오류:', error);
       console.error('오류 상세 정보:', {
