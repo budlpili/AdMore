@@ -13,6 +13,9 @@ require('dotenv').config();
 const connectMongoDB = require('./config/mongodb');
 const mongoose = require('mongoose');
 
+// 모델 로드
+const ExportedFile = require('./models/ExportedFile');
+
 const app = express();
 const server = http.createServer(app);
 
@@ -22,7 +25,6 @@ connectMongoDB().then(async () => {
   
   // ExportedFile 모델 테스트
   try {
-    const ExportedFile = require('./models/ExportedFile');
     const count = await ExportedFile.countDocuments();
     console.log('✅ ExportedFile 모델 로드 성공, 현재 저장된 파일 수:', count);
   } catch (error) {
@@ -149,7 +151,6 @@ const userSockets = new Map(); // userEmail -> socketId
 
 // MongoDB 모델 import
 const ChatMessage = require('./models/ChatMessage');
-const ExportedFile = require('./models/ExportedFile');
 
 // 중복 메시지 전송 방지를 위한 메모리 캐시
 const recentMessages = new Map();
