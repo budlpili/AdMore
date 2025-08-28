@@ -333,15 +333,33 @@ const Admin: React.FC = () => {
                    existingMsg.type === newMsg.type;
           };
           
-          const newMessages = wsMessages.filter(newMsg => 
-            !prev.some(existingMsg => isDuplicate(existingMsg, newMsg))
+          // 기존 메시지에서 중복 제거
+          const filteredPrev = prev.filter(existingMsg => 
+            !wsMessages.some(newMsg => isDuplicate(existingMsg, newMsg))
           );
           
-          if (newMessages.length > 0) {
-            console.log('관리자 페이지: 새로운 메시지 추가됨', newMessages.length);
-            const updatedMessages = [...prev, ...newMessages];
-            localStorage.setItem('chatMessages', JSON.stringify(updatedMessages));
-            return updatedMessages;
+          // 새로운 메시지 추가
+          const allMessages = [...filteredPrev, ...wsMessages];
+          
+          // 사용자별로 그룹화하여 중복 제거
+          const userMessageMap = new Map();
+          allMessages.forEach(msg => {
+            const key = `${msg.user}_${msg.message}_${msg.timestamp}_${msg.type}`;
+            if (!userMessageMap.has(key)) {
+              userMessageMap.set(key, msg);
+            }
+          });
+          
+          const uniqueMessages = Array.from(userMessageMap.values());
+          
+          if (uniqueMessages.length !== prev.length) {
+            console.log('관리자 페이지: 메시지 업데이트됨', {
+              이전: prev.length,
+              현재: uniqueMessages.length,
+              추가됨: uniqueMessages.length - prev.length
+            });
+            localStorage.setItem('chatMessages', JSON.stringify(uniqueMessages));
+            return uniqueMessages;
           }
           
           return prev;
