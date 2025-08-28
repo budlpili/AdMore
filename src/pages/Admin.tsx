@@ -295,28 +295,9 @@ const Admin: React.FC = () => {
     onUserConnected: (userEmail) => {
       console.log('관리자 페이지: 새로운 사용자 연결됨:', userEmail);
       
-      // 새로운 사용자가 연결되면 해당 사용자의 기존 메시지가 있는지 확인
-      // 만약 없다면 빈 채팅으로 시작할 수 있도록 처리
-      setChatMessages(prev => {
-        const existingUser = prev.some(msg => msg.user === userEmail);
-        if (!existingUser) {
-          console.log('관리자 페이지: 새로운 사용자 채팅 시작:', userEmail);
-          // 새로운 사용자의 첫 메시지로 시스템 메시지 추가
-          const systemMessage: ChatMessage = {
-            id: `system_${Date.now()}`,
-            user: userEmail,
-            message: '새로운 채팅이 시작되었습니다.',
-            timestamp: new Date().toISOString(),
-            type: 'user',
-            status: 'pending'
-          };
-          
-          const newMessages = [...prev, systemMessage];
-          localStorage.setItem('chatMessages', JSON.stringify(newMessages));
-          return newMessages;
-        }
-        return prev;
-      });
+      // 사용자가 연결되기만 했을 때는 시스템 메시지를 생성하지 않음
+      // 실제로 첫 메시지를 보낼 때만 채팅이 시작되도록 함
+      console.log('관리자 페이지: 사용자 연결됨, 첫 메시지 대기 중:', userEmail);
     },
     onUserDisconnected: (userEmail) => {
       console.log('관리자 페이지: 사용자 연결 해제됨:', userEmail);
