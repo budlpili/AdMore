@@ -1,0 +1,15 @@
+name: admore-backend-mongodb
+app: dockerfile
+dockerfile: Dockerfile.backend
+ports: "5001"
+healthz: /
+memory: "0.5GB"
+cpu: "0.25"
+branch: main
+env:
+  - NODE_ENV=production
+  - PORT=5001
+  - MONGODB_URI=mongodb://admin:password123@admore-mongodb.budlpili.cloudtype.app:27017/admore
+  - JWT_SECRET=your_jwt_secret_key_here
+  - FRONTEND_URL=https://web-admore-react-frontend-me83wyv0a5a64d5a.sel5.cloudtype.app
+  - ALLOWED_ORIGINS=https://web-admore-react-frontend-me83wyv0a5a64d5a.sel5.cloudtype.app,https://admore-frontend.cloudtype.app
