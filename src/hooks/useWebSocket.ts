@@ -57,8 +57,8 @@ export const useWebSocket = ({
       socketRef.current = null;
     }
 
-    // WebSocket URL 설정 (CloudType 백엔드 사용)
-    const wsUrl = 'https://port-0-admore-me83wyv0a5a64d5a.sel5.cloudtype.app';
+    // WebSocket URL 설정 (로컬 백엔드 서버 사용)
+    const wsUrl = 'http://localhost:5001';
     
     console.log('🚀 WebSocket 연결 시도:', wsUrl);
     connectionAttemptedRef.current = true;
