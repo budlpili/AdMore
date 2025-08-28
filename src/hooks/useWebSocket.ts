@@ -101,8 +101,8 @@ export const useWebSocket = ({
     socket.on('new_message', (message) => {
       console.log('📨 새 메시지 수신:', message);
       
-      // 새로운 세션인 경우 이전 메시지를 처리하지 않음
-      if (userEmail && userEmail.includes('_session_')) {
+      // 관리자가 아닌 경우에만 세션 체크 (관리자는 모든 메시지를 볼 수 있어야 함)
+      if (!effectiveIsAdmin && userEmail && userEmail.includes('_session_')) {
         console.log('새로운 세션 감지, 새 메시지 처리 건너뜀:', message.message);
         return;
       }

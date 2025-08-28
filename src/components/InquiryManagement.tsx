@@ -998,7 +998,12 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                         selectedMessage?.user === user ? 'bg-orange-50 border-r-2 border-orange-500' : ''
                       } ${isCompleted ? 'opacity-60 bg-gray-100' : ''}`}
                       onClick={() => {
-                        console.log('사용자 클릭으로 채팅창 열기:', user);
+                        console.log('사용자 클릭으로 채팅창 열기:', {
+                          user,
+                          latestMessage,
+                          latestMessageUser: latestMessage?.user,
+                          latestMessageMessage: latestMessage?.message
+                        });
                         setSelectedMessage(latestMessage);
                       }}
                     >
@@ -1472,13 +1477,23 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                   .filter(msg => {
                     // selectedMessage.user가 유효한 경우에만 필터링
                     if (!selectedMessage || !selectedMessage.user) {
+                      console.log('메시지 필터링: selectedMessage가 없음', {
+                        selectedMessage,
+                        msgUser: msg.user,
+                        msgMessage: msg.message
+                      });
                       return false; // 선택된 사용자가 없으면 메시지 표시 안함
                     }
                     
                     // 선택된 사용자의 메시지이거나, 관리자 메시지
                     const isRelevantMessage = msg.user === selectedMessage.user || 
                                             msg.user === '관리자';
-                    console.log('메시지 필터링:', msg.id, msg.user, msg.message, isRelevantMessage);
+                    console.log('메시지 필터링:', {
+                      selectedUser: selectedMessage.user,
+                      msgUser: msg.user,
+                      msgMessage: msg.message,
+                      isRelevant: isRelevantMessage
+                    });
                     return isRelevantMessage;
                   })
                   .sort((a, b) => {

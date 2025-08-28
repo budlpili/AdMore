@@ -220,6 +220,8 @@ const Admin: React.FC = () => {
       
       // 새로운 메시지가 도착하면 chatMessages에 추가
       setChatMessages(prev => {
+        console.log('관리자 페이지: 이전 chatMessages 상태', prev.length);
+        
         const isDuplicate = prev.some(msg => msg.id === message.id);
         if (isDuplicate) {
           console.log('관리자 페이지: 중복 메시지 무시');
@@ -246,6 +248,10 @@ const Admin: React.FC = () => {
         console.log('관리자 페이지: 새 메시지 추가됨 - 사용자:', message.user, '메시지:', message.message);
         const newMessages = [...prev, message];
         console.log('관리자 페이지: 업데이트된 메시지 수:', newMessages.length);
+        
+        // 로컬 스토리지에도 저장
+        localStorage.setItem('chatMessages', JSON.stringify(newMessages));
+        
         return newMessages;
       });
     },
@@ -269,8 +275,21 @@ const Admin: React.FC = () => {
       if (wsMessages.length > 0) {
         // 모든 메시지 표시 (완료된 채팅은 InquiryManagement에서 상태로 표시)
         console.log('관리자 페이지: 모든 메시지 표시', wsMessages.length);
-        setChatMessages(wsMessages);
-        localStorage.setItem('chatMessages', JSON.stringify(wsMessages));
+        
+        // 현재 chatMessages와 비교하여 중복 제거
+        setChatMessages(prev => {
+          const existingIds = new Set(prev.map(msg => msg.id));
+          const newMessages = wsMessages.filter(msg => !existingIds.has(msg.id));
+          
+          if (newMessages.length > 0) {
+            console.log('관리자 페이지: 새로운 메시지 추가됨', newMessages.length);
+            const updatedMessages = [...prev, ...newMessages];
+            localStorage.setItem('chatMessages', JSON.stringify(updatedMessages));
+            return updatedMessages;
+          }
+          
+          return prev;
+        });
       } else {
         // wsMessages가 비어있으면 빈 배열로 설정
         console.log('관리자 페이지: wsMessages가 비어있음');
