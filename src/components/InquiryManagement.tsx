@@ -775,6 +775,32 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
     setSelectedUsersForExport(newSelected);
   };
 
+  // 전체선택 함수 (삭제 모드)
+  const selectAllForDelete = () => {
+    const allUsers = chatMessages
+      .map(msg => msg.user)
+      .filter((user, index, arr) => arr.indexOf(user) === index); // 중복 제거
+    setSelectedUsersForDelete(new Set(allUsers));
+  };
+
+  // 전체선택 함수 (저장 모드)
+  const selectAllForExport = () => {
+    const allUsers = chatMessages
+      .map(msg => msg.user)
+      .filter((user, index, arr) => arr.indexOf(user) === index); // 중복 제거
+    setSelectedUsersForExport(new Set(allUsers));
+  };
+
+  // 전체선택 해제 함수 (삭제 모드)
+  const deselectAllForDelete = () => {
+    setSelectedUsersForDelete(new Set());
+  };
+
+  // 전체선택 해제 함수 (저장 모드)
+  const deselectAllForExport = () => {
+    setSelectedUsersForExport(new Set());
+  };
+
   // 선택된 유저들 삭제 함수
   const handleDeleteSelectedUsers = async () => {
     if (selectedUsersForDelete.size === 0) {
@@ -1206,6 +1232,12 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
           ) : isDeleteMode ? (
             <>
               <button
+                onClick={selectedUsersForDelete.size === 0 ? selectAllForDelete : deselectAllForDelete}
+                className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+              >
+                {selectedUsersForDelete.size === 0 ? '전체선택' : '전체해제'}
+              </button>
+              <button
                 onClick={handleDeleteSelectedUsers}
                 disabled={selectedUsersForDelete.size === 0}
                 className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
@@ -1228,6 +1260,12 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
             </>
           ) : isExportMode ? (
             <>
+              <button
+                onClick={selectedUsersForExport.size === 0 ? selectAllForExport : deselectAllForExport}
+                className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+              >
+                {selectedUsersForExport.size === 0 ? '전체선택' : '전체해제'}
+              </button>
               <button
                 onClick={handleExportSelectedUsers}
                 disabled={selectedUsersForExport.size === 0}
