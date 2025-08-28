@@ -69,7 +69,6 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
   const [isExporting, setIsExporting] = useState(false);
   const [exportedFiles, setExportedFiles] = useState<Array<{name: string; size: number; created: string; type: string}>>([]);
   const [showFileList, setShowFileList] = useState(false);
-  const [deletedUsers, setDeletedUsers] = useState<Set<string>>(new Set());
   const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(true);
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
   const [activeUsers, setActiveUsers] = useState<Array<{email: string; lastMessageTime: string; isOnline: boolean}>>([]);
@@ -754,13 +753,10 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
       const updatedMessages = chatMessages.filter(msg => !selectedUsersForDelete.has(msg.user));
       onChatMessagesChange(updatedMessages);
 
-      // 만약 삭제된 유저 중에 현재 선택된 유저가 있다면 선택 해제
+      // 선택된 유저가 삭제된 경우 선택 해제
       if (selectedMessage && selectedUsersForDelete.has(selectedMessage.user)) {
         setSelectedMessage(null);
       }
-
-      // 삭제된 유저들을 추적 목록에 추가
-      setDeletedUsers(prev => new Set([...Array.from(prev), ...Array.from(selectedUsersForDelete)]));
 
       // 삭제 모드 종료 및 선택 초기화
       setIsDeleteMode(false);
@@ -952,29 +948,6 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
 
         {/* 유저 목록 - 채팅 대상 유저 목록 */}
         <div className="flex-1 overflow-y-auto">
-          {isDeleteMode && deletedUsers.size > 0 && (
-            <div className="p-4 border-b border-gray-200 bg-red-50">
-              <div className="text-sm font-medium text-red-700 mb-2">삭제된 유저 ({deletedUsers.size}명)</div>
-              <div className="space-y-1">
-                {Array.from(deletedUsers).map(user => (
-                  <div key={`delete-${user}`} className="flex items-center justify-between text-xs text-red-600">
-                    <span>{getUserName(user)}</span>
-                    <button
-                      onClick={() => setDeletedUsers(prev => {
-                        const newSet = new Set(Array.from(prev));
-                        newSet.delete(user);
-                        return newSet;
-                      })}
-                      className="px-2 py-1 text-xs bg-red-100 hover:bg-red-200 rounded"
-                    >
-                      복원
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          
           {filteredMessages.length === 0 ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
