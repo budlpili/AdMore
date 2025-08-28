@@ -58,7 +58,7 @@ export const useWebSocket = ({
     }
 
     // WebSocket URL 설정 (CloudType MongoDB 백엔드 사용)
-    const wsUrl = 'https://admore-backend-mongodb.budlpili.cloudtype.app';
+    const wsUrl = 'https://admore-backend.budlpili.cloudtype.app';
     
     console.log('🚀 WebSocket 연결 시도:', wsUrl);
     connectionAttemptedRef.current = true;
