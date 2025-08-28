@@ -110,9 +110,18 @@ export const useWebSocket = ({
         return;
       }
       
-      // 사용자 메시지의 경우에만 세션 체크
+      // 관리자인 경우 모든 메시지 표시 (세션 체크 무시)
+      if (effectiveIsAdmin) {
+        console.log('관리자 권한으로 모든 메시지 표시:', message.message);
+        if (onNewMessage) {
+          onNewMessage(message);
+        }
+        return;
+      }
+      
+      // 일반 사용자인 경우에만 세션 체크
       // userEmail이 _session_을 포함하는 경우에만 세션 체크
-      if (!effectiveIsAdmin && userEmail && userEmail.includes('_session_') && message.user && message.user.includes('_session_')) {
+      if (userEmail && userEmail.includes('_session_') && message.user && message.user.includes('_session_')) {
         console.log('새로운 세션 감지, 사용자 메시지 처리 건너뜀:', message.message);
         return;
       }
