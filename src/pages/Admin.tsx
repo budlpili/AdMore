@@ -222,7 +222,14 @@ const Admin: React.FC = () => {
       setChatMessages(prev => {
         console.log('관리자 페이지: 이전 chatMessages 상태', prev.length);
         
-        const isDuplicate = prev.some(msg => msg.id === message.id);
+        // 더 정확한 중복 체크: 사용자, 메시지 내용, 타임스탬프를 모두 확인
+        const isDuplicate = prev.some(msg => 
+          msg.user === message.user && 
+          msg.message === message.message && 
+          msg.timestamp === message.timestamp &&
+          msg.type === message.type
+        );
+        
         if (isDuplicate) {
           console.log('관리자 페이지: 중복 메시지 무시');
           return prev;
@@ -254,7 +261,16 @@ const Admin: React.FC = () => {
           console.log('관리자 페이지: 채팅 완료 메시지 감지, 채팅 완료 상태로 표시');
           // 해당 사용자의 채팅을 완료 상태로 표시
           setCompletedChats(prev => [...prev, message.user]);
-          return prev; // 기존 메시지는 유지
+          
+          // 채팅완료 메시지도 chatMessages에 추가 (return prev 제거)
+          console.log('관리자 페이지: 채팅완료 메시지 추가됨 - 사용자:', message.user, '메시지:', message.message);
+          const newMessages = [...prev, message];
+          console.log('관리자 페이지: 업데이트된 메시지 수:', newMessages.length);
+          
+          // 로컬 스토리지에도 저장
+          localStorage.setItem('chatMessages', JSON.stringify(newMessages));
+          
+          return newMessages;
         }
         
         // 완료된 사용자의 새로운 메시지는 무시 (최신 상태 참조)
