@@ -1474,6 +1474,19 @@ const Admin: React.FC = () => {
     );
   };
 
+  // 전역에서 테스트할 수 있도록 window 객체에 함수 추가
+  useEffect(() => {
+    (window as any).testNewUserNotification = testNewUserNotification;
+    (window as any).addTestNotification = addTestNotification;
+    (window as any).createNotification = createNotification;
+    
+    console.log('테스트 함수들이 전역에 추가되었습니다:', {
+      testNewUserNotification,
+      addTestNotification,
+      createNotification
+    });
+  }, []);
+
   const handleLogout = async () => {
     if (window.confirm('정말 로그아웃 하시겠습니까?')) {
       try {
@@ -2324,19 +2337,19 @@ const Admin: React.FC = () => {
                   <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50 notification-dropdown">
                     <div className="p-4 border-b border-gray-200">
                       <div className="flex justify-between items-center">
-                        <h3 className="text-lg font-semibold text-gray-900">알림</h3>
+                        <h3 className="text-sm font-semibold text-gray-900">알림</h3>
                         <button
                           onClick={markAllNotificationsAsRead}
-                          className="text-sm text-orange-600 hover:text-orange-700"
+                          className="text-xs text-orange-600 hover:text-orange-700"
                         >
                           모두 읽음
                         </button>
                       </div>
                     </div>
                     
-                    <div className="max-h-96 overflow-y-auto">
+                    <div className="max-h-96 min-h-[100px] overflow-y-auto">
                       {notifications.length === 0 ? (
-                        <div className="p-4 text-center text-gray-500">
+                        <div className="text-xs p-4 text-center text-gray-500">
                           알림이 없습니다
                         </div>
                       ) : (
