@@ -220,7 +220,8 @@ const CouponManagement: React.FC = () => {
       } else if (response.success && response.sends) {
         // API 응답 구조가 다른 경우 (sends 필드 사용)
         console.log('API 응답의 sends 필드 상세:', response.sends);
-        const userIds = response.sends.map((send: any) => {
+        const userIds: string[] = [];
+        response.sends.forEach((send: any) => {
           console.log('개별 send 객체 전체:', JSON.stringify(send, null, 2));
           
           // 다양한 ID 필드 시도
@@ -229,10 +230,15 @@ const CouponManagement: React.FC = () => {
           else if (send._id) userId = send._id;
           else if (send.user && send.user.id) userId = send.user.id;
           else if (send.user && send.user._id) userId = send.user._id;
-          else if (send.userId) userId = send.userId;
           
           console.log('추출된 userId:', userId);
-          return userId.toString();
+          
+          // userId가 비어있지 않으면 배열에 추가
+          if (userId) {
+            userIds.push(userId.toString());
+          } else {
+            console.log('userId가 비어있음, 이 항목은 제외');
+          }
         });
         console.log('쿠폰을 받은 유저 ID 목록 (sends 필드):', userIds);
         setUsersWithCoupon(new Set(userIds));
