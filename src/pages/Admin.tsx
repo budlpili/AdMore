@@ -1018,25 +1018,24 @@ const Admin: React.FC = () => {
         const newUsers = response.users;
         
         // 새로운 회원 감지 및 알림 생성
-        if (users.length > 0) {
-          const newMembers = newUsers.filter((newUser: any) => 
-            !users.some((existingUser: any) => existingUser._id === newUser._id || existingUser.id === newUser.id)
+        // 첫 번째 로드가 아닌 경우에만 새 회원 감지 (users.length > 0 조건 제거)
+        const newMembers = newUsers.filter((newUser: any) => 
+          !users.some((existingUser: any) => existingUser._id === newUser._id || existingUser.id === newUser.id)
+        );
+        
+        console.log('새로운 회원 감지:', newMembers);
+        
+        newMembers.forEach((newUser: any) => {
+          console.log('새로운 회원 알림 생성:', newUser);
+          createNotification(
+            'user',
+            '새로운 회원 가입',
+            `${newUser.name || newUser.email}님이 새로 가입했습니다.`,
+            undefined,
+            undefined,
+            newUser._id || newUser.id?.toString()
           );
-          
-          console.log('새로운 회원 감지:', newMembers);
-          
-          newMembers.forEach((newUser: any) => {
-            console.log('새로운 회원 알림 생성:', newUser);
-            createNotification(
-              'user',
-              '새로운 회원 가입',
-              `${newUser.name || newUser.email}님이 새로 가입했습니다.`,
-              undefined,
-              undefined,
-              newUser._id || newUser.id?.toString()
-            );
-          });
-        }
+        });
         
         // 디버깅을 위한 로그 추가
         console.log('현재 users 상태:', users);

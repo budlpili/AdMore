@@ -63,9 +63,7 @@ const register = async (req, res) => {
     // 비밀번호 해시화
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 이메일 인증 토큰 생성 (30분 유효)
-    const verifyToken = crypto.randomBytes(32).toString('hex');
-    const verifyExpires = new Date(Date.now() + 30 * 60 * 1000);
+            // 이메일 인증 토큰 생성 제거 - 자동 인증 완료 상태로 설정
 
     // 사용자 생성 (emailVerified를 true로 설정)
     const user = new User({
@@ -80,24 +78,8 @@ const register = async (req, res) => {
 
     await user.save();
 
-    try {
-      const transporter = await getMailTransporter();
-      const baseUrl = process.env.APP_BASE_URL || 'http://localhost:3000';
-      const verifyUrl = `${baseUrl}/verify-email?token=${verifyToken}`;
-
-      const info = await transporter.sendMail({
-        from: process.env.MAIL_FROM || process.env.SMTP_USER || 'ADMore <no-reply@admore.local>',
-        to: email,
-        subject: '애드모어 이메일 인증을 완료해주세요',
-        html: `
-          <div style="font-family:Arial,sans-serif;font-size:14px;color:#111">
-            <h2>안녕하세요, ${name}님!</h2>
-            <p>아래 버튼을 눌러 이메일 인증을 완료해주세요. 링크는 30분간 유효합니다.</p>
-            <p><a href="${verifyUrl}" style="display:inline-block;padding:10px 16px;background:#f97316;color:#fff;border-radius:6px;text-decoration:none">이메일 인증</a></p>
-            <p>버튼이 동작하지 않으면 링크를 복사하여 브라우저에 붙여넣기 해주세요:</p>
-            <p><a href="${verifyUrl}">${verifyUrl}</a></p>
-          </div>
-        `,
+    // 이메일 인증 메일 발송 제거 - 회원가입 완료 시 자동으로 인증 완료 상태
+    console.log(`[Register] 사용자 ${email} 회원가입 완료 - 이메일 인증 메일 발송하지 않음`);
       });
 
       console.log('이메일 발송 성공:', info.messageId);
