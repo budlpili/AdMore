@@ -1196,13 +1196,13 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
             <>
               <button
                 onClick={toggleDeleteMode}
-                className="px-3 py-1 text-sm font-medium text-gray-500 hover:text-gray-600 hover:underline transition-colors"
+                className="px-3 py-1 text-sm font-medium text-gray-500 hover:text-red-600 hover:underline transition-colors"
               >
                 삭제하기
               </button>
               <button
                 onClick={toggleExportMode}
-                className="px-3 py-1 text-sm font-medium text-blue-500 hover:text-blue-600 hover:underline transition-colors"
+                className="px-3 py-1 text-sm font-medium text-gray-500 hover:text-blue-600 hover:underline transition-colors"
               >
                 저장하기
               </button>
@@ -1224,7 +1224,7 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                   
                   console.log('✅ "저장된 파일" 버튼 클릭 처리 완료');
                 }}
-                className="px-3 py-1 text-sm font-medium text-purple-500 hover:text-purple-600 hover:underline transition-colors"
+                className="px-3 py-1 text-sm font-medium text-gray-500 hover:text-purple-600 hover:underline transition-colors"
               >
                 저장된 파일
               </button>
@@ -1292,26 +1292,8 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
 
          {/* 저장된 파일 목록 */}
         {showFileList && (
-          <div className="border-t border-gray-200 p-4 bg-gray-50">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <h4 className="text-sm font-medium text-gray-700">저장된 파일 목록</h4>
-                <button
-                  onClick={loadExportedFiles}
-                  disabled={isExporting}
-                  className="p-1 text-gray-400 hover:text-gray-600 disabled:text-gray-300 disabled:cursor-not-allowed"
-                  title="새로고침"
-                >
-                  <FontAwesomeIcon icon={faRefresh} className="text-sm" />
-                </button>
-              </div>
-              <button
-                onClick={() => setShowFileList(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <FontAwesomeIcon icon={faXmark} className="text-sm" />
-              </button>
-            </div>
+          <div className="border-t border-gray-200 py-4 px-1 bg-gray-50">
+            
             {exportedFiles.length === 0 ? (
               <div className="text-center py-4">
                 <FontAwesomeIcon icon={faFileInvoice} className="text-2xl text-gray-300 mb-2" />
@@ -1320,7 +1302,8 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
             ) : (
               <div className="space-y-2 max-h-40 overflow-y-auto">
                 {exportedFiles.map((file, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 hover:border-gray-300 transition-colors">
+                  <div key={index} className="flex items-center justify-between p-3 rounded-lg border border-gray-200 
+                      hover:border-gray-300 transition-colors">
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium text-gray-900 truncate" title={file.name}>
                         {file.name}
@@ -1342,7 +1325,7 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                       title="다운로드"
                     >
                       <FontAwesomeIcon icon={faDownload} className="text-xs mr-1" />
-                      다운로드
+                      
                     </button>
                   </div>
                 ))}
