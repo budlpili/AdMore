@@ -226,8 +226,13 @@ const CouponManagement: React.FC = () => {
           
           // 다양한 ID 필드 시도
           let userId = '';
-          if (send.userId) userId = send.userId;
-          else if (send._id) userId = send._id;
+          if (send.userId && typeof send.userId === 'object' && send.userId._id) {
+            // userId가 객체인 경우 (예: {_id: '...', name: '...', email: '...'})
+            userId = send.userId._id;
+          } else if (send.userId && typeof send.userId === 'string') {
+            // userId가 문자열인 경우
+            userId = send.userId;
+          } else if (send._id) userId = send._id;
           else if (send.user && send.user.id) userId = send.user.id;
           else if (send.user && send.user._id) userId = send.user._id;
           
