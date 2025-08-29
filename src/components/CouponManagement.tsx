@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faPlus, faEdit, faTrash, faCheck, faTimes, faSearch, faFilter,
-  faCalendarAlt, faPercentage, faTicketAlt, faCaretUp, faCaretDown,
+  faCalendarAlt, faPercentage, faTicketAlt, faTicket, faCaretUp, faCaretDown,
   faGift, faUser
 } from '@fortawesome/free-solid-svg-icons';
 import Pagination from './Pagination';
@@ -613,20 +613,16 @@ const CouponManagement: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* 헤더 */}
-      <div className="flex justify-between items-center">
-        {/* <h2 className="text-2xl font-bold text-gray-900">쿠폰 관리</h2> */}
+
+      {/* 검색 및 필터 */}
+      <div className="flex gap-4 bg-white rounded-lg shadow p-4 mb-6">
         <button
           onClick={handleAddCoupon}
-          className="bg-blue-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
+          className="bg-orange-100 text-orange-700 text-sm px-4 py-2 rounded-lg hover:bg-orange-200 flex items-center gap-2"
         >
           <FontAwesomeIcon icon={faPlus} />
           쿠폰 추가
         </button>
-      </div>
-
-      {/* 검색 및 필터 */}
-      <div className="flex gap-4 bg-white rounded-lg shadow p-4 mb-6">
         <div className="flex-1">
           <div className="relative">
             <FontAwesomeIcon icon={faSearch} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -843,13 +839,13 @@ const CouponManagement: React.FC = () => {
         <div className="mt-8 bg-white rounded-lg shadow border border-gray-200">
           <div className="px-6 py-4 border-b border-gray-200">
             <div className="flex justify-between items-center">
-              <div>
+              <div className="flex items-center gap-2">
                 {/* <h3 className="text-lg font-semibold text-gray-900">
                   쿠폰 발송 이력
                 </h3> */}
-                                 <FontAwesomeIcon icon={faTicketAlt} />
-                <h3 className="text-gray-600 font-medium text-sm">
-                  쿠폰명 : {selectedCouponForHistory.name} <span className="text-gray-400">({selectedCouponForHistory.code})</span>
+                <FontAwesomeIcon icon={faTicket} className="text-gray-400" />
+                <h3 className="text-gray-600 font-semibold text-base">
+                  쿠폰명 : {selectedCouponForHistory.name} <span className="text-gray-400 text-sm">({selectedCouponForHistory.code})</span>
                 </h3>
               </div>
               <button
@@ -859,7 +855,7 @@ const CouponManagement: React.FC = () => {
                 }}
                 className="text-gray-400 hover:text-gray-600"
               >
-                <FontAwesomeIcon icon={faTimes} className="text-xl" />
+                <FontAwesomeIcon icon={faTimes} className="text-base" />
               </button>
             </div>
           </div>
@@ -878,7 +874,7 @@ const CouponManagement: React.FC = () => {
                   </h4>
                 </div>
                 
-                <div className="overflow-x-auto">
+                <div className="max-h-[500px] overflow-x-auto border border-gray-200 rounded-lg">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
