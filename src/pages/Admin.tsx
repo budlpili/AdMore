@@ -1149,16 +1149,72 @@ const Admin: React.FC = () => {
 
   // 알림용 한국 시간 포맷팅 함수 (yyyy-mm-dd hh:mm)
   const formatKoreanTime = (timestamp: string) => {
-    const date = new Date(timestamp);
-    const koreanTime = new Date(date.getTime() + (9 * 60 * 60 * 1000)); // UTC+9
-    
-    const year = koreanTime.getFullYear();
-    const month = String(koreanTime.getMonth() + 1).padStart(2, '0');
-    const day = String(koreanTime.getDate()).padStart(2, '0');
-    const hours = String(koreanTime.getHours()).padStart(2, '0');
-    const minutes = String(koreanTime.getMinutes()).padStart(2, '0');
-    
-    return `${year}-${month}-${day} ${hours}:${minutes}`;
+    try {
+      // timestamp가 이미 한국 시간인지 확인
+      const date = new Date(timestamp);
+      
+      // 디버깅을 위한 로그
+      console.log('🔍 formatKoreanTime 디버깅:', {
+        originalTimestamp: timestamp,
+        parsedDate: date,
+        dateISO: date.toISOString(),
+        dateLocal: date.toString(),
+        dateTimezone: date.getTimezoneOffset()
+      });
+      
+      // 한국 시간대로 변환 (UTC+9)
+      const koreanTime = new Date(date.getTime() + (9 * 60 * 60 * 1000));
+      
+      const year = koreanTime.getFullYear();
+      const month = String(koreanTime.getMonth() + 1).padStart(2, '0');
+      const day = String(koreanTime.getDate()).padStart(2, '0');
+      const hours = String(koreanTime.getHours()).padStart(2, '0');
+      const minutes = String(koreanTime.getMinutes()).padStart(2, '0');
+      
+      const result = `${year}-${month}-${day} ${hours}:${minutes}`;
+      
+      console.log('✅ 한국 시간 변환 결과:', {
+        original: timestamp,
+        koreanTime: result,
+        koreanTimeObject: koreanTime
+      });
+      
+      return result;
+    } catch (error) {
+      console.error('❌ formatKoreanTime 오류:', error);
+      // 오류 발생 시 원본 timestamp 반환
+      return timestamp;
+    }
+  };
+
+  // 더 정확한 한국 시간 포맷팅 함수 (Intl.DateTimeFormat 사용)
+  const formatKoreanTimeAccurate = (timestamp: string) => {
+    try {
+      const date = new Date(timestamp);
+      
+      // 한국 시간대로 포맷팅
+      const koreanFormatter = new Intl.DateTimeFormat('ko-KR', {
+        timeZone: 'Asia/Seoul',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+      
+      const result = koreanFormatter.format(date);
+      
+      console.log('🌏 정확한 한국 시간 변환:', {
+        original: timestamp,
+        result: result
+      });
+      
+      return result;
+    } catch (error) {
+      console.error('❌ formatKoreanTimeAccurate 오류:', error);
+      return formatKoreanTime(timestamp); // 기존 함수로 fallback
+    }
   };
 
   // 입금 확인 함수
@@ -2439,7 +2495,7 @@ const Admin: React.FC = () => {
                                 </h4> */}
                                 <p className="text-xs text-gray-700 mt-1">{notification.message}</p>
                                 <p className="text-xs text-gray-400 mt-1 text-end ">
-                                   {formatKoreanTime(notification.timestamp)}
+                                   {formatKoreanTimeAccurate(notification.timestamp)}
                                  </p>
                               </div>
                               {!notification.isRead && (
