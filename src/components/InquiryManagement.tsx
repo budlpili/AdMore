@@ -1209,22 +1209,17 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
               
               <button
                 onClick={async () => {
-                  console.log('🖱️ "저장된 파일" 버튼 클릭됨');
-                  console.log('📊 현재 showFileList 상태:', showFileList);
-                  console.log('📊 현재 exportedFiles 상태:', exportedFiles);
-                  console.log('📊 exportedFiles 길이:', exportedFiles.length);
-                  
-                  // 파일 목록 새로고침
                   await loadExportedFiles();
-                  
-                  // 토글 상태 변경
-                  const newShowFileList = !showFileList;
-                  console.log('🔄 showFileList 상태 변경:', showFileList, '→', newShowFileList);
-                  setShowFileList(newShowFileList);
-                  
-                  console.log('✅ "저장된 파일" 버튼 클릭 처리 완료');
+                  setShowFileList(v => !v);
                 }}
-                className="px-3 py-1 text-sm font-medium text-gray-500 hover:text-purple-600 hover:underline transition-colors"
+                aria-pressed={showFileList}
+                className={[
+                  "px-3 py-1 text-sm font-medium transition-colors rounded-md",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500",
+                  showFileList
+                    ? "bg-purple-600 text-white shadow hover:bg-purple-700"
+                    : "text-gray-500 hover:text-purple-600 hover:bg-purple-50"
+                ].join(" ")}
               >
                 저장된 파일
               </button>
