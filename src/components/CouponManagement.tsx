@@ -587,14 +587,12 @@ const CouponManagement: React.FC = () => {
                     </div>
                     <div className="text-xs text-gray-500 mt-1 flex items-center gap-2">
                       <span>발송: {coupon.usedCount || 0}개</span>
-                      {(coupon.usedCount || 0) > 0 && (
-                        <button
-                          onClick={() => handleShowHistory(coupon)}
-                          className="text-xs text-blue-600 hover:text-blue-800 underline hover:no-underline"
-                        >
-                          내역보기
-                        </button>
-                      )}
+                      <button
+                        onClick={() => handleShowHistory(coupon)}
+                        className="text-xs text-blue-600 hover:text-blue-800 underline hover:no-underline"
+                      >
+                        내역보기
+                      </button>
                     </div>
                   </td>
                   <td className="px-6 py-4">
