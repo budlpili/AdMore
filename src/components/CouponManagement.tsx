@@ -397,6 +397,9 @@ const CouponManagement: React.FC = () => {
 
         alert(`"${selectedCoupon.name}" 쿠폰을 ${selectedUsers.length}명의 사용자에게 발송했습니다.\n\n선택된 사용자: ${selectedUserNames}`);
         
+        // 쿠폰 목록 새로고침하여 발송 현황 업데이트
+        await loadCoupons();
+        
         setIsSendModalOpen(false);
         setSelectedCoupon(null);
         setSelectedUsers([]);

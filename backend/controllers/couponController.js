@@ -268,12 +268,17 @@ const sendCoupon = async (req, res) => {
 
     const savedSends = await CouponSend.insertMany(couponSends);
 
-    console.log(`쿠폰 "${coupon.name}" 발송 완료: ${savedSends.length}명`);
+    // 쿠폰의 usedCount 업데이트
+    const totalSentCount = await CouponSend.countDocuments({ couponId });
+    await Coupon.findByIdAndUpdate(couponId, { usedCount: totalSentCount });
+
+    console.log(`쿠폰 "${coupon.name}" 발송 완료: ${savedSends.length}명, 총 발송 수: ${totalSentCount}`);
 
     res.json({ 
       success: true, 
       message: `${savedSends.length}명의 사용자에게 쿠폰이 발송되었습니다.`,
-      sentCount: savedSends.length
+      sentCount: savedSends.length,
+      totalSentCount: totalSentCount
     });
 
   } catch (error) {
