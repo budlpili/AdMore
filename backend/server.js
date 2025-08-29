@@ -91,6 +91,7 @@ const io = socketIo(server, {
 // CORS 설정
 const allowedOrigins = [
   'http://localhost:3000',
+  'http://localhost:3001', // 로컬 프론트엔드 포트 3001 추가
   'https://admore-frontend.cloudtype.app', // CloudType 프론트엔드 도메인
   'https://web-admore-react-frontend-me83wyv0a5a64d5a.sel5.cloudtype.app', // CloudType 프론트엔드 도메인
   process.env.FRONTEND_URL, // 환경변수로 프론트엔드 URL 설정
