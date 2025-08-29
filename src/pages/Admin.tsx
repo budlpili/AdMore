@@ -631,7 +631,7 @@ const Admin: React.FC = () => {
         if (!notifications.some(n => n.orderId === order.orderId)) {
           createNotification(
             'order',
-            '새로운 주문 접수',
+            order.orderId,
             `${order.userName || '고객'}님이 ${order.product}을(를) 주문했습니다.`,
             undefined,
             order.orderId
@@ -1027,14 +1027,14 @@ const Admin: React.FC = () => {
         
         newMembers.forEach((newUser: any) => {
           console.log('새로운 회원 알림 생성:', newUser);
-          createNotification(
-            'user',
-            '새로운 회원 가입',
-            `${newUser.name || newUser.email}님이 새로 가입했습니다.`,
-            undefined,
-            undefined,
-            newUser._id || newUser.id?.toString()
-          );
+                      createNotification(
+              'user',
+              newUser.name || newUser.email,
+              `${newUser.name || newUser.email}님이 새로 가입했습니다.`,
+              undefined,
+              undefined,
+              newUser._id || newUser.id?.toString()
+            );
         });
         
         // 디버깅을 위한 로그 추가
@@ -1489,7 +1489,7 @@ const Admin: React.FC = () => {
     console.log('새로운 회원 알림 수동 테스트 시작');
     createNotification(
       'user',
-      '새로운 회원 가입',
+      '테스트 사용자',
       '테스트 사용자님이 새로 가입했습니다.',
       undefined,
       undefined,
