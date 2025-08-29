@@ -290,9 +290,18 @@ const Admin: React.FC = () => {
         localStorage.setItem('chatMessages', JSON.stringify(newMessages));
         
         // 새로운 문의 알림 생성 (사용자 메시지인 경우에만)
+        console.log('🔍 WebSocket 메시지 수신:', {
+          type: message.type,
+          user: message.user,
+          message: message.message,
+          timestamp: message.timestamp
+        });
+        
+        // 메시지 타입 체크 (사용자 메시지인 경우)
         if (message.type === 'user') {
           // 이메일에서 session 부분 제거
           const cleanEmail = message.user.split('_')[0];
+          console.log('📧 정리된 이메일:', cleanEmail);
           
           // 최근 24시간 내에 같은 사용자로부터 알림을 받았는지 확인
           const recentNotification = notifications.find(n => 
@@ -301,8 +310,15 @@ const Admin: React.FC = () => {
             new Date(n.timestamp).getTime() > Date.now() - 24 * 60 * 60 * 1000
           );
           
+          console.log('🔔 중복 알림 체크:', {
+            cleanEmail,
+            recentNotification: !!recentNotification,
+            notificationsCount: notifications.length
+          });
+          
           // 중복 알림이 없을 때만 생성
           if (!recentNotification) {
+            console.log('✅ 새로운 문의 알림 생성:', cleanEmail);
             createNotification(
               'chat',
               cleanEmail,
@@ -311,7 +327,11 @@ const Admin: React.FC = () => {
               undefined,
               cleanEmail
             );
+          } else {
+            console.log('⏭️ 중복 알림으로 인해 알림 생성 건너뜀:', cleanEmail);
           }
+        } else {
+          console.log('❌ 사용자 메시지가 아님:', message.type);
         }
         
         return newMessages;
