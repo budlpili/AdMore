@@ -31,6 +31,9 @@ const CouponManagement: React.FC = () => {
   const [userSearchTerm, setUserSearchTerm] = useState('');
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   
+  // 쿠폰을 받은 유저 목록 상태
+  const [usersWithCoupon, setUsersWithCoupon] = useState<Set<string>>(new Set());
+  
   // 쿠폰 발송 이력 관련 상태
   const [couponSends, setCouponSends] = useState<CouponSend[]>([]);
   const [selectedCouponForHistory, setSelectedCouponForHistory] = useState<Coupon | null>(null);
@@ -154,6 +157,24 @@ const CouponManagement: React.FC = () => {
       setCouponSends([]);
     } finally {
       setHistoryLoading(false);
+    }
+  };
+
+  // 쿠폰을 받은 유저 목록 로드
+  const loadUsersWithCoupon = async (couponId: string | number) => {
+    try {
+      const response = await couponsAPI.getCouponSends(couponId.toString());
+      if (response.success && response.couponSends) {
+        const userIds = response.couponSends.map((send: any) => 
+          (send.userId || send._id || '').toString()
+        );
+        setUsersWithCoupon(new Set(userIds));
+      } else {
+        setUsersWithCoupon(new Set());
+      }
+    } catch (error) {
+      console.error('쿠폰을 받은 유저 목록 로드 에러:', error);
+      setUsersWithCoupon(new Set());
     }
   };
 
@@ -340,6 +361,10 @@ const CouponManagement: React.FC = () => {
       console.log('유저 목록 다시 로드 시작...');
       await loadUsers();
       console.log('유저 목록 로드 완료');
+      
+      // 쿠폰을 받은 유저 목록 로드
+      await loadUsersWithCoupon(coupon._id || coupon.id || 0);
+      console.log('쿠폰을 받은 유저 목록 로드 완료');
     } catch (error) {
       console.error('유저 목록 로드 실패:', error);
     }
@@ -1129,29 +1154,44 @@ const CouponManagement: React.FC = () => {
               
               <div className="border border-gray-300 rounded-lg max-h-60 overflow-y-auto">
                 {filteredUsers.length > 0 ? (
-                  filteredUsers.map((user) => (
-                    <div
-                      key={user.id}
-                      className={`flex items-center p-3 border-b border-gray-200 last:border-b-0 hover:bg-gray-50 cursor-pointer ${
-                        selectedUsers.includes((user._id || user.id || '').toString()) ? 'bg-blue-50' : ''
-                      }`}
-                                              onClick={() => toggleUserSelection((user._id || user.id || '').toString())}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedUsers.includes((user._id || user.id || '').toString())}
-                        onChange={() => toggleUserSelection((user._id || user.id || '').toString())}
-                        className="mr-3"
-                      />
-                      <div className="flex-1">
-                        <div className="text-sm font-medium text-gray-900">{user.name}</div>
-                        <div className="text-xs text-gray-500">{user.email}</div>
+                  filteredUsers.map((user) => {
+                    const userId = (user._id || user.id || '').toString();
+                    const hasCoupon = usersWithCoupon.has(userId);
+                    const isSelected = selectedUsers.includes(userId);
+                    
+                    return (
+                      <div
+                        key={user.id}
+                        className={`flex items-center p-3 border-b border-gray-200 last:border-b-0 ${
+                          hasCoupon ? 'bg-gray-100 cursor-not-allowed opacity-60' : 
+                          isSelected ? 'bg-blue-50 hover:bg-gray-50 cursor-pointer' : 'hover:bg-gray-50 cursor-pointer'
+                        }`}
+                        onClick={() => !hasCoupon && toggleUserSelection(userId)}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => !hasCoupon && toggleUserSelection(userId)}
+                          disabled={hasCoupon}
+                          className={`mr-3 ${hasCoupon ? 'opacity-50' : ''}`}
+                        />
+                        <div className="flex-1">
+                          <div className="text-sm font-medium text-gray-900">{user.name}</div>
+                          <div className="text-xs text-gray-500">{user.email}</div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="text-xs text-gray-400">
+                            {user.status === 'active' ? '활성' : '비활성'}
+                          </div>
+                          {hasCoupon && (
+                            <span className="text-xs text-red-600 bg-red-100 px-2 py-1 rounded-full">
+                              이미 발송됨
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <div className="text-xs text-gray-400">
-                        {user.status === 'active' ? '활성' : '비활성'}
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                 ) : (
                   <div className="p-4 text-center text-gray-500">
                     {userSearchTerm ? '검색 결과가 없습니다.' : '등록된 사용자가 없습니다.'}
