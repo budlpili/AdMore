@@ -3689,93 +3689,14 @@ const Admin: React.FC = () => {
                     
                   </div>
                 </div>
-
-                {/* 일괄 관리 드롭다운 */}
-                {selectedUsers.length > 0 && (
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm text-blue-800">
-                        <span className="font-semibold">{selectedUsers.length}명</span>의 사용자가 선택되었습니다.
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        {/* 상태 변경 드롭다운 */}
-                        <div className="relative status-dropdown">
-                          <button
-                            onClick={() => setIsBatchStatusDropdownOpen(!isBatchStatusDropdownOpen)}
-                            className="text-xs px-3 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors flex items-center space-x-1"
-                          >
-                            <span>상태 변경</span>
-                            <FontAwesomeIcon icon={faCaretDown} className="text-xs" />
-                          </button>
-                          {isBatchStatusDropdownOpen && (
-                            <div className="absolute right-0 mt-1 w-20 bg-white border border-gray-200 rounded-md shadow-lg z-10">
-                              <button
-                                onClick={() => { updateSelectedUsersStatus('active'); setIsBatchStatusDropdownOpen(false); }}
-                                className="block w-full text-left px-3 py-2 text-xs text-green-600 hover:bg-green-50"
-                              >
-                                활성화
-                              </button>
-                              <button
-                                onClick={() => { updateSelectedUsersStatus('inactive'); setIsBatchStatusDropdownOpen(false); }}
-                                className="block w-full text-left px-3 py-2 text-xs text-yellow-600 hover:bg-yellow-50"
-                              >
-                                비활성화
-                              </button>
-                              <button
-                                onClick={() => { updateSelectedUsersStatus('suspended'); setIsBatchStatusDropdownOpen(false); }}
-                                className="block w-full text-left px-3 py-2 text-xs text-red-600 hover:bg-red-50"
-                              >
-                                정지
-                              </button>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* 역할 변경 드롭다운 */}
-                        <div className="relative role-dropdown">
-                          <button
-                            onClick={() => setIsBatchRoleDropdownOpen(!isBatchRoleDropdownOpen)}
-                            className="text-xs px-3 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors flex items-center space-x-1"
-                          >
-                            <span>역할 변경</span>
-                            <FontAwesomeIcon icon={faCaretDown} className="text-xs" />
-                          </button>
-                          {isBatchRoleDropdownOpen && (
-                            <div className="absolute right-0 mt-1 w-20 bg-white border border-gray-200 rounded-md shadow-lg z-10">
-                              <button
-                                onClick={() => { updateSelectedUsersRole('admin'); setIsBatchRoleDropdownOpen(false); }}
-                                className="block w-full text-left px-3 py-2 text-xs text-purple-600 hover:bg-purple-50"
-                              >
-                                관리자로
-                              </button>
-                              <button
-                                onClick={() => { updateSelectedUsersRole('user'); setIsBatchRoleDropdownOpen(false); }}
-                                className="block w-full text-left px-3 py-2 text-xs text-blue-600 hover:bg-blue-50"
-                              >
-                                일반회원으로
-                              </button>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* 삭제 버튼 */}
-                        <button
-                          onClick={deleteSelectedUsers}
-                          className="text-xs px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
-                        >
-                          삭제
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
+                
                 {/* 회원 테이블 */}
                 <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
                   <div className="overflow-x-auto">
                     <table className="w-full">
                       <thead className="border-b border-gray-300">
                         <tr>
+                
                           <th className="min-w-[50px] max-w-[50px] px-6 py-4 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
                             <input
                               type="checkbox"
@@ -3897,18 +3818,98 @@ const Admin: React.FC = () => {
                   </div>
                   
                 </div>
-                  {/* 회원관리 페이지네이션 */}
-                  <div className="mt-6">
-                    <Pagination
-                      currentPage={currentUserPage}
-                      totalPages={totalUserPages}
-                      onPageChange={setCurrentUserPage}
-                      totalItems={filteredUsers.length}
-                      itemsPerPage={usersPerPage}
-                      className="justify-between"
-                      showInfo={true}
-                    />
+                {/* 회원관리 페이지네이션 */}
+                <div className="mt-4">
+                  <Pagination
+                    currentPage={currentUserPage}
+                    totalPages={totalUserPages}
+                    onPageChange={setCurrentUserPage}
+                    totalItems={filteredUsers.length}
+                    itemsPerPage={usersPerPage}
+                    className="justify-between"
+                    showInfo={true}
+                  />
+                </div>
+
+                {/* 일괄 관리 드롭다운 */}
+                {selectedUsers.length > 0 && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm text-blue-800">
+                        <span className="font-semibold">{selectedUsers.length}명</span>의 사용자가 선택되었습니다.
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        {/* 상태 변경 드롭다운 */}
+                        <div className="relative status-dropdown">
+                          <button
+                            onClick={() => setIsBatchStatusDropdownOpen(!isBatchStatusDropdownOpen)}
+                            className="text-xs px-3 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors flex items-center space-x-1"
+                          >
+                            <span>상태 변경</span>
+                            <FontAwesomeIcon icon={faCaretDown} className="text-xs" />
+                          </button>
+                          {isBatchStatusDropdownOpen && (
+                            <div className="absolute right-0 mt-1 w-20 bg-white border border-gray-200 rounded-md shadow-lg z-10">
+                              <button
+                                onClick={() => { updateSelectedUsersStatus('active'); setIsBatchStatusDropdownOpen(false); }}
+                                className="block w-full text-left px-3 py-2 text-xs text-green-600 hover:bg-green-50"
+                              >
+                                활성화
+                              </button>
+                              <button
+                                onClick={() => { updateSelectedUsersStatus('inactive'); setIsBatchStatusDropdownOpen(false); }}
+                                className="block w-full text-left px-3 py-2 text-xs text-yellow-600 hover:bg-yellow-50"
+                              >
+                                비활성화
+                              </button>
+                              <button
+                                onClick={() => { updateSelectedUsersStatus('suspended'); setIsBatchStatusDropdownOpen(false); }}
+                                className="block w-full text-left px-3 py-2 text-xs text-red-600 hover:bg-red-50"
+                              >
+                                정지
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* 역할 변경 드롭다운 */}
+                        <div className="relative role-dropdown">
+                          <button
+                            onClick={() => setIsBatchRoleDropdownOpen(!isBatchRoleDropdownOpen)}
+                            className="text-xs px-3 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors flex items-center space-x-1"
+                          >
+                            <span>역할 변경</span>
+                            <FontAwesomeIcon icon={faCaretDown} className="text-xs" />
+                          </button>
+                          {isBatchRoleDropdownOpen && (
+                            <div className="absolute right-0 mt-1 w-20 bg-white border border-gray-200 rounded-md shadow-lg z-10">
+                              <button
+                                onClick={() => { updateSelectedUsersRole('admin'); setIsBatchRoleDropdownOpen(false); }}
+                                className="block w-full text-left px-3 py-2 text-xs text-purple-600 hover:bg-purple-50"
+                              >
+                                관리자로
+                              </button>
+                              <button
+                                onClick={() => { updateSelectedUsersRole('user'); setIsBatchRoleDropdownOpen(false); }}
+                                className="block w-full text-left px-3 py-2 text-xs text-blue-600 hover:bg-blue-50"
+                              >
+                                일반회원으로
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* 삭제 버튼 */}
+                        <button
+                          onClick={deleteSelectedUsers}
+                          className="text-xs px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                        >
+                          삭제
+                        </button>
+                      </div>
+                    </div>
                   </div>
+                )}
               </div>
             )}
           </div>

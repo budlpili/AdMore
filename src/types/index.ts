@@ -166,4 +166,19 @@ export interface SQLiteCoupon extends Omit<Coupon, '_id'> {
   id: number;
 }
 
+// 쿠폰 발송 이력 인터페이스
+export interface CouponSend {
+  id?: number;
+  _id?: string;
+  couponId: string | number;
+  userId: string | number;
+  userEmail: string;
+  userName: string;
+  sentAt: string;
+  usedAt?: string;
+  status: 'sent' | 'used' | 'expired';
+  couponCode: string;
+  couponName: string;
+}
+
  
