@@ -175,9 +175,12 @@ const CouponManagement: React.FC = () => {
         setUsersWithCoupon(new Set(userIds));
       } else if (response.success && response.sends) {
         // API 응답 구조가 다른 경우 (sends 필드 사용)
-        const userIds = response.sends.map((send: any) => 
-          (send.userId || send._id || '').toString()
-        );
+        console.log('API 응답의 sends 필드 상세:', response.sends);
+        const userIds = response.sends.map((send: any) => {
+          const userId = send.userId || send._id || send.user?.id || send.user?._id || '';
+          console.log('개별 send 객체:', send, '추출된 userId:', userId);
+          return userId.toString();
+        });
         console.log('쿠폰을 받은 유저 ID 목록 (sends 필드):', userIds);
         setUsersWithCoupon(new Set(userIds));
       } else {
@@ -624,13 +627,13 @@ const CouponManagement: React.FC = () => {
                   </td>
                   <td className="px-6 py-4">
                     <div className="text-sm text-gray-900">
-                      {coupon.usedCount || 0} / {coupon.usageLimit || '무제한'}
+                      {coupon.usedCount || 0} / {coupon.usageLimit > 0 ? coupon.usageLimit : users.length}
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
                       <div 
                         className="bg-blue-600 h-2 rounded-full" 
                         style={{ 
-                          width: `${coupon.usageLimit > 0 ? ((coupon.usedCount || 0) / coupon.usageLimit) * 100 : 0}%` 
+                          width: `${coupon.usageLimit > 0 ? ((coupon.usedCount || 0) / coupon.usageLimit) * 100 : ((coupon.usedCount || 0) / users.length) * 100}%` 
                         }}
                       ></div>
                     </div>
