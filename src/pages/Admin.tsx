@@ -293,14 +293,25 @@ const Admin: React.FC = () => {
         if (message.type === 'user') {
           // 이메일에서 session 부분 제거
           const cleanEmail = message.user.split('_')[0];
-          createNotification(
-            'chat',
-            cleanEmail,
-            `${cleanEmail}님이 새로운 문의를 보냈습니다.`,
-            undefined,
-            undefined,
-            cleanEmail
+          
+          // 최근 24시간 내에 같은 사용자로부터 알림을 받았는지 확인
+          const recentNotification = notifications.find(n => 
+            n.userId === cleanEmail && 
+            n.type === 'chat' &&
+            new Date(n.timestamp).getTime() > Date.now() - 24 * 60 * 60 * 1000
           );
+          
+          // 중복 알림이 없을 때만 생성
+          if (!recentNotification) {
+            createNotification(
+              'chat',
+              cleanEmail,
+              `${cleanEmail}님이 새로운 문의를 보냈습니다.`,
+              undefined,
+              undefined,
+              cleanEmail
+            );
+          }
         }
         
         return newMessages;
@@ -655,9 +666,18 @@ const Admin: React.FC = () => {
         new Date(message.timestamp).getTime() > Date.now() - (24 * 60 * 60 * 1000) // 24시간 이내
       );
       newMessages.forEach(message => {
-        if (!notifications.some(n => n.userId === message.user)) {
-          // 이메일에서 session 부분 제거
-          const cleanEmail = message.user.split('_')[0];
+        // 이메일에서 session 부분 제거
+        const cleanEmail = message.user.split('_')[0];
+        
+        // 최근 24시간 내에 같은 사용자로부터 알림을 받았는지 확인
+        const recentNotification = notifications.find(n => 
+          n.userId === cleanEmail && 
+          n.type === 'chat' &&
+          new Date(n.timestamp).getTime() > Date.now() - 24 * 60 * 60 * 1000
+        );
+        
+        // 중복 알림이 없을 때만 생성
+        if (!recentNotification) {
           createNotification(
             'chat',
             cleanEmail,
