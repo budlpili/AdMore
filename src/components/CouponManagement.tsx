@@ -134,25 +134,9 @@ const CouponManagement: React.FC = () => {
       if (response && response.users) {
         console.log('원본 유저 데이터:', response.users);
         
-        // 신규회원만 필터링 (가입일이 최근 30일 이내인 사용자)
-        const now = new Date();
-        const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
-        
-        const newUsers = response.users
-          .filter((user: any) => {
-            if (user.status !== 'active') return false;
-            
-            // createdAt 또는 가입일 필드 확인
-            const userCreatedAt = user.createdAt || user.registeredAt || user.joinDate;
-            if (!userCreatedAt) return false;
-            
-            const userDate = new Date(userCreatedAt);
-            const isNewUser = userDate > thirtyDaysAgo;
-            
-            console.log(`사용자 ${user.name}: 가입일 ${userDate.toISOString()}, 신규회원 여부: ${isNewUser}`);
-            
-            return isNewUser;
-          })
+        // 모든 활성 사용자 표시 (신규회원 필터링 제거)
+        const activeUsers = response.users
+          .filter((user: any) => user.status === 'active')
           .map((user: any) => ({
             id: (user._id || user.id || '').toString(),
             email: user.email,
@@ -161,10 +145,10 @@ const CouponManagement: React.FC = () => {
             createdAt: user.createdAt || user.registeredAt || user.joinDate
           }));
         
-        console.log('신규회원 목록:', newUsers);
-        console.log('신규회원 수:', newUsers.length);
-        setUsers(newUsers);
-        setFilteredUsers(newUsers);
+        console.log('활성 유저 목록:', activeUsers);
+        console.log('활성 유저 수:', activeUsers.length);
+        setUsers(activeUsers);
+        setFilteredUsers(activeUsers);
       } else {
         console.log('유저 데이터가 없습니다:', response);
         setUsers([]);
@@ -1290,7 +1274,7 @@ const CouponManagement: React.FC = () => {
             <div className="mb-4">
               <div className="flex justify-between items-center mb-2">
                 <h4 className="text-sm font-medium text-gray-700">
-                  신규회원 선택 ({selectedUsers.length}명 선택됨) - 총 {filteredUsers.length}명
+                  사용자 선택 ({selectedUsers.length}명 선택됨) - 총 {filteredUsers.length}명
                 </h4>
                 <button
                   onClick={toggleSelectAllUsers}
@@ -1328,6 +1312,11 @@ const CouponManagement: React.FC = () => {
                         <div className="flex-1">
                           <div className="text-sm font-medium text-gray-900">{user.name}</div>
                           <div className="text-xs text-gray-500">{user.email}</div>
+                          {user.createdAt && (
+                            <div className="text-xs text-gray-400">
+                              가입일: {new Date(user.createdAt).toLocaleDateString('ko-KR')}
+                            </div>
+                          )}
                         </div>
                         <div className="flex items-center gap-2">
                           <div className="text-xs text-gray-400">
