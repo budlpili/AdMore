@@ -1113,6 +1113,20 @@ const Admin: React.FC = () => {
     return koreanTime.toISOString();
   };
 
+  // 알림용 한국 시간 포맷팅 함수 (yyyy-mm-dd hh:mm)
+  const formatKoreanTime = (timestamp: string) => {
+    const date = new Date(timestamp);
+    const koreanTime = new Date(date.getTime() + (9 * 60 * 60 * 1000)); // UTC+9
+    
+    const year = koreanTime.getFullYear();
+    const month = String(koreanTime.getMonth() + 1).padStart(2, '0');
+    const day = String(koreanTime.getDate()).padStart(2, '0');
+    const hours = String(koreanTime.getHours()).padStart(2, '0');
+    const minutes = String(koreanTime.getMinutes()).padStart(2, '0');
+    
+    return `${year}-${month}-${day} ${hours}:${minutes}`;
+  };
+
   // 입금 확인 함수
   const confirmPayment = async (orderId: string) => {
     if (window.confirm('입금을 확인하시겠습니까?\n\n입금 확인 후에는 취소할 수 있습니다.')) {
@@ -2380,22 +2394,22 @@ const Admin: React.FC = () => {
                           <div
                             key={notification.id}
                             onClick={() => handleNotificationClick(notification)}
-                            className={`p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors duration-200 ${
-                              !notification.isRead ? 'bg-blue-50' : ''
+                            className={`px-4 py-2 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors duration-200 ${
+                              !notification.isRead ? '' : ''
                             }`}
                           >
-                            <div className="flex justify-between items-start">
+                            <div className="flex justify-between items-start relative">
                               <div className="flex-1">
-                                <h4 className={`text-sm font-medium ${!notification.isRead ? 'text-gray-900' : 'text-gray-600'}`}>
+                                {/* <h4 className={`text-sm font-medium ${!notification.isRead ? 'text-gray-900' : 'text-gray-600'}`}>
                                   {notification.title}
-                                </h4>
-                                <p className="text-xs text-gray-500 mt-1">{notification.message}</p>
-                                <p className="text-xs text-gray-400 mt-1">
-                                  {new Date(notification.timestamp).toLocaleString('ko-KR')}
-                                </p>
+                                </h4> */}
+                                <p className="text-xs text-gray-700 mt-1">{notification.message}</p>
+                                <p className="text-xs text-gray-400 mt-1 text-end ">
+                                   {formatKoreanTime(notification.timestamp)}
+                                 </p>
                               </div>
                               {!notification.isRead && (
-                                <div className="w-2 h-2 bg-blue-500 rounded-full ml-2"></div>
+                              <div className="w-1.5 h-1.5 bg-blue-500 rounded-full ml-2 absolute right-0 top-1"></div>
                               )}
                             </div>
                           </div>
