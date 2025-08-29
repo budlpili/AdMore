@@ -310,14 +310,22 @@ const Admin: React.FC = () => {
             new Date(n.timestamp).getTime() > Date.now() - 24 * 60 * 60 * 1000
           );
           
+          // 추가: localStorage에서도 중복 체크
+          const localStorageKey = `chat_notification_${cleanEmail}`;
+          const lastNotificationTime = localStorage.getItem(localStorageKey);
+          const hasRecentLocalNotification = lastNotificationTime && 
+            (Date.now() - new Date(lastNotificationTime).getTime()) < 24 * 60 * 60 * 1000;
+          
           console.log('🔔 중복 알림 체크:', {
             cleanEmail,
             recentNotification: !!recentNotification,
-            notificationsCount: notifications.length
+            notificationsCount: notifications.length,
+            hasRecentLocalNotification,
+            lastNotificationTime
           });
           
-          // 중복 알림이 없을 때만 생성
-          if (!recentNotification) {
+          // 중복 알림이 없을 때만 생성 (상태와 localStorage 모두 체크)
+          if (!recentNotification && !hasRecentLocalNotification) {
             console.log('✅ 새로운 문의 알림 생성:', cleanEmail);
             createNotification(
               'chat',
@@ -327,8 +335,14 @@ const Admin: React.FC = () => {
               undefined,
               cleanEmail
             );
+            
+            // localStorage에 알림 시간 저장
+            localStorage.setItem(localStorageKey, new Date().toISOString());
+            console.log('💾 localStorage에 알림 시간 저장:', cleanEmail);
           } else {
-            console.log('⏭️ 중복 알림으로 인해 알림 생성 건너뜀:', cleanEmail);
+            console.log('⏭️ 중복 알림으로 인해 알림 생성 건너뜀:', cleanEmail, {
+              reason: recentNotification ? '상태 기반 중복' : 'localStorage 기반 중복'
+            });
           }
         } else {
           console.log('❌ 사용자 메시지가 아님:', message.type);
