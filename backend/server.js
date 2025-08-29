@@ -344,6 +344,47 @@ app.get('/api/chat/messages', async (req, res) => {
   }
 });
 
+// 저장된 파일 목록 조회 API (MongoDB 기반) - 명시적 등록
+app.get('/api/chat/messages/exports', async (req, res) => {
+  try {
+    console.log('🔄 저장된 파일 목록 조회 시작...');
+    console.log('📍 라우트: /api/chat/messages/exports');
+    
+    // ExportedFile 모델 확인
+    console.log('📡 ExportedFile 모델 확인:', typeof ExportedFile);
+    console.log('📡 ExportedFile 모델 메서드:', Object.getOwnPropertyNames(ExportedFile));
+    
+    // MongoDB에서 저장된 파일 목록 조회
+    const files = await ExportedFile.find().sort({ createdAt: -1 });
+    console.log('📊 MongoDB에서 조회된 파일 수:', files.length);
+    console.log('📁 조회된 파일 상세:', files.map(f => ({ id: f._id, filename: f.filename, size: f.size })));
+    
+    // 프론트엔드에서 기대하는 형식으로 변환
+    const formattedFiles = files.map(file => ({
+      name: file.filename,
+      size: file.size,
+      created: file.createdAt,
+      path: file.filename, // MongoDB ID를 사용하여 다운로드
+      type: 'txt',
+      userEmail: file.userEmail,
+      messageCount: file.messageCount
+    }));
+    
+    console.log('✅ 저장된 파일 목록 조회 완료:', formattedFiles.length, '개 파일');
+    console.log('📋 변환된 파일 목록:', formattedFiles);
+    console.log('📤 응답 전송:', { files: formattedFiles });
+    res.json({ files: formattedFiles });
+  } catch (error) {
+    console.error('❌ 파일 목록 조회 오류:', error);
+    console.error('오류 상세 정보:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
+    res.status(500).json({ error: '파일 목록 조회에 실패했습니다.' });
+  }
+});
+
 // 사용자별 채팅 메시지 조회
 app.get('/api/chat/messages/:userEmail', async (req, res) => {
   try {
@@ -540,44 +581,7 @@ app.delete('/api/chat/messages/user/:userEmail', async (req, res) => {
   }
 });
 
-// 저장된 파일 목록 조회 API (MongoDB 기반)
-app.get('/api/chat/messages/exports', async (req, res) => {
-  try {
-    console.log('🔄 저장된 파일 목록 조회 시작...');
-    
-    // ExportedFile 모델 확인
-    console.log('📡 ExportedFile 모델 확인:', typeof ExportedFile);
-    console.log('📡 ExportedFile 모델 메서드:', Object.getOwnPropertyNames(ExportedFile));
-    
-    // MongoDB에서 저장된 파일 목록 조회
-    const files = await ExportedFile.find().sort({ createdAt: -1 });
-    console.log('📊 MongoDB에서 조회된 파일 수:', files.length);
-    console.log('📁 조회된 파일 상세:', files.map(f => ({ id: f._id, filename: f.filename, size: f.size })));
-    
-    // 프론트엔드에서 기대하는 형식으로 변환
-    const formattedFiles = files.map(file => ({
-      name: file.filename,
-      size: file.size,
-      created: file.createdAt,
-      path: file.filename, // MongoDB ID를 사용하여 다운로드
-      type: 'txt',
-      userEmail: file.userEmail,
-      messageCount: file.messageCount
-    }));
-    
-    console.log('✅ 저장된 파일 목록 조회 완료:', formattedFiles.length, '개 파일');
-    console.log('📋 변환된 파일 목록:', formattedFiles);
-    res.json({ files: formattedFiles });
-  } catch (error) {
-    console.error('❌ 파일 목록 조회 오류:', error);
-    console.error('오류 상세 정보:', {
-      message: error.message,
-      stack: error.stack,
-      name: error.name
-    });
-    res.status(500).json({ error: '파일 목록 조회에 실패했습니다.' });
-  }
-});
+// 중복된 라우트 제거됨 - 위쪽에 명시적으로 등록됨
 
 // 파일 다운로드 API (MongoDB 기반)
 app.get('/api/chat/messages/download/:filename', async (req, res) => {
@@ -600,6 +604,47 @@ app.get('/api/chat/messages/download/:filename', async (req, res) => {
   } catch (error) {
     console.error('❌ 파일 다운로드 오류:', error);
     res.status(500).json({ error: '파일 다운로드에 실패했습니다.' });
+  }
+});
+
+// 저장된 파일 목록 조회 API - 새로운 엔드포인트
+app.get('/api/files/exports', async (req, res) => {
+  try {
+    console.log('🔄 새로운 엔드포인트: /api/files/exports 실행됨');
+    console.log('📍 라우트: /api/files/exports');
+    
+    // ExportedFile 모델 확인
+    console.log('📡 ExportedFile 모델 확인:', typeof ExportedFile);
+    console.log('📡 ExportedFile 모델 메서드:', Object.getOwnPropertyNames(ExportedFile));
+    
+    // MongoDB에서 저장된 파일 목록 조회
+    const files = await ExportedFile.find().sort({ createdAt: -1 });
+    console.log('📊 MongoDB에서 조회된 파일 수:', files.length);
+    console.log('📁 조회된 파일 상세:', files.map(f => ({ id: f._id, filename: f.filename, size: f.size })));
+    
+    // 프론트엔드에서 기대하는 형식으로 변환
+    const formattedFiles = files.map(file => ({
+      name: file.filename,
+      size: file.size,
+      created: file.createdAt,
+      path: file.filename, // MongoDB ID를 사용하여 다운로드
+      type: 'txt',
+      userEmail: file.userEmail,
+      messageCount: file.messageCount
+    }));
+    
+    console.log('✅ 새로운 엔드포인트로 파일 목록 조회 완료:', formattedFiles.length, '개 파일');
+    console.log('📋 변환된 파일 목록:', formattedFiles);
+    console.log('📤 응답 전송:', { files: formattedFiles });
+    res.json({ files: formattedFiles });
+  } catch (error) {
+    console.error('❌ 새로운 엔드포인트 파일 목록 조회 오류:', error);
+    console.error('오류 상세 정보:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
+    res.status(500).json({ error: '파일 목록 조회에 실패했습니다.' });
   }
 });
 

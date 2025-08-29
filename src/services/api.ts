@@ -737,7 +737,7 @@ export const chatAPI = {
   exportUserMessages: (userEmail: string) => apiRequest(`/chat/messages/export/user/${encodeURIComponent(userEmail)}`, {
     method: 'POST',
   }),
-  getExports: () => apiRequest('/chat/messages/exports'),
+      getExports: () => apiRequest('/files/exports'),
   downloadFile: async (filename: string) => {
     try {
       const url = `${API_BASE_URL}/chat/messages/download/${encodeURIComponent(filename)}`;
