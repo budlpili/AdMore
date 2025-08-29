@@ -33,7 +33,6 @@ const CouponManagement: React.FC = () => {
   
   // 쿠폰 발송 이력 관련 상태
   const [couponSends, setCouponSends] = useState<CouponSend[]>([]);
-  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [selectedCouponForHistory, setSelectedCouponForHistory] = useState<Coupon | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
 
@@ -299,18 +298,17 @@ const CouponManagement: React.FC = () => {
     setFormData(prev => ({ ...prev, [field]: numericValue }));
   };
 
-  // 쿠폰 발송 이력 모달 열기
+  // 쿠폰 발송 이력 표시/숨기기
   const handleShowHistory = async (coupon: Coupon) => {
-    setSelectedCouponForHistory(coupon);
-    setIsHistoryModalOpen(true);
-    await loadCouponSends(coupon._id || coupon.id || 0);
-  };
-
-  // 쿠폰 발송 이력 모달 닫기
-  const handleCloseHistory = () => {
-    setIsHistoryModalOpen(false);
-    setSelectedCouponForHistory(null);
-    setCouponSends([]);
+    if (selectedCouponForHistory && (selectedCouponForHistory._id || selectedCouponForHistory.id) === (coupon._id || coupon.id)) {
+      // 같은 쿠폰이면 숨기기
+      setSelectedCouponForHistory(null);
+      setCouponSends([]);
+    } else {
+      // 다른 쿠폰이면 표시
+      setSelectedCouponForHistory(coupon);
+      await loadCouponSends(coupon._id || coupon.id || 0);
+    }
   };
 
   const handleDiscountTypeChange = (type: 'percentage' | 'fixed') => {
@@ -643,6 +641,109 @@ const CouponManagement: React.FC = () => {
             totalItems={filteredCoupons.length}
             itemsPerPage={itemsPerPage}
           />
+        </div>
+      )}
+
+      {/* 쿠폰 발송 이력 */}
+      {selectedCouponForHistory && (
+        <div className="mt-8 bg-white rounded-lg shadow border border-gray-200">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  쿠폰 발송 이력
+                </h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  {selectedCouponForHistory.name} ({selectedCouponForHistory.code})
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setSelectedCouponForHistory(null);
+                  setCouponSends([]);
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <FontAwesomeIcon icon={faTimes} className="text-xl" />
+              </button>
+            </div>
+          </div>
+
+          <div className="p-6">
+            {historyLoading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="text-gray-500 mt-2">발송 이력을 불러오는 중...</p>
+              </div>
+            ) : couponSends.length > 0 ? (
+              <div>
+                <div className="mb-4">
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">
+                    총 {couponSends.length}명에게 발송됨
+                  </h4>
+                </div>
+                
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          회원 정보
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          발송일
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          사용일
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          상태
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {couponSends.map((send) => (
+                        <tr key={send._id || send.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4">
+                            <div>
+                              <div className="text-sm font-medium text-gray-900">{send.userName}</div>
+                              <div className="text-xs text-gray-500">{send.userEmail}</div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-900">
+                            {formatDate(send.sentAt)}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-900">
+                            {send.usedAt ? formatDate(send.usedAt) : '-'}
+                          </td>
+                          <td className="px-6 py-4">
+                            {send.status === 'used' ? (
+                              <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                사용됨
+                              </span>
+                            ) : send.status === 'expired' ? (
+                              <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                만료됨
+                              </span>
+                            ) : (
+                              <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                발송됨
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <FontAwesomeIcon icon={faUser} className="text-4xl text-gray-300 mb-4" />
+                <p className="text-gray-500">아직 발송된 쿠폰이 없습니다.</p>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -1073,117 +1174,6 @@ const CouponManagement: React.FC = () => {
         </div>
       )}
 
-      {/* 쿠폰 발송 이력 모달 */}
-      {isHistoryModalOpen && selectedCouponForHistory && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden">
-            {/* 모달 헤더 */}
-            <div className="flex justify-between items-center p-6 border-b border-gray-200">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">
-                  쿠폰 발송 이력
-                </h3>
-                <p className="text-sm text-gray-600 mt-1">
-                  {selectedCouponForHistory.name} ({selectedCouponForHistory.code})
-                </p>
-              </div>
-              <button
-                onClick={handleCloseHistory}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <FontAwesomeIcon icon={faTimes} className="text-xl" />
-              </button>
-            </div>
-
-            {/* 모달 내용 */}
-            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
-              {historyLoading ? (
-                <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                  <p className="text-gray-500 mt-2">발송 이력을 불러오는 중...</p>
-                </div>
-              ) : couponSends.length > 0 ? (
-                <div>
-                  <div className="mb-4">
-                    <h4 className="text-sm font-medium text-gray-700 mb-2">
-                      총 {couponSends.length}명에게 발송됨
-                    </h4>
-                  </div>
-                  
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            회원 정보
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            발송일
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            사용일
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            상태
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {couponSends.map((send) => (
-                          <tr key={send._id || send.id} className="hover:bg-gray-50">
-                            <td className="px-6 py-4">
-                              <div>
-                                <div className="text-sm font-medium text-gray-900">{send.userName}</div>
-                                <div className="text-xs text-gray-500">{send.userEmail}</div>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 text-sm text-gray-900">
-                              {formatDate(send.sentAt)}
-                            </td>
-                            <td className="px-6 py-4 text-sm text-gray-900">
-                              {send.usedAt ? formatDate(send.usedAt) : '-'}
-                            </td>
-                            <td className="px-6 py-4">
-                              {send.status === 'used' ? (
-                                <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                  사용됨
-                                </span>
-                              ) : send.status === 'expired' ? (
-                                <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                                  만료됨
-                                </span>
-                              ) : (
-                                <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                  발송됨
-                                </span>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <FontAwesomeIcon icon={faUser} className="text-4xl text-gray-300 mb-4" />
-                  <p className="text-gray-500">아직 발송된 쿠폰이 없습니다.</p>
-                </div>
-              )}
-            </div>
-
-            {/* 모달 푸터 */}
-            <div className="flex justify-end p-6 border-t border-gray-200">
-              <button
-                onClick={handleCloseHistory}
-                className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
-              >
-                닫기
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
