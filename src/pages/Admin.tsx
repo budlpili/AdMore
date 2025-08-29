@@ -1426,7 +1426,15 @@ const Admin: React.FC = () => {
     ];
 
     const randomNotification = testNotifications[Math.floor(Math.random() * testNotifications.length)];
-    addNotification(randomNotification);
+    createNotification(
+      randomNotification.type,
+      randomNotification.title,
+      randomNotification.message,
+      undefined,
+      randomNotification.orderId,
+      randomNotification.userId,
+      randomNotification.productId
+    );
   };
 
   const handleLogout = async () => {
@@ -1917,7 +1925,7 @@ const Admin: React.FC = () => {
                     <div className="relative">
                       <button
                         onClick={() => setIsNotificationDropdownOpen(!isNotificationDropdownOpen)}
-                        className="relative p-2 text-gray-600 hover:text-orange-600 transition-colors duration-200"
+                        className="relative p-2 text-gray-600 hover:text-orange-600 transition-colors duration-200 notification-button"
                       >
                         <FontAwesomeIcon icon={faBell} className="text-lg" />
                         {unreadCount > 0 && (
@@ -1929,7 +1937,7 @@ const Admin: React.FC = () => {
                       
                       {/* 알림 드롭다운 */}
                       {isNotificationDropdownOpen && (
-                        <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+                        <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50 notification-dropdown">
                           <div className="p-4 border-b border-gray-200">
                             <div className="flex justify-between items-center">
                               <h3 className="text-lg font-semibold text-gray-900">알림</h3>
@@ -1983,20 +1991,7 @@ const Admin: React.FC = () => {
             ) : (
               <div className="flex flex-col items-center space-y-2">
                 <img src="/images/icon_admore.png" alt="애드모어 로고" className="w-6 h-6 transition-all duration-500" />
-                {/* 접힌 상태 알림 아이콘 */}
-                <div className="relative">
-                  <button
-                    onClick={() => setIsNotificationDropdownOpen(!isNotificationDropdownOpen)}
-                    className="relative p-2 text-gray-600 hover:text-orange-600 transition-colors duration-200"
-                  >
-                    <FontAwesomeIcon icon={faBell} className="text-sm" />
-                    {unreadCount > 0 && (
-                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
-                        {unreadCount > 99 ? '99+' : unreadCount}
-                      </span>
-                    )}
-                  </button>
-                </div>
+
               </div>
             )}
           </div>
