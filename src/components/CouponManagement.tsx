@@ -117,18 +117,38 @@ const CouponManagement: React.FC = () => {
       // API 응답 구조에 맞게 수정
       if (response && response.users) {
         console.log('원본 유저 데이터:', response.users);
-        const activeUsers = response.users
-          .filter((user: any) => user.status === 'active')
+        
+        // 신규회원만 필터링 (가입일이 최근 30일 이내인 사용자)
+        const now = new Date();
+        const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
+        
+        const newUsers = response.users
+          .filter((user: any) => {
+            if (user.status !== 'active') return false;
+            
+            // createdAt 또는 가입일 필드 확인
+            const userCreatedAt = user.createdAt || user.registeredAt || user.joinDate;
+            if (!userCreatedAt) return false;
+            
+            const userDate = new Date(userCreatedAt);
+            const isNewUser = userDate > thirtyDaysAgo;
+            
+            console.log(`사용자 ${user.name}: 가입일 ${userDate.toISOString()}, 신규회원 여부: ${isNewUser}`);
+            
+            return isNewUser;
+          })
           .map((user: any) => ({
             id: (user._id || user.id || '').toString(),
             email: user.email,
             name: user.name,
-            status: user.status
+            status: user.status,
+            createdAt: user.createdAt || user.registeredAt || user.joinDate
           }));
-        console.log('활성 유저 목록:', activeUsers); // 디버깅용 로그
-        console.log('활성 유저 수:', activeUsers.length);
-        setUsers(activeUsers);
-        setFilteredUsers(activeUsers);
+        
+        console.log('신규회원 목록:', newUsers);
+        console.log('신규회원 수:', newUsers.length);
+        setUsers(newUsers);
+        setFilteredUsers(newUsers);
       } else {
         console.log('유저 데이터가 없습니다:', response);
         setUsers([]);
@@ -1223,7 +1243,7 @@ const CouponManagement: React.FC = () => {
             <div className="mb-4">
               <div className="flex justify-between items-center mb-2">
                 <h4 className="text-sm font-medium text-gray-700">
-                  사용자 선택 ({selectedUsers.length}명 선택됨) - 총 {filteredUsers.length}명
+                  신규회원 선택 ({selectedUsers.length}명 선택됨) - 총 {filteredUsers.length}명
                 </h4>
                 <button
                   onClick={toggleSelectAllUsers}
