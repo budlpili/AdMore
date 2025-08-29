@@ -585,8 +585,16 @@ const CouponManagement: React.FC = () => {
                         }}
                       ></div>
                     </div>
-                    <div className="text-xs text-gray-500 mt-1">
-                      발송: {coupon.usedCount || 0}개
+                    <div className="text-xs text-gray-500 mt-1 flex items-center gap-2">
+                      <span>발송: {coupon.usedCount || 0}개</span>
+                      {(coupon.usedCount || 0) > 0 && (
+                        <button
+                          onClick={() => handleShowHistory(coupon)}
+                          className="text-xs text-blue-600 hover:text-blue-800 underline hover:no-underline"
+                        >
+                          내역보기
+                        </button>
+                      )}
                     </div>
                   </td>
                   <td className="px-6 py-4">
@@ -601,13 +609,7 @@ const CouponManagement: React.FC = () => {
                       >
                         <FontAwesomeIcon icon={faGift} />
                       </button>
-                      <button
-                        onClick={() => handleShowHistory(coupon)}
-                        className="text-purple-600 hover:text-purple-900"
-                        title="발송 이력"
-                      >
-                        <FontAwesomeIcon icon={faUser} />
-                      </button>
+
                       <button
                         onClick={() => handleEditCoupon(coupon)}
                         className="text-blue-600 hover:text-blue-900"
