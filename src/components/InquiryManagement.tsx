@@ -1316,7 +1316,7 @@ const InquiryManagement: React.FC<InquiryManagementProps> = ({
                     </div>
                     <button
                       onClick={() => handleDownloadFile(file.name)}
-                      className="ml-3 px-3 py-2 flex items-center justify-center bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors text-sm"
+                      className="ml-3 flex items-center justify-center text-gray-500 hover:text-gray-600 transition-colors text-sm"
                       title="다운로드"
                     >
                       <FontAwesomeIcon icon={faDownload} className="text-xs mr-1" />
