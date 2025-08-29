@@ -242,9 +242,15 @@ const sendCoupon = async (req, res) => {
       const newUserIds = userIds.filter(id => !existingUserIds.includes(id.toString()));
       
       if (newUserIds.length === 0) {
+        // 모든 사용자에게 이미 발송된 경우, 현재 총 발송 수를 반환
+        const totalSentCount = await CouponSend.countDocuments({ couponId });
+        await Coupon.findByIdAndUpdate(couponId, { usedCount: totalSentCount });
+        
         return res.status(400).json({ 
           success: false, 
-          message: '선택된 모든 사용자에게 이미 해당 쿠폰이 발송되었습니다.' 
+          message: '선택된 모든 사용자에게 이미 해당 쿠폰이 발송되었습니다.',
+          totalSentCount: totalSentCount,
+          alreadySent: true
         });
       }
       

@@ -404,7 +404,14 @@ const CouponManagement: React.FC = () => {
         setSelectedCoupon(null);
         setSelectedUsers([]);
       } else {
-        alert('쿠폰 발송에 실패했습니다.');
+        // 중복 발송인 경우 현재 발송 수 업데이트
+        if (response.alreadySent && response.totalSentCount !== undefined) {
+          alert(`이미 발송된 쿠폰입니다. 현재 총 ${response.totalSentCount}명에게 발송되었습니다.`);
+          // 쿠폰 목록 새로고침하여 발송 현황 업데이트
+          await loadCoupons();
+        } else {
+          alert('쿠폰 발송에 실패했습니다.');
+        }
       }
     } catch (error) {
       console.error('쿠폰 발송 에러:', error);
