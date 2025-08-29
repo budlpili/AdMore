@@ -649,7 +649,7 @@ const Admin: React.FC = () => {
         if (!notifications.some(n => n.productId === review.productId?.toString())) {
           createNotification(
             'review',
-            '새로운 리뷰 작성',
+            review.user,
             `${review.user}님이 ${review.product}에 리뷰를 작성했습니다.`,
             undefined,
             undefined,
