@@ -769,7 +769,7 @@ const CouponManagement: React.FC = () => {
                   </td>
                   <td className="px-6 py-4">
                     <div className="text-sm text-gray-900">
-                      {coupon.usedCount || 0} / {coupon.usageLimit > 0 ? coupon.usageLimit : users.length}
+                      {coupon.usedCount || 0}명 / {coupon.usageLimit > 0 ? coupon.usageLimit : users.length}명
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
                       <div 
@@ -780,7 +780,7 @@ const CouponManagement: React.FC = () => {
                       ></div>
                     </div>
                     <div className="text-xs text-gray-500 mt-1 flex items-center gap-2">
-                      <span>발송: {coupon.usedCount || 0}개</span>
+                      <span>발송: {coupon.usedCount || 0}명</span>
                       <button
                         onClick={() => handleShowHistory(coupon)}
                         className="text-xs text-blue-600 hover:text-blue-800 underline hover:no-underline"
@@ -844,12 +844,13 @@ const CouponManagement: React.FC = () => {
           <div className="px-6 py-4 border-b border-gray-200">
             <div className="flex justify-between items-center">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">
+                {/* <h3 className="text-lg font-semibold text-gray-900">
                   쿠폰 발송 이력
+                </h3> */}
+                                 <FontAwesomeIcon icon={faTicketAlt} />
+                <h3 className="text-gray-600 font-medium text-sm">
+                  쿠폰명 : {selectedCouponForHistory.name} <span className="text-gray-400">({selectedCouponForHistory.code})</span>
                 </h3>
-                <p className="text-sm text-gray-600 mt-1">
-                  {selectedCouponForHistory.name} ({selectedCouponForHistory.code})
-                </p>
               </div>
               <button
                 onClick={() => {
@@ -1254,7 +1255,7 @@ const CouponManagement: React.FC = () => {
             </div>
 
             {/* 선택된 쿠폰 정보 */}
-            <div className="bg-gray-50 rounded-lg p-4 mb-4">
+            <div className="bg-gray-50 rounded-lg p-4 mb-4 border border-gray-300">
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <span className="font-medium text-gray-700">쿠폰 코드:</span>
@@ -1301,7 +1302,7 @@ const CouponManagement: React.FC = () => {
             <div className="mb-4">
               <div className="flex justify-between items-center mb-2">
                 <h4 className="text-sm font-medium text-gray-700">
-                  사용자 선택 ({selectedUsers.length}명 선택됨) - 총 {filteredUsers.length}명
+                총 {filteredUsers.length}명 중 <span className="text-green-600">{selectedUsers.length}명</span> 선택됨
                 </h4>
                 <div className="flex gap-2">
                   <button
@@ -1314,8 +1315,8 @@ const CouponManagement: React.FC = () => {
                     onClick={toggleNewMembersOnly}
                     className={`text-sm px-2 py-1 rounded ${
                       showNewMembersOnly 
-                        ? 'bg-blue-600 text-white' 
-                        : 'text-blue-600 hover:text-blue-800 border border-blue-600'
+                        ? 'bg-green-600 text-white' 
+                        : 'text-green-600 hover:text-green-800'
                     }`}
                   >
                     신규회원
@@ -1335,7 +1336,7 @@ const CouponManagement: React.FC = () => {
                     return (
                       <div
                         key={user.id}
-                        className={`flex items-center p-3 border-b border-gray-200 last:border-b-0 ${
+                        className={`flex flex-row items-center p-3 gap-2 border-b border-gray-200 last:border-b-0 ${
                           hasCoupon ? 'bg-gray-100 cursor-not-allowed opacity-60' : 
                           isSelected ? 'bg-blue-50 hover:bg-gray-50 cursor-pointer' : 'hover:bg-gray-50 cursor-pointer'
                         }`}
@@ -1348,7 +1349,7 @@ const CouponManagement: React.FC = () => {
                           disabled={hasCoupon}
                           className={`mr-3 ${hasCoupon ? 'opacity-50' : ''}`}
                         />
-                        <div className="flex-1">
+                        <div className="flex flex-row items-center justify-between w-[60%]">
                           <div className="text-sm font-medium text-gray-900">{user.name}</div>
                           <div className="text-xs text-gray-500">{user.email}</div>
                           {user.createdAt && (
@@ -1357,7 +1358,7 @@ const CouponManagement: React.FC = () => {
                             </div>
                           )}
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 w-[40%] justify-end">
                           <div className="text-xs text-gray-400">
                             {user.status === 'active' ? '활성' : '비활성'}
                           </div>
@@ -1386,14 +1387,14 @@ const CouponManagement: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIsSendModalOpen(false)}
-                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                className="text-sm px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
               >
                 취소
               </button>
               <button
                 onClick={handleSendCouponsToUsers}
                 disabled={selectedUsers.length === 0}
-                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="text-sm px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {selectedUsers.length}명에게 쿠폰 발송
               </button>
