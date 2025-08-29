@@ -869,9 +869,17 @@ const CouponManagement: React.FC = () => {
             ) : couponSends.length > 0 ? (
               <div>
                 <div className="mb-4">
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">
-                    총 {couponSends.length}명에게 발송됨
-                  </h4>
+                  <div className="flex gap-4 text-sm font-medium text-gray-700 mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-blue-600">발송됨: {couponSends.length}명</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-green-600">사용됨: {couponSends.filter(send => send.status === 'used').length}명</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-600">미사용: {couponSends.filter(send => send.status === 'sent').length}명</span>
+                    </div>
+                  </div>
                 </div>
                 
                 <div className="max-h-[500px] overflow-x-auto border border-gray-200 rounded-lg">
