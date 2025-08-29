@@ -32,7 +32,8 @@ import {
   faInstagram as faInstagramBrand,
   faTwitter as faTwitterBrand,
   faTiktok as faTiktokBrand,
-  faLinkedin as faLinkedinBrand
+  faLinkedin as faLinkedinBrand,
+  faXTwitter as faXTwitterBrand
 } from '@fortawesome/free-brands-svg-icons';
 import { Product, Category, Tag } from '../types';
 import { useEditor, EditorContent } from '@tiptap/react';
@@ -66,7 +67,9 @@ const getCategoryIcon = (category: string) => {
     case '인스타그램':
       return faInstagramBrand;
     case '트위터':
-      return faTwitterBrand;
+    case 'X (트위터)':
+    case 'X':
+      return faXTwitterBrand;
     case '틱톡':
       return faTiktokBrand;
     case '링크드인':
@@ -88,7 +91,9 @@ const getCategoryColor = (category: string) => {
     case '인스타그램':
       return 'text-pink-600';
     case '트위터':
-      return 'text-blue-400';
+    case 'X (트위터)':
+    case 'X':
+      return 'text-black';
     case '틱톡':
       return 'text-black';
     case '링크드인':
