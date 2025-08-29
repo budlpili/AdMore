@@ -450,6 +450,8 @@ const Admin: React.FC = () => {
   
   // 알림 생성 함수
   const createNotification = (type: Notification['type'], title: string, message: string, link?: string, orderId?: string, userId?: string, productId?: string) => {
+    console.log('createNotification 호출됨:', { type, title, message, link, orderId, userId, productId });
+    
     const newNotification: Notification = {
       id: Date.now().toString(),
       type,
@@ -463,8 +465,19 @@ const Admin: React.FC = () => {
       productId
     };
     
-    setNotifications(prev => [newNotification, ...prev]);
-    setUnreadCount(prev => prev + 1);
+    console.log('새로운 알림 객체:', newNotification);
+    
+    setNotifications(prev => {
+      const updatedNotifications = [newNotification, ...prev];
+      console.log('업데이트된 알림 목록:', updatedNotifications);
+      return updatedNotifications;
+    });
+    
+    setUnreadCount(prev => {
+      const newCount = prev + 1;
+      console.log('새로운 읽지 않은 알림 수:', newCount);
+      return newCount;
+    });
   };
   
   // 알림 읽음 처리
@@ -986,7 +999,10 @@ const Admin: React.FC = () => {
             !users.some((existingUser: any) => existingUser._id === newUser._id || existingUser.id === newUser.id)
           );
           
+          console.log('새로운 회원 감지:', newMembers);
+          
           newMembers.forEach((newUser: any) => {
+            console.log('새로운 회원 알림 생성:', newUser);
             createNotification(
               'user',
               '새로운 회원 가입',
@@ -997,6 +1013,10 @@ const Admin: React.FC = () => {
             );
           });
         }
+        
+        // 디버깅을 위한 로그 추가
+        console.log('현재 users 상태:', users);
+        console.log('새로 로드된 users:', newUsers);
         
         setUsers(newUsers);
         console.log('백엔드에서 회원 데이터 로드 완료:', newUsers);
@@ -1433,10 +1453,24 @@ const Admin: React.FC = () => {
       user: { title: '테스트 회원', message: '새로운 테스트 회원이 가입했습니다.' }
     };
 
+    console.log('테스트 알림 생성:', randomType, testMessages[randomType]);
     createNotification(
       randomType,
       testMessages[randomType].title,
       testMessages[randomType].message
+    );
+  };
+
+  // 새로운 회원 알림 수동 테스트 함수
+  const testNewUserNotification = () => {
+    console.log('새로운 회원 알림 수동 테스트 시작');
+    createNotification(
+      'user',
+      '새로운 회원 가입',
+      '테스트 사용자님이 새로 가입했습니다.',
+      undefined,
+      undefined,
+      'test-user-id'
     );
   };
 
@@ -2287,7 +2321,7 @@ const Admin: React.FC = () => {
                 
                 {/* 알림 드롭다운 */}
                 {isNotificationDropdownOpen && (
-                  <div className="absolute right-0 mt-3 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50 notification-dropdown">
+                  <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50 notification-dropdown">
                     <div className="p-4 border-b border-gray-200">
                       <div className="flex justify-between items-center">
                         <h3 className="text-lg font-semibold text-gray-900">알림</h3>
@@ -2355,7 +2389,7 @@ const Admin: React.FC = () => {
 
                 {/* 프로필 드롭다운 */}
                 {isProfileDropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 z-[100]">
+                  <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-xl border border-gray-200 z-[100]">
                     <div className="p-4 border-b border-gray-200">
                       <p className="text-sm font-medium text-gray-900">{currentUser.name}</p>
                       <p className="text-xs text-gray-500">{currentUser.email}</p>
