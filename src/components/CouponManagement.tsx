@@ -98,11 +98,27 @@ const CouponManagement: React.FC = () => {
       const response = await couponsAPI.getAll();
       if (response.success && response.coupons) {
         setCoupons(response.coupons);
+        setFilteredCoupons(response.coupons);
+        
+        // 모든 쿠폰의 발송 이력을 자동으로 로드하여 usedCount 업데이트
+        console.log('모든 쿠폰의 발송 이력 자동 로드 시작...');
+        for (const coupon of response.coupons) {
+          try {
+            await loadCouponSendsForUpdate(coupon._id || coupon.id || 0);
+          } catch (error) {
+            console.error(`쿠폰 ${coupon.name} 발송 이력 로드 실패:`, error);
+          }
+        }
+        console.log('모든 쿠폰의 발송 이력 자동 로드 완료');
+      } else {
+        setCoupons([]);
+        setFilteredCoupons([]);
       }
     } catch (error) {
       console.error('쿠폰 로드 에러:', error);
       // 에러 발생 시 빈 배열로 설정
       setCoupons([]);
+      setFilteredCoupons([]);
     } finally {
       setLoading(false);
     }
@@ -159,6 +175,37 @@ const CouponManagement: React.FC = () => {
       // 에러 발생 시 빈 배열로 설정
       setUsers([]);
       setFilteredUsers([]);
+    }
+  };
+
+  // 쿠폰 발송 이력 로드 (usedCount 업데이트용)
+  const loadCouponSendsForUpdate = async (couponId: string | number) => {
+    try {
+      const response = await couponsAPI.getCouponSends(couponId.toString());
+      
+      if (response.success && response.couponSends) {
+        const actualUsedCount = response.couponSends.length;
+        setCoupons(prevCoupons => 
+          prevCoupons.map(coupon => {
+            if ((coupon._id || coupon.id || 0).toString() === couponId.toString()) {
+              return { ...coupon, usedCount: actualUsedCount };
+            }
+            return coupon;
+          })
+        );
+      } else if (response.success && response.sends) {
+        const actualUsedCount = response.sends.length;
+        setCoupons(prevCoupons => 
+          prevCoupons.map(coupon => {
+            if ((coupon._id || coupon.id || 0).toString() === couponId.toString()) {
+              return { ...coupon, usedCount: actualUsedCount };
+            }
+            return coupon;
+          })
+        );
+      }
+    } catch (error) {
+      console.error(`쿠폰 ${couponId} 발송 이력 로드 에러:`, error);
     }
   };
 
