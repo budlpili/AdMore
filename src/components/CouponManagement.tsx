@@ -173,8 +173,15 @@ const CouponManagement: React.FC = () => {
         );
         console.log('쿠폰을 받은 유저 ID 목록:', userIds);
         setUsersWithCoupon(new Set(userIds));
+      } else if (response.success && response.sends) {
+        // API 응답 구조가 다른 경우 (sends 필드 사용)
+        const userIds = response.sends.map((send: any) => 
+          (send.userId || send._id || '').toString()
+        );
+        console.log('쿠폰을 받은 유저 ID 목록 (sends 필드):', userIds);
+        setUsersWithCoupon(new Set(userIds));
       } else {
-        console.log('쿠폰 발송 이력이 없음');
+        console.log('쿠폰 발송 이력이 없음, 응답:', response);
         setUsersWithCoupon(new Set());
       }
     } catch (error) {
@@ -357,6 +364,7 @@ const CouponManagement: React.FC = () => {
   // 쿠폰 발송 관련 함수들
   const handleSendCoupon = async (coupon: Coupon) => {
     console.log('쿠폰 발송 모달 열기, 현재 유저 목록:', users); // 디버깅용 로그
+    console.log('선택된 쿠폰:', coupon);
     setSelectedCoupon(coupon);
     setSelectedUsers([]);
     setUserSearchTerm('');
@@ -368,6 +376,7 @@ const CouponManagement: React.FC = () => {
       console.log('유저 목록 로드 완료');
       
       // 쿠폰을 받은 유저 목록 로드
+      console.log('쿠폰을 받은 유저 목록 로드 시작...');
       await loadUsersWithCoupon(coupon._id || coupon.id || 0);
       console.log('쿠폰을 받은 유저 목록 로드 완료');
     } catch (error) {
