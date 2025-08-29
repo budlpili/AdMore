@@ -978,8 +978,28 @@ const Admin: React.FC = () => {
     try {
       const response = await usersAPI.getAll();
       if (response && response.users) {
-        setUsers(response.users);
-        console.log('백엔드에서 회원 데이터 로드 완료:', response.users);
+        const newUsers = response.users;
+        
+        // 새로운 회원 감지 및 알림 생성
+        if (users.length > 0) {
+          const newMembers = newUsers.filter((newUser: any) => 
+            !users.some((existingUser: any) => existingUser._id === newUser._id || existingUser.id === newUser.id)
+          );
+          
+          newMembers.forEach((newUser: any) => {
+            createNotification(
+              'user',
+              '새로운 회원 가입',
+              `${newUser.name || newUser.email}님이 새로 가입했습니다.`,
+              undefined,
+              undefined,
+              newUser._id || newUser.id?.toString()
+            );
+          });
+        }
+        
+        setUsers(newUsers);
+        console.log('백엔드에서 회원 데이터 로드 완료:', newUsers);
         // 회원 데이터 로드 후 선택 상태 초기화
         setSelectedUsers([]);
         setSelectAllUsers(false);
@@ -1404,36 +1424,19 @@ const Admin: React.FC = () => {
 
   // 테스트용 알림 추가 함수
   const addTestNotification = () => {
-    const testNotifications = [
-      {
-        type: 'order' as const,
-        title: '새로운 주문 접수',
-        message: '새로운 주문이 접수되었습니다. 주문번호: TEST-001',
-        orderId: 'TEST-001'
-      },
-      {
-        type: 'review' as const,
-        title: '새로운 리뷰 작성',
-        message: '새로운 리뷰가 작성되었습니다. 상품: 테스트 상품',
-        productId: '1'
-      },
-      {
-        type: 'chat' as const,
-        title: '고객 문의 접수',
-        message: '새로운 고객 문의가 접수되었습니다.',
-        userId: 'user1'
-      }
-    ];
+    const testTypes = ['order', 'review', 'chat', 'user'] as const;
+    const randomType = testTypes[Math.floor(Math.random() * testTypes.length)];
+    const testMessages = {
+      order: { title: '테스트 주문', message: '테스트 주문이 접수되었습니다.' },
+      review: { title: '테스트 리뷰', message: '테스트 리뷰가 작성되었습니다.' },
+      chat: { title: '테스트 문의', message: '테스트 문의가 접수되었습니다.' },
+      user: { title: '테스트 회원', message: '새로운 테스트 회원이 가입했습니다.' }
+    };
 
-    const randomNotification = testNotifications[Math.floor(Math.random() * testNotifications.length)];
     createNotification(
-      randomNotification.type,
-      randomNotification.title,
-      randomNotification.message,
-      undefined,
-      randomNotification.orderId,
-      randomNotification.userId,
-      randomNotification.productId
+      randomType,
+      testMessages[randomType].title,
+      testMessages[randomType].message
     );
   };
 
@@ -2284,7 +2287,7 @@ const Admin: React.FC = () => {
                 
                 {/* 알림 드롭다운 */}
                 {isNotificationDropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50 notification-dropdown">
+                  <div className="absolute right-0 mt-3 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50 notification-dropdown">
                     <div className="p-4 border-b border-gray-200">
                       <div className="flex justify-between items-center">
                         <h3 className="text-lg font-semibold text-gray-900">알림</h3>
