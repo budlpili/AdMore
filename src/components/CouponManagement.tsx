@@ -153,9 +153,39 @@ const CouponManagement: React.FC = () => {
       if (response.success && response.couponSends) {
         console.log('couponSends 필드 사용:', response.couponSends);
         setCouponSends(response.couponSends);
+        
+        // 쿠폰의 usedCount를 발송 이력 수로 업데이트
+        const actualUsedCount = response.couponSends.length;
+        console.log('실제 발송된 쿠폰 수:', actualUsedCount);
+        
+        // 현재 쿠폰 목록에서 해당 쿠폰의 usedCount 업데이트
+        setCoupons(prevCoupons => 
+          prevCoupons.map(coupon => {
+            if ((coupon._id || coupon.id || 0).toString() === couponId.toString()) {
+              console.log(`쿠폰 ${coupon.name}의 usedCount를 ${actualUsedCount}로 업데이트`);
+              return { ...coupon, usedCount: actualUsedCount };
+            }
+            return coupon;
+          })
+        );
       } else if (response.success && response.sends) {
         console.log('sends 필드 사용:', response.sends);
         setCouponSends(response.sends);
+        
+        // 쿠폰의 usedCount를 발송 이력 수로 업데이트
+        const actualUsedCount = response.sends.length;
+        console.log('실제 발송된 쿠폰 수:', actualUsedCount);
+        
+        // 현재 쿠폰 목록에서 해당 쿠폰의 usedCount 업데이트
+        setCoupons(prevCoupons => 
+          prevCoupons.map(coupon => {
+            if ((coupon._id || coupon.id || 0).toString() === couponId.toString()) {
+              console.log(`쿠폰 ${coupon.name}의 usedCount를 ${actualUsedCount}로 업데이트`);
+              return { ...coupon, usedCount: actualUsedCount };
+            }
+            return coupon;
+          })
+        );
       } else {
         console.log('응답에 발송 이력 데이터가 없음:', response);
         console.log('couponSends 상태 업데이트: []');
