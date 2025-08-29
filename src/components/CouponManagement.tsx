@@ -146,12 +146,26 @@ const CouponManagement: React.FC = () => {
   const loadCouponSends = async (couponId: string | number) => {
     try {
       setHistoryLoading(true);
+      console.log('쿠폰 발송 이력 로드 시작, couponId:', couponId);
       const response = await couponsAPI.getCouponSends(couponId.toString());
+      console.log('쿠폰 발송 이력 응답:', response);
+      
       if (response.success && response.couponSends) {
+        console.log('couponSends 필드 사용:', response.couponSends);
         setCouponSends(response.couponSends);
+      } else if (response.success && response.sends) {
+        console.log('sends 필드 사용:', response.sends);
+        setCouponSends(response.sends);
       } else {
+        console.log('응답에 발송 이력 데이터가 없음:', response);
+        console.log('couponSends 상태 업데이트: []');
         setCouponSends([]);
       }
+      
+      // 상태 업데이트 후 확인
+      setTimeout(() => {
+        console.log('couponSends 상태 업데이트 후:', couponSends);
+      }, 100);
     } catch (error) {
       console.error('쿠폰 발송 이력 로드 에러:', error);
       setCouponSends([]);
