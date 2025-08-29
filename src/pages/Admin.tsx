@@ -291,13 +291,15 @@ const Admin: React.FC = () => {
         
         // 새로운 문의 알림 생성 (사용자 메시지인 경우에만)
         if (message.type === 'user') {
+          // 이메일에서 session 부분 제거
+          const cleanEmail = message.user.split('_')[0];
           createNotification(
             'chat',
-            '새로운 고객 문의',
-            `${message.user}님이 새로운 문의를 보냈습니다.`,
+            cleanEmail,
+            `${cleanEmail}님이 새로운 문의를 보냈습니다.`,
             undefined,
             undefined,
-            message.user
+            cleanEmail
           );
         }
         
@@ -654,13 +656,15 @@ const Admin: React.FC = () => {
       );
       newMessages.forEach(message => {
         if (!notifications.some(n => n.userId === message.user)) {
+          // 이메일에서 session 부분 제거
+          const cleanEmail = message.user.split('_')[0];
           createNotification(
             'chat',
-            '새로운 고객 문의',
-            `${message.user}님이 문의를 보냈습니다.`,
+            cleanEmail,
+            `${cleanEmail}님이 문의를 보냈습니다.`,
             undefined,
             undefined,
-            message.user
+            cleanEmail
           );
         }
       });
