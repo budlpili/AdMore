@@ -289,6 +289,18 @@ const Admin: React.FC = () => {
         // 로컬 스토리지에도 저장
         localStorage.setItem('chatMessages', JSON.stringify(newMessages));
         
+        // 새로운 문의 알림 생성 (사용자 메시지인 경우에만)
+        if (message.type === 'user') {
+          createNotification(
+            'chat',
+            '새로운 고객 문의',
+            `${message.user}님이 새로운 문의를 보냈습니다.`,
+            undefined,
+            undefined,
+            message.user
+          );
+        }
+        
         return newMessages;
       });
     },
@@ -435,6 +447,45 @@ const Admin: React.FC = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // 알림 생성 함수
+  const createNotification = (type: Notification['type'], title: string, message: string, link?: string, orderId?: string, userId?: string, productId?: string) => {
+    const newNotification: Notification = {
+      id: Date.now().toString(),
+      type,
+      title,
+      message,
+      timestamp: new Date().toISOString(),
+      isRead: false,
+      link,
+      orderId,
+      userId,
+      productId
+    };
+    
+    setNotifications(prev => [newNotification, ...prev]);
+    setUnreadCount(prev => prev + 1);
+  };
+  
+  // 알림 읽음 처리
+  const markNotificationAsRead = (notificationId: string) => {
+    setNotifications(prev => 
+      prev.map(notif => 
+        notif.id === notificationId 
+          ? { ...notif, isRead: true }
+          : notif
+      )
+    );
+    setUnreadCount(prev => Math.max(0, prev - 1));
+  };
+  
+  // 모든 알림 읽음 처리
+  const markAllNotificationsAsRead = () => {
+    setNotifications(prev => 
+      prev.map(notif => ({ ...notif, isRead: true }))
+    );
+    setUnreadCount(0);
+  };
 
   // 사용자 정보 상태
   const [currentUser, setCurrentUser] = useState<{
@@ -464,6 +515,8 @@ const Admin: React.FC = () => {
   const [isBatchRoleDropdownOpen, setIsBatchRoleDropdownOpen] = useState(false);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [selectAllUsers, setSelectAllUsers] = useState(false);
+  
+
 
   // 주문 관리 페이지네이션 관련 상태
   const [currentOrderPage, setCurrentOrderPage] = useState(1);
@@ -540,6 +593,66 @@ const Admin: React.FC = () => {
 
     initializeData();
   }, []); // 컴포넌트 마운트 시에만 실행
+  
+  // 알림 자동 생성 로직
+  useEffect(() => {
+    // 새로운 주문 알림
+    if (orders.length > 0) {
+      const newOrders = orders.filter(order => 
+        new Date(order.date).getTime() > Date.now() - (24 * 60 * 60 * 1000) // 24시간 이내
+      );
+      newOrders.forEach(order => {
+        if (!notifications.some(n => n.orderId === order.orderId)) {
+          createNotification(
+            'order',
+            '새로운 주문 접수',
+            `${order.userName || '고객'}님이 ${order.product}을(를) 주문했습니다.`,
+            undefined,
+            order.orderId
+          );
+        }
+      });
+    }
+    
+    // 새로운 리뷰 알림
+    if (reviews.length > 0) {
+      const newReviews = reviews.filter(review => 
+        new Date(review.time).getTime() > Date.now() - (24 * 60 * 60 * 1000) // 24시간 이내
+      );
+      newReviews.forEach(review => {
+        if (!notifications.some(n => n.productId === review.productId?.toString())) {
+          createNotification(
+            'review',
+            '새로운 리뷰 작성',
+            `${review.user}님이 ${review.product}에 리뷰를 작성했습니다.`,
+            undefined,
+            undefined,
+            undefined,
+            review.productId?.toString()
+          );
+        }
+      });
+    }
+    
+    // 새로운 문의 알림
+    if (chatMessages.length > 0) {
+      const newMessages = chatMessages.filter(message => 
+        new Date(message.timestamp).getTime() > Date.now() - (24 * 60 * 60 * 1000) // 24시간 이내
+      );
+      newMessages.forEach(message => {
+        if (!notifications.some(n => n.userId === message.user)) {
+          createNotification(
+            'chat',
+            '새로운 고객 문의',
+            `${message.user}님이 문의를 보냈습니다.`,
+            undefined,
+            undefined,
+            message.user
+          );
+        }
+      });
+    }
+  }, [orders, reviews, chatMessages, notifications]);
 
   // 사용자 정보 변경 이벤트 리스너
   useEffect(() => {
@@ -906,6 +1019,13 @@ const Admin: React.FC = () => {
           alert(`주문 상태가 "${newStatus}"로 변경되었습니다.`);
           
           // 주문 상태 변경 알림 추가
+          createNotification(
+            'order',
+            '주문 상태 변경',
+            `주문 ${orderId}의 상태가 "${newStatus}"로 변경되었습니다.`,
+            undefined,
+            orderId
+          );
           addNotification({
             type: 'order',
             title: '주문 상태 변경',
@@ -1221,7 +1341,7 @@ const Admin: React.FC = () => {
     { id: 'products', label: '상품관리', icon: faCog, count: products.length, action: undefined },
     { id: 'orders', label: '주문관리', icon: faBox, count: totalOrders, action: undefined },
     { id: 'reviews', label: '리뷰관리', icon: faStar, count: reviews.length, action: undefined },
-    { id: 'coupons', label: '쿠폰관리', icon: faTicketAlt, count: undefined, action: undefined, status: '준비중' },
+    { id: 'coupons', label: '쿠폰관리', icon: faTicketAlt, count: undefined, action: undefined },
     { id: 'points', label: '포인트관리', icon: faCoins, count: undefined, action: undefined, status: '준비중' },
     { id: 'customerService', label: '고객센터', icon: faComments, count: undefined, action: undefined, subItems: [
       { id: 'notices', label: '공지사항', icon: faBell, count: unreadCount, action: undefined },
@@ -1246,23 +1366,7 @@ const Admin: React.FC = () => {
     setUnreadCount(prev => prev + 1);
   };
 
-  const markNotificationAsRead = (notificationId: string) => {
-    setNotifications(prev => 
-      prev.map(notif => 
-        notif.id === notificationId 
-          ? { ...notif, isRead: true }
-          : notif
-      )
-    );
-    setUnreadCount(prev => Math.max(0, prev - 1));
-  };
 
-  const markAllNotificationsAsRead = () => {
-    setNotifications(prev => 
-      prev.map(notif => ({ ...notif, isRead: true }))
-    );
-    setUnreadCount(0);
-  };
 
   const deleteNotification = (notificationId: string) => {
     const notification = notifications.find(n => n.id === notificationId);
@@ -1809,12 +1913,90 @@ const Admin: React.FC = () => {
                     <div className="transition-all duration-500 ease-in-out">
                       <h1 className="text-[20px] font-semibold text-orange-600">ADMORE</h1>
                     </div>
+                    {/* 알림 아이콘 */}
+                    <div className="relative">
+                      <button
+                        onClick={() => setIsNotificationDropdownOpen(!isNotificationDropdownOpen)}
+                        className="relative p-2 text-gray-600 hover:text-orange-600 transition-colors duration-200"
+                      >
+                        <FontAwesomeIcon icon={faBell} className="text-lg" />
+                        {unreadCount > 0 && (
+                          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                            {unreadCount > 99 ? '99+' : unreadCount}
+                          </span>
+                        )}
+                      </button>
+                      
+                      {/* 알림 드롭다운 */}
+                      {isNotificationDropdownOpen && (
+                        <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+                          <div className="p-4 border-b border-gray-200">
+                            <div className="flex justify-between items-center">
+                              <h3 className="text-lg font-semibold text-gray-900">알림</h3>
+                              <button
+                                onClick={markAllNotificationsAsRead}
+                                className="text-sm text-orange-600 hover:text-orange-700"
+                              >
+                                모두 읽음
+                              </button>
+                            </div>
+                          </div>
+                          
+                          <div className="max-h-96 overflow-y-auto">
+                            {notifications.length === 0 ? (
+                              <div className="p-4 text-center text-gray-500">
+                                알림이 없습니다
+                              </div>
+                            ) : (
+                              notifications.map((notification) => (
+                                <div
+                                  key={notification.id}
+                                  onClick={() => handleNotificationClick(notification)}
+                                  className={`p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors duration-200 ${
+                                    !notification.isRead ? 'bg-blue-50' : ''
+                                  }`}
+                                >
+                                  <div className="flex justify-between items-start">
+                                    <div className="flex-1">
+                                      <h4 className={`text-sm font-medium ${!notification.isRead ? 'text-gray-900' : 'text-gray-600'}`}>
+                                        {notification.title}
+                                      </h4>
+                                      <p className="text-xs text-gray-500 mt-1">{notification.message}</p>
+                                      <p className="text-xs text-gray-400 mt-1">
+                                        {new Date(notification.timestamp).toLocaleString('ko-KR')}
+                                      </p>
+                                    </div>
+                                    {!notification.isRead && (
+                                      <div className="w-2 h-2 bg-blue-500 rounded-full ml-2"></div>
+                                    )}
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
             ) : (
               <div className="flex flex-col items-center space-y-2">
                 <img src="/images/icon_admore.png" alt="애드모어 로고" className="w-6 h-6 transition-all duration-500" />
+                {/* 접힌 상태 알림 아이콘 */}
+                <div className="relative">
+                  <button
+                    onClick={() => setIsNotificationDropdownOpen(!isNotificationDropdownOpen)}
+                    className="relative p-2 text-gray-600 hover:text-orange-600 transition-colors duration-200"
+                  >
+                    <FontAwesomeIcon icon={faBell} className="text-sm" />
+                    {unreadCount > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </span>
+                    )}
+                  </button>
+                </div>
               </div>
             )}
           </div>
