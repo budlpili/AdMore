@@ -163,13 +163,18 @@ const CouponManagement: React.FC = () => {
   // 쿠폰을 받은 유저 목록 로드
   const loadUsersWithCoupon = async (couponId: string | number) => {
     try {
+      console.log('쿠폰을 받은 유저 목록 로드 시작, couponId:', couponId);
       const response = await couponsAPI.getCouponSends(couponId.toString());
+      console.log('쿠폰 발송 이력 응답:', response);
+      
       if (response.success && response.couponSends) {
         const userIds = response.couponSends.map((send: any) => 
           (send.userId || send._id || '').toString()
         );
+        console.log('쿠폰을 받은 유저 ID 목록:', userIds);
         setUsersWithCoupon(new Set(userIds));
       } else {
+        console.log('쿠폰 발송 이력이 없음');
         setUsersWithCoupon(new Set());
       }
     } catch (error) {
@@ -1158,6 +1163,8 @@ const CouponManagement: React.FC = () => {
                     const userId = (user._id || user.id || '').toString();
                     const hasCoupon = usersWithCoupon.has(userId);
                     const isSelected = selectedUsers.includes(userId);
+                    
+                    console.log(`사용자 ${user.name} (${userId}): hasCoupon=${hasCoupon}, isSelected=${isSelected}`);
                     
                     return (
                       <div
