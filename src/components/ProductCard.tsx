@@ -35,30 +35,10 @@ const ProductCard: React.FC<ProductCardProps> = ({
         console.log('이동할 경로:', linkTo || `/products/${product._id || product.id}`);
       }}
     >
-      {/* 준비중 배지 (startDate가 미래이거나, 상태가 비활성/태그가 준비중인 경우) */}
+      {/* 준비중 배지: 비활성 상태일 때만 표시 */}
       {(() => {
         try {
-          const now = new Date();
-          let comingSoon = false;
-
-          // 1) 시작일이 미래인 경우
-          if (product.startDate) {
-            const start = new Date(product.startDate);
-            if (!isNaN(start.getTime()) && start.getTime() > now.getTime()) {
-              comingSoon = true;
-            }
-          }
-
-          // 2) 개시일이 없어도 비활성 상태면 준비중 처리
-          if (!comingSoon && product.status && product.status !== 'active') {
-            comingSoon = true;
-          }
-
-          // 3) 태그에 '준비중'이 포함된 경우
-          if (!comingSoon && Array.isArray(product.tags) && product.tags.includes('준비중')) {
-            comingSoon = true;
-          }
-
+          const comingSoon = product.status && product.status !== 'active';
           if (!comingSoon) return null;
 
           return (
@@ -127,7 +107,12 @@ const ProductCard: React.FC<ProductCardProps> = ({
       </div>
       {/* 카드 내용 */}
       <div className="p-4">
-        <h3 className="font-semibold text-gray-900">{product.name}</h3>
+        <h3 className="font-semibold text-gray-900">
+          {product.status && product.status !== 'active' && (
+            <span className="inline-block mr-2 text-yellow-600 text-xs font-bold align-middle">[준비중]</span>
+          )}
+          <span className="align-middle">{product.name}</span>
+        </h3>
         <p className="text-gray-500 text-xs mb-2 truncate">{product.description}</p>
         <div className="flex flex-col gap-0">
           <div className="flex items-center justify-end mb-1">

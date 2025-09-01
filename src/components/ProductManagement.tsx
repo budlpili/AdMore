@@ -273,8 +273,7 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
     status: 'active' as 'active' | 'inactive',
     tags: '',
     specifications: '',
-    productNumber: '',
-    startDate: ''
+    productNumber: ''
   });
 
   // Image preview states
@@ -321,8 +320,7 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
           status: draftData.status || 'active',
           tags: draftData.tags || '',
           specifications: draftData.specifications || '',
-          productNumber: draftData.productNumber || '',
-          startDate: draftData.startDate || ''
+          productNumber: draftData.productNumber || ''
         });
         setImagePreview(draftData.imagePreview || '');
         setBackgroundPreview(draftData.backgroundPreview || '');
@@ -530,8 +528,7 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
       status: 'active',
       tags: '',
       specifications: '',
-      productNumber: '',
-      startDate: ''
+      productNumber: ''
     });
     setImagePreview('');
     setBackgroundPreview('');
@@ -567,8 +564,7 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
         status: (product.status as 'active' | 'inactive') || 'active',
         tags: tagsArray.join(', '),
         specifications: product.specifications || '',
-        productNumber: product.productNumber || '',
-        startDate: product.startDate || ''
+        productNumber: product.productNumber || ''
       });
       if (product.image) {
         const isDataUrl = product.image.startsWith('data:image');
@@ -689,8 +685,7 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
           specifications: formData.specifications,
           image: imagePreview,
           background: backgroundPreview,
-          productNumber: formData.productNumber,
-          startDate: formData.startDate
+          productNumber: formData.productNumber
         };
         
         console.log('상품 수정 데이터:', updateData);
@@ -730,8 +725,7 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
           specifications: formData.specifications,
           image: imagePreview,
           background: backgroundPreview,
-          productNumber: formData.productNumber,
-          startDate: formData.startDate
+          productNumber: formData.productNumber
         };
         
         console.log('상품 등록 데이터:', newProductData);
@@ -1960,19 +1954,7 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
                     </div>
                   </div>
 
-                  {/* Start Date */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      개시일 (선택)
-                    </label>
-                    <input
-                      type="datetime-local"
-                      value={formData.startDate}
-                      onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">개시일 이전에는 상품 카드에 "준비중" 배지가 표시됩니다.</p>
-                  </div>
+                  {/* Start Date 입력 제거 */}
 
                   {/* Tags */}
                   <div>
