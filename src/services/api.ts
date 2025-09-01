@@ -227,23 +227,10 @@ export const productsAPI = {
 
   // 상품 생성 (별칭)
   createProduct: async (productData: any) => {
-    const token = localStorage.getItem('token');
-    const url = `${API_BASE_URL}/products`;
-    
-    const response = await fetch(url, {
+    return apiRequest('/products', {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify(productData),
     });
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    return await response.json();
   },
 
   // 상품 수정 (관리자용)

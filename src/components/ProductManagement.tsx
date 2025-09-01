@@ -746,9 +746,10 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
           alert('상품 등록에 실패했습니다.');
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('상품 저장 에러:', error);
-      alert('상품 저장 중 오류가 발생했습니다.');
+      const backendMessage = error?.response?.data?.message || error?.message || '상품 저장 중 오류가 발생했습니다.';
+      alert(backendMessage);
     }
   };
 
