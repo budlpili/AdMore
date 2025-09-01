@@ -35,6 +35,25 @@ const ProductCard: React.FC<ProductCardProps> = ({
         console.log('이동할 경로:', linkTo || `/products/${product._id || product.id}`);
       }}
     >
+      {/* 준비중 배지 (startDate가 미래인 경우) */}
+      {(() => {
+        try {
+          if (!product.startDate) return null;
+          const now = new Date();
+          const start = new Date(product.startDate);
+          if (isNaN(start.getTime())) return null;
+          if (start.getTime() > now.getTime()) {
+            return (
+              <span className="absolute top-2 left-2 z-10 bg-yellow-500 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow">
+                준비중
+              </span>
+            );
+          }
+          return null;
+        } catch {
+          return null;
+        }
+      })()}
       {/* 즐겨찾기 버튼 */}
       <button
         className="absolute top-4 right-4 z-10 bg-black/30 rounded-full w-8 h-8 border border-gray-50

@@ -48,7 +48,8 @@ const createProduct = async (req, res) => {
       specifications,
       image,
       background,
-      productNumber
+      productNumber,
+      startDate
     } = req.body;
 
     console.log('상품 생성 요청 데이터:', req.body);
@@ -88,6 +89,13 @@ const createProduct = async (req, res) => {
       }
     }
 
+    // startDate 처리
+    let parsedStartDate = undefined;
+    if (startDate) {
+      const d = new Date(startDate);
+      if (!isNaN(d.getTime())) parsedStartDate = d;
+    }
+
     // 상품 생성
     const product = new Product({
       name,
@@ -106,7 +114,8 @@ const createProduct = async (req, res) => {
       specifications,
       image: processedImage,
       background,
-      productNumber
+      productNumber,
+      startDate: parsedStartDate
     });
 
     await product.save();
@@ -134,7 +143,7 @@ const updateProduct = async (req, res) => {
     const {
       name, description, detailedDescription, price, originalPrice,
       price1Day, price7Days, price30Days, discountRate, category,
-      stock, status, tags, specifications, image, background, productNumber
+      stock, status, tags, specifications, image, background, productNumber, startDate
     } = req.body;
 
     console.log('상품 수정 요청:', req.body, id);
@@ -165,7 +174,8 @@ const updateProduct = async (req, res) => {
       specifications: specifications !== undefined ? specifications : existingProduct.specifications,
       image: image !== undefined ? image : existingProduct.image,
       background: background !== undefined ? background : existingProduct.background,
-      productNumber: productNumber !== undefined ? productNumber : existingProduct.productNumber
+      productNumber: productNumber !== undefined ? productNumber : existingProduct.productNumber,
+      startDate: startDate !== undefined ? (isNaN(new Date(startDate).getTime()) ? existingProduct.startDate : new Date(startDate)) : existingProduct.startDate
     };
 
     // 이미지 경로 정리

@@ -26,6 +26,7 @@ export interface Product {
   createdAt?: string;
   updatedAt?: string;
   productNumber?: string;
+  startDate?: string; // 상품 개시 예정일 (ISO 문자열)
 }
 
 export interface Notice {

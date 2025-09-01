@@ -87,6 +87,10 @@ const productSchema = new mongoose.Schema({
     type: Number,
     default: 0,
     min: 0
+  },
+  // 상품 개시 예정일 (이 날짜 전에는 "준비중" 표시 용도)
+  startDate: {
+    type: Date
   }
 }, {
   timestamps: true
