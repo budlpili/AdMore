@@ -80,21 +80,11 @@ const register = async (req, res) => {
 
     // 이메일 인증 메일 발송 제거 - 회원가입 완료 시 자동으로 인증 완료 상태
     console.log(`[Register] 사용자 ${email} 회원가입 완료 - 이메일 인증 메일 발송하지 않음`);
-      });
-
-      console.log('이메일 발송 성공:', info.messageId);
-      res.status(201).json({ 
-        message: '회원가입이 완료되었습니다. 이메일을 확인하여 인증을 완료해주세요.',
-        emailSent: true
-      });
-    } catch (emailError) {
-      console.error('이메일 발송 실패:', emailError);
-      // 이메일 발송 실패해도 사용자는 생성됨
-      res.status(201).json({ 
-        message: '회원가입이 완료되었습니다. 이메일 발송에 실패했지만 나중에 재발송할 수 있습니다.',
-        emailSent: false
-      });
-    }
+    
+    res.status(201).json({ 
+      message: '회원가입이 완료되었습니다.',
+      emailSent: false
+    });
   } catch (error) {
     console.error('사용자 등록 오류:', error);
     res.status(500).json({ message: '사용자 등록에 실패했습니다.' });
