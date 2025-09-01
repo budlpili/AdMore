@@ -11,6 +11,17 @@ const getAllProducts = async (req, res) => {
   }
 };
 
+// 관리자용 모든 상품 조회 (활성/비활성 모두)
+const getAllProductsForAdmin = async (req, res) => {
+  try {
+    const products = await Product.find({}).sort({ createdAt: -1 });
+    res.json(products);
+  } catch (error) {
+    console.error('관리자 상품 조회 오류:', error);
+    res.status(500).json({ message: '상품 조회에 실패했습니다.' });
+  }
+};
+
 // 상품 상세 조회
 const getProductById = async (req, res) => {
   try {
@@ -300,6 +311,7 @@ const getActiveProducts = async (req, res) => {
 
 module.exports = {
   getAllProducts,
+  getAllProductsForAdmin,
   getProductById,
   createProduct,
   updateProduct,

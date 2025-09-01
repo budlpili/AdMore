@@ -190,6 +190,11 @@ export const productsAPI = {
     return apiRequest<Product[]>('/products');
   },
 
+  // 관리자용 모든 상품 조회 (활성/비활성 모두)
+  getAllProductsForAdmin: async (): Promise<Product[]> => {
+    return apiRequest<Product[]>('/products/admin');
+  },
+
   // 활성 상품만 조회
   getActiveProducts: async (): Promise<Product[]> => {
     return apiRequest<Product[]>('/products?status=active');

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { 
   getAllProducts, 
+  getAllProductsForAdmin,
   getProductById, 
   createProduct, 
   updateProduct, 
@@ -15,6 +16,9 @@ const { auth, adminAuth } = require('../middleware/auth');
 
 // 모든 상품 조회
 router.get('/', getAllProducts);
+
+// 관리자용 모든 상품 조회 (활성/비활성 모두)
+router.get('/admin', getAllProductsForAdmin);
 
 // 활성 상품만 조회
 router.get('/active', getActiveProducts);
