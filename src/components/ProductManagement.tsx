@@ -269,7 +269,7 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
     discountRate: '',
     category: '',
     stock: '',
-    status: 'active' as 'active' | 'inactive',
+    status: 'active' as 'active' | 'inactive' | 'discontinued',
     tags: '',
     specifications: '',
     productNumber: ''
