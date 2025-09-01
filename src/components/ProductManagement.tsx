@@ -788,7 +788,7 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
       
       if (success) {
         // 백엔드에서 최신 데이터 다시 가져오기
-        const latestProducts = await productAPI.getAllProducts();
+        const latestProducts = await productAPI.getAllProductsForAdmin();
         onProductsChange(latestProducts);
         
         // 성공 메시지 표시
