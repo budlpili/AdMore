@@ -321,7 +321,8 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
           status: draftData.status || 'active',
           tags: draftData.tags || '',
           specifications: draftData.specifications || '',
-          productNumber: draftData.productNumber || ''
+          productNumber: draftData.productNumber || '',
+          startDate: draftData.startDate || ''
         });
         setImagePreview(draftData.imagePreview || '');
         setBackgroundPreview(draftData.backgroundPreview || '');
