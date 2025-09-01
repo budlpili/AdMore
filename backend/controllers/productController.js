@@ -239,7 +239,7 @@ const updateProductStatus = async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
 
-    if (!status || !['active', 'inactive', 'out_of_stock'].includes(status)) {
+    if (!status || !['active', 'inactive', 'discontinued'].includes(status)) {
       return res.status(400).json({ message: '유효하지 않은 상태입니다.' });
     }
 

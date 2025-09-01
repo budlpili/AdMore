@@ -806,6 +806,38 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
     }
   };
 
+  const changeProductStatusTo = async (productId: string | number, newStatus: 'active' | 'inactive' | 'discontinued') => {
+    try {
+      const product = products.find(p => (p._id || p.id) === productId);
+      if (!product) return;
+      
+      const statusMessages = {
+        'active': '활성화',
+        'inactive': '비활성화',
+        'discontinued': '판매종료'
+      };
+      
+      const confirmed = window.confirm(`"${product.name}" 상품을 ${statusMessages[newStatus]}하시겠습니까?${newStatus !== 'active' ? '\n\n이 상품은 Products 페이지에서 보이지 않게 됩니다.' : ''}`);
+      if (!confirmed) return;
+      
+      const success = await productAPI.toggleProductStatus(productId, newStatus);
+      
+      if (success) {
+        // 백엔드에서 최신 데이터 다시 가져오기
+        const latestProducts = await productAPI.getAllProductsForAdmin();
+        onProductsChange(latestProducts);
+        
+        // 성공 메시지 표시
+        alert(`"${product.name}" 상품이 ${statusMessages[newStatus]}되었습니다.`);
+      } else {
+        alert('상품 상태 변경에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('상품 상태 변경 에러:', error);
+      alert('상품 상태 변경 중 오류가 발생했습니다.');
+    }
+  };
+
   const addNewCategory = async () => {
     const trimmedCategory = newCategory.trim();
     
@@ -1492,9 +1524,13 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
                       </td>
                       <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          product.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                          product.status === 'active' ? 'bg-green-100 text-green-800' : 
+                          product.status === 'inactive' ? 'bg-red-100 text-red-800' : 
+                          'bg-gray-100 text-gray-800'
                         }`}>
-                          {product.status === 'active' ? '활성' : '비활성'}
+                          {product.status === 'active' ? '활성' : 
+                           product.status === 'inactive' ? '비활성' : 
+                           '판매종료'}
                         </span>
                       </td>
                       <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
@@ -1529,17 +1565,52 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
                           >
                             <FontAwesomeIcon icon={faEdit} />
                           </button>
-                          <button
-                            onClick={() => toggleProductStatus(product._id || product.id || 0)}
-                            className={`text-xs px-2 py-1 rounded border transition-colors ${
-                              product.status === 'active' 
-                                ? 'text-yellow-600 border-yellow-300 hover:bg-yellow-50' 
-                                : 'text-green-600 border-green-300 hover:bg-green-50'
-                            }`}
-                            title={product.status === 'active' ? '비활성화' : '활성화'}
-                          >
-                            {product.status === 'active' ? '비활성화' : '활성화'}
-                          </button>
+                          {/* 상태 변경 버튼들 */}
+                          {product.status === 'active' && (
+                            <>
+                              <button
+                                onClick={() => changeProductStatusTo(product._id || product.id || 0, 'inactive')}
+                                className="text-xs px-2 py-1 rounded border transition-colors text-yellow-600 border-yellow-300 hover:bg-yellow-50"
+                                title="비활성화"
+                              >
+                                비활성화
+                              </button>
+                              <button
+                                onClick={() => changeProductStatusTo(product._id || product.id || 0, 'discontinued')}
+                                className="text-xs px-2 py-1 rounded border transition-colors text-gray-600 border-gray-300 hover:bg-gray-50"
+                                title="판매종료"
+                              >
+                                판매종료
+                              </button>
+                            </>
+                          )}
+                          {product.status === 'inactive' && (
+                            <>
+                              <button
+                                onClick={() => changeProductStatusTo(product._id || product.id || 0, 'active')}
+                                className="text-xs px-2 py-1 rounded border transition-colors text-green-600 border-green-300 hover:bg-green-50"
+                                title="활성화"
+                              >
+                                활성화
+                              </button>
+                              <button
+                                onClick={() => changeProductStatusTo(product._id || product.id || 0, 'discontinued')}
+                                className="text-xs px-2 py-1 rounded border transition-colors text-gray-600 border-gray-300 hover:bg-gray-50"
+                                title="판매종료"
+                              >
+                                판매종료
+                              </button>
+                            </>
+                          )}
+                          {product.status === 'discontinued' && (
+                            <button
+                              onClick={() => changeProductStatusTo(product._id || product.id || 0, 'active')}
+                              className="text-xs px-2 py-1 rounded border transition-colors text-green-600 border-green-300 hover:bg-green-50"
+                              title="활성화"
+                            >
+                              활성화
+                            </button>
+                          )}
                           <button
                             onClick={() => deleteProduct(product._id || product.id || 0)}
                             className="text-red-600 hover:text-red-900 text-xs px-2 py-1 rounded border border-red-300 hover:bg-red-50"
@@ -1948,6 +2019,15 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
                             className="px-3 py-2 text-sm cursor-pointer hover:bg-gray-100 text-red-600"
                           >
                             비활성
+                          </div>
+                          <div
+                            onClick={() => {
+                              setFormData({...formData, status: 'discontinued'});
+                              setIsStatusDropdownOpen(false);
+                            }}
+                            className="px-3 py-2 text-sm cursor-pointer hover:bg-gray-100 text-gray-600"
+                          >
+                            판매종료
                           </div>
                         </div>
                       )}

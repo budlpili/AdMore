@@ -38,7 +38,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
       {/* 준비중 배지: 비활성 상태일 때만 표시 */}
       {(() => {
         try {
-          const comingSoon = product.status && product.status !== 'active';
+          const comingSoon = product.status === 'inactive';
           if (!comingSoon) return null;
 
           return (
