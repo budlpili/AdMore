@@ -35,21 +35,37 @@ const ProductCard: React.FC<ProductCardProps> = ({
         console.log('이동할 경로:', linkTo || `/products/${product._id || product.id}`);
       }}
     >
-      {/* 준비중 배지 (startDate가 미래인 경우) */}
+      {/* 준비중 배지 (startDate가 미래이거나, 상태가 비활성/태그가 준비중인 경우) */}
       {(() => {
         try {
-          if (!product.startDate) return null;
           const now = new Date();
-          const start = new Date(product.startDate);
-          if (isNaN(start.getTime())) return null;
-          if (start.getTime() > now.getTime()) {
-            return (
-              <span className="absolute top-2 left-2 z-10 bg-yellow-500 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow">
-                준비중
-              </span>
-            );
+          let comingSoon = false;
+
+          // 1) 시작일이 미래인 경우
+          if (product.startDate) {
+            const start = new Date(product.startDate);
+            if (!isNaN(start.getTime()) && start.getTime() > now.getTime()) {
+              comingSoon = true;
+            }
           }
-          return null;
+
+          // 2) 개시일이 없어도 비활성 상태면 준비중 처리
+          if (!comingSoon && product.status && product.status !== 'active') {
+            comingSoon = true;
+          }
+
+          // 3) 태그에 '준비중'이 포함된 경우
+          if (!comingSoon && Array.isArray(product.tags) && product.tags.includes('준비중')) {
+            comingSoon = true;
+          }
+
+          if (!comingSoon) return null;
+
+          return (
+            <span className="absolute top-2 left-2 z-10 bg-yellow-500 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow">
+              준비중
+            </span>
+          );
         } catch {
           return null;
         }

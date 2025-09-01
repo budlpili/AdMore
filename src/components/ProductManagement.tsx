@@ -529,7 +529,8 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
       status: 'active',
       tags: '',
       specifications: '',
-      productNumber: ''
+      productNumber: '',
+      startDate: ''
     });
     setImagePreview('');
     setBackgroundPreview('');
