@@ -1,9 +1,9 @@
 const Product = require('../models/Product');
 
-// 모든 상품 조회
+// 모든 상품 조회 (관리자용으로 변경 - 모든 상태 포함)
 const getAllProducts = async (req, res) => {
   try {
-    const products = await Product.find({ status: 'active' });
+    const products = await Product.find({}).sort({ createdAt: -1 });
     res.json(products);
   } catch (error) {
     console.error('상품 조회 오류:', error);
