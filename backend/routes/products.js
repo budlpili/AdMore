@@ -5,6 +5,7 @@ const {
   getAllProductsForAdmin,
   getProductById, 
   getProductImages,
+  getProductThumbnails,
   createProduct, 
   updateProduct, 
   deleteProduct,
@@ -29,6 +30,9 @@ router.get('/popular', getPopularProducts);
 
 // 카테고리별 상품 조회
 router.get('/category/:category', getProductsByCategory);
+
+// 상품 썸네일 조회 (압축된 이미지)
+router.get('/thumbnails', getProductThumbnails);
 
 // 상품 이미지만 조회 (캐싱 최적화)
 router.get('/:id/images', getProductImages);

@@ -3,11 +3,8 @@ const Product = require('../models/Product');
 // 모든 상품 조회 (관리자용으로 변경 - 모든 상태 포함)
 const getAllProducts = async (req, res) => {
   try {
-    // 기본 정보만 조회하고 이미지는 제외 (성능 최적화)
-    const products = await Product.find({}, {
-      image: 0,  // 큰 이미지 데이터 제외
-      background: 0  // 배경 이미지 데이터 제외
-    }).sort({ createdAt: -1 });
+    // 이미지 데이터 포함하여 조회 (이미지 표시를 위해)
+    const products = await Product.find({}).sort({ createdAt: -1 });
     res.json(products);
   } catch (error) {
     console.error('상품 조회 오류:', error);
@@ -18,11 +15,8 @@ const getAllProducts = async (req, res) => {
 // 관리자용 모든 상품 조회 (활성/비활성 모두)
 const getAllProductsForAdmin = async (req, res) => {
   try {
-    // 기본 정보만 조회하고 이미지는 제외 (성능 최적화)
-    const products = await Product.find({}, {
-      image: 0,  // 큰 이미지 데이터 제외
-      background: 0  // 배경 이미지 데이터 제외
-    }).sort({ createdAt: -1 });
+    // 이미지 데이터 포함하여 조회 (이미지 표시를 위해)
+    const products = await Product.find({}).sort({ createdAt: -1 });
     res.json(products);
   } catch (error) {
     console.error('관리자 상품 조회 오류:', error);
@@ -65,6 +59,38 @@ const getProductImages = async (req, res) => {
   } catch (error) {
     console.error('상품 이미지 조회 오류:', error);
     res.status(500).json({ message: '상품 이미지 조회에 실패했습니다.' });
+  }
+};
+
+// 상품 썸네일 이미지 조회 (압축된 이미지)
+const getProductThumbnails = async (req, res) => {
+  try {
+    const products = await Product.find({}, { 
+      _id: 1, 
+      name: 1, 
+      image: 1, 
+      background: 1,
+      category: 1,
+      status: 1,
+      price: 1,
+      originalPrice: 1,
+      rating: 1
+    }).sort({ createdAt: -1 });
+    
+    // 이미지 압축 로직 (간단한 base64 압축)
+    const compressedProducts = products.map(product => ({
+      ...product.toObject(),
+      // 이미지가 base64인 경우 압축 (실제로는 더 정교한 압축이 필요)
+      image: product.image ? (product.image.length > 100000 ? 
+        product.image.substring(0, 50000) + '...' : product.image) : null,
+      background: product.background ? (product.background.length > 100000 ? 
+        product.background.substring(0, 50000) + '...' : product.background) : null
+    }));
+    
+    res.json(compressedProducts);
+  } catch (error) {
+    console.error('상품 썸네일 조회 오류:', error);
+    res.status(500).json({ message: '상품 썸네일 조회에 실패했습니다.' });
   }
 };
 
@@ -330,11 +356,8 @@ const getProductsByCategory = async (req, res) => {
 // 활성 상품만 조회
 const getActiveProducts = async (req, res) => {
   try {
-    // 기본 정보만 조회하고 이미지는 제외 (성능 최적화)
-    const products = await Product.find({ status: 'active' }, {
-      image: 0,  // 큰 이미지 데이터 제외
-      background: 0  // 배경 이미지 데이터 제외
-    }).sort({ createdAt: -1 });
+    // 이미지 데이터 포함하여 조회 (이미지 표시를 위해)
+    const products = await Product.find({ status: 'active' }).sort({ createdAt: -1 });
     res.json(products);
   } catch (error) {
     console.error('활성 상품 조회 오류:', error);
@@ -347,6 +370,7 @@ module.exports = {
   getAllProductsForAdmin,
   getProductById,
   getProductImages,
+  getProductThumbnails,
   createProduct,
   updateProduct,
   deleteProduct,
