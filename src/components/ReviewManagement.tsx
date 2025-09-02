@@ -195,10 +195,10 @@ const ReviewManagement: React.FC<ReviewManagementProps> = ({ reviews, onReviewsC
 
   const stats = calculateReviewStats();
 
-  // 사용 가능한 상품 목록 로드
+  // 사용 가능한 상품 목록 로드 (모든 상품 - 활성/비활성)
   const loadAvailableProducts = async () => {
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/products?status=active`);
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/products`);
       if (response.ok) {
         const data = await response.json();
         // 응답 구조에 따라 상품 데이터 추출
@@ -221,7 +221,8 @@ const ReviewManagement: React.FC<ReviewManagementProps> = ({ reviews, onReviewsC
           console.log(`상품 "${product.name}" 이미지 정보:`, {
             id: product.id || product._id,
             image: product.image,
-            background: product.background
+            background: product.background,
+            status: product.status
           });
         });
         
@@ -737,18 +738,31 @@ const ReviewManagement: React.FC<ReviewManagementProps> = ({ reviews, onReviewsC
                   {availableProducts && availableProducts.length > 0 ? (
                     availableProducts.filter(product => product && (product.id || product._id)).map((product) => {
                       const productId = product.id || product._id;
+                      const isInactive = product.status === 'inactive';
+                      
                       return (
                         <div
                           key={productId}
                           onClick={() => {
-                            if (productId) {
+                            if (productId && !isInactive) {
                               setNewReviewData(prev => ({ ...prev, productId: productId.toString() }));
                               setIsProductDropdownOpen(false);
                             }
                           }}
-                          className="px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                          className={`px-3 py-2 text-sm border-b border-gray-100 last:border-b-0 ${
+                            isInactive 
+                              ? 'text-gray-400 cursor-not-allowed bg-gray-50' 
+                              : 'text-gray-700 hover:bg-blue-50 cursor-pointer'
+                          }`}
                         >
-                          {product.name || '상품명 없음'}
+                          <div className="flex items-center justify-between">
+                            <span>{product.name || '상품명 없음'}</span>
+                            {isInactive && (
+                              <span className="text-xs text-gray-500 bg-gray-200 px-2 py-1 rounded">
+                                준비중
+                              </span>
+                            )}
+                          </div>
                         </div>
                       );
                     })
