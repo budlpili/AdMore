@@ -2911,110 +2911,121 @@ const Admin: React.FC = () => {
                           </tr>
                         </thead>
                         <tbody>
-                                                  {filteredRecentOrders.slice(0, 10).map((order, index) => (
-                          <tr key={order.orderId || `order-${index}-${order.date}`} className="border-b border-gray-100 hover:bg-gray-50">
-                              <td className="py-2 px-2 text-xs text-gray-600">
-                                {formatKoreanDate(order.date)}
-                              </td>
-                              <td className="py-2 px-2 text-xs text-gray-600">
-                                <div>
-                                  <div>{order.orderId}</div>
-                                  <span className="text-gray-500 text-xs">(PAY-{order.orderId.replace('-', '')})</span>
+                          {filteredRecentOrders.length === 0 ? (
+                            <tr>
+                              <td colSpan={7} className="py-8 text-center text-gray-500">
+                                <div className="flex flex-col items-center">
+                                  <FontAwesomeIcon icon={faBox} className="text-2xl text-gray-300 mb-2" />
+                                  <p className="text-sm text-gray-400">주문내역이 없습니다.</p>
                                 </div>
-                              </td>
-                              <td className="py-2 px-2 text-xs text-gray-600">
-                                <div>
-                                  <div className="text-xs text-gray-500 font-medium">
-                                    {(() => {
-                                      // users 데이터가 로드된 후에만 사용자 이름 찾기
-                                      if (users.length > 0) {
-                                        const user = users.find(u => u.email === order.userEmail);
-                                        console.log('주문자 정보:', {
-                                          orderEmail: order.userEmail,
-                                          foundUser: user,
-                                          allUsers: users.length
-                                        });
-                                        return user ? user.name : (order.userName || '이름 없음');
-                                      } else {
-                                        // users 데이터가 아직 로드되지 않은 경우
-                                        return order.userName || '로딩 중...';
-                                      }
-                                    })()}
-                                  </div>
-                                  <div className="text-xs text-gray-400">{order.userEmail || '이메일 없음'}</div>
-                                </div>
-                              </td>
-                              <td className="py-2 px-2 text-xs text-gray-800">
-                                <div>
-                                  {order.productNumber && (
-                                    <div className="text-[10px] text-gray-500 mb-1">상품번호: {order.productNumber}</div>
-                                  )}
-                                  <div className="font-medium">{order.product}</div>
-                                </div>
-                              </td>
-                              <td className="py-2 px-2 text-xs text-gray-600">
-                                {order.quantity}일
-                              </td>
-                              <td className="py-2 px-2 text-xs text-blue-600 font-semibold text-right">
-                                <div>
-                                  <div>{typeof order.price === 'string' ? 
-                                    order.price.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : 
-                                    String(order.price || '').replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</div>
-                                  {order.originalPrice && order.originalPrice !== order.price && (
-                                    <div className="text-gray-400 line-through text-[10px]">
-                                      {typeof order.originalPrice === 'string' ? 
-                                        order.originalPrice.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : 
-                                        String(order.originalPrice || '').replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                                    </div>
-                                  )}
-                                </div>
-                              </td>
-                              <td className="py-2 px-2 text-center">
-                                <span className={`px-2 py-1 text-xs rounded-full ${
-                                  (() => {
-                                    // 신용카드 주문시 결제완료 표시
-                                    if ((order.paymentMethod === 'card' || order.paymentMethod === '신용카드') && 
-                                        order.paymentDate && order.paymentDate !== '-') {
-                                      return 'bg-green-100 text-green-800';
-                                    }
-                                    // 가상계좌 주문시 입금여부에 따라 표시
-                                    if ((order.paymentMethod === 'virtual' || order.paymentMethod === '가상계좌')) {
-                                      if (!order.paymentDate || order.paymentDate === '-') {
-                                        return 'bg-yellow-100 text-yellow-800'; // 입금전
-                                      } else {
-                                        return 'bg-green-100 text-green-800'; // 입금완료
-                                      }
-                                    }
-                                    // 기본 상태 표시
-                                    return order.status === '대기중' ? 'bg-yellow-100 text-yellow-800' :
-                                           order.status === '진행 중' ? 'bg-orange-100 text-orange-800' :
-                                           order.status === '작업완료' ? 'bg-green-100 text-green-800' :
-                                           order.status === '구매확정' ? 'bg-blue-100 text-blue-800' :
-                                           order.status === '작업취소' ? 'bg-red-100 text-red-800' :
-                                           'bg-gray-100 text-gray-800';
-                                  })()
-                                }`}>
-                                  {(() => {
-                                    // 신용카드 주문시 결제완료 표시
-                                    if ((order.paymentMethod === 'card' || order.paymentMethod === '신용카드') && 
-                                        order.paymentDate && order.paymentDate !== '-') {
-                                      return '결제완료';
-                                    }
-                                    // 가상계좌 주문시 입금여부에 따라 표시
-                                    if ((order.paymentMethod === 'virtual' || order.paymentMethod === '가상계좌')) {
-                                      if (!order.paymentDate || order.paymentDate === '-') {
-                                        return '입금전';
-                                      } else {
-                                        return '입금완료';
-                                      }
-                                    }
-                                    // 기본 상태 표시
-                                    return order.status;
-                                  })()}
-                                </span>
                               </td>
                             </tr>
-                          ))}
+                          ) : (
+                            filteredRecentOrders.slice(0, 10).map((order, index) => (
+                              <tr key={order.orderId || `order-${index}-${order.date}`} className="border-b border-gray-100 hover:bg-gray-50">
+                                <td className="py-2 px-2 text-xs text-gray-600">
+                                  {formatKoreanDate(order.date)}
+                                </td>
+                                <td className="py-2 px-2 text-xs text-gray-600">
+                                  <div>
+                                    <div>{order.orderId}</div>
+                                    <span className="text-gray-500 text-xs">(PAY-{order.orderId.replace('-', '')})</span>
+                                  </div>
+                                </td>
+                                <td className="py-2 px-2 text-xs text-gray-600">
+                                  <div>
+                                    <div className="text-xs text-gray-500 font-medium">
+                                      {(() => {
+                                        // users 데이터가 로드된 후에만 사용자 이름 찾기
+                                        if (users.length > 0) {
+                                          const user = users.find(u => u.email === order.userEmail);
+                                          console.log('주문자 정보:', {
+                                            orderEmail: order.userEmail,
+                                            foundUser: user,
+                                            allUsers: users.length
+                                          });
+                                          return user ? user.name : (order.userName || '이름 없음');
+                                        } else {
+                                          // users 데이터가 아직 로드되지 않은 경우
+                                          return order.userName || '로딩 중...';
+                                        }
+                                      })()}
+                                    </div>
+                                    <div className="text-xs text-gray-400">{order.userEmail || '이메일 없음'}</div>
+                                  </div>
+                                </td>
+                                <td className="py-2 px-2 text-xs text-gray-800">
+                                  <div>
+                                    {order.productNumber && (
+                                      <div className="text-[10px] text-gray-500 mb-1">상품번호: {order.productNumber}</div>
+                                    )}
+                                    <div className="font-medium">{order.product}</div>
+                                  </div>
+                                </td>
+                                <td className="py-2 px-2 text-xs text-gray-600">
+                                  {order.quantity}일
+                                </td>
+                                <td className="py-2 px-2 text-xs text-blue-600 font-semibold text-right">
+                                  <div>
+                                    <div>{typeof order.price === 'string' ? 
+                                      order.price.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : 
+                                      String(order.price || '').replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</div>
+                                    {order.originalPrice && order.originalPrice !== order.price && (
+                                      <div className="text-gray-400 line-through text-[10px]">
+                                        {typeof order.originalPrice === 'string' ? 
+                                          order.originalPrice.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : 
+                                          String(order.originalPrice || '').replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                                      </div>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="py-2 px-2 text-center">
+                                  <span className={`px-2 py-1 text-xs rounded-full ${
+                                    (() => {
+                                      // 신용카드 주문시 결제완료 표시
+                                      if ((order.paymentMethod === 'card' || order.paymentMethod === '신용카드') && 
+                                          order.paymentDate && order.paymentDate !== '-') {
+                                        return 'bg-green-100 text-green-800';
+                                      }
+                                      // 가상계좌 주문시 입금여부에 따라 표시
+                                      if ((order.paymentMethod === 'virtual' || order.paymentMethod === '가상계좌')) {
+                                        if (!order.paymentDate || order.paymentDate === '-') {
+                                          return 'bg-yellow-100 text-yellow-800'; // 입금전
+                                        } else {
+                                          return 'bg-green-100 text-green-800'; // 입금완료
+                                        }
+                                      }
+                                      // 기본 상태 표시
+                                      return order.status === '대기중' ? 'bg-yellow-100 text-yellow-800' :
+                                             order.status === '진행 중' ? 'bg-orange-100 text-orange-800' :
+                                             order.status === '작업완료' ? 'bg-green-100 text-green-800' :
+                                             order.status === '구매확정' ? 'bg-blue-100 text-blue-800' :
+                                             order.status === '작업취소' ? 'bg-red-100 text-red-800' :
+                                             'bg-gray-100 text-gray-800';
+                                    })()
+                                  }`}>
+                                    {(() => {
+                                      // 신용카드 주문시 결제완료 표시
+                                      if ((order.paymentMethod === 'card' || order.paymentMethod === '신용카드') && 
+                                          order.paymentDate && order.paymentDate !== '-') {
+                                        return '결제완료';
+                                      }
+                                      // 가상계좌 주문시 입금여부에 따라 표시
+                                      if ((order.paymentMethod === 'virtual' || order.paymentMethod === '가상계좌')) {
+                                        if (!order.paymentDate || order.paymentDate === '-') {
+                                          return '입금전';
+                                        } else {
+                                          return '입금완료';
+                                        }
+                                      }
+                                      // 기본 상태 표시
+                                      return order.status;
+                                    })()}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))
+                          )}
                         </tbody>
                       </table>
                     </div>
