@@ -134,8 +134,12 @@ const ReviewManagement: React.FC<ReviewManagementProps> = ({ reviews, onReviewsC
       console.log('삭제할 리뷰들:', reviewsToDelete);
       
       const deletePromises = reviewsToDelete.map(review => {
-        console.log(`리뷰 ${review.id} 삭제 시도, 사용할 ID:`, review.id);
-        return reviewsAPI.delete(review.id);
+        if (!review._id) {
+          console.error(`리뷰 ${review.id}의 MongoDB _id가 없습니다.`);
+          throw new Error(`리뷰 ${review.id}의 MongoDB _id가 없습니다.`);
+        }
+        console.log(`리뷰 ${review.id} 삭제 시도, 사용할 MongoDB _id:`, review._id);
+        return reviewsAPI.delete(review._id);
       });
       
       await Promise.all(deletePromises);
@@ -366,7 +370,11 @@ const ReviewManagement: React.FC<ReviewManagementProps> = ({ reviews, onReviewsC
         
         console.log(`리뷰 삭제 시도, MongoDB _id:`, review._id);
         await reviewsAPI.delete(review._id);
-        await handleRefreshReviews();
+        
+        // 삭제된 리뷰를 제외한 새로운 리뷰 목록 생성
+        const updatedReviews = reviews.filter(r => r.id !== reviewId);
+        onReviewsChange(updatedReviews);
+        
         alert('리뷰가 삭제되었습니다.');
       } catch (error) {
         console.error('리뷰 삭제 중 오류:', error);

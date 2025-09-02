@@ -57,6 +57,7 @@ interface Order {
 
 interface Review {
   id: number;
+  _id?: string; // MongoDB 원본 ID 추가
   user: string;
   rating: number;
   content: string;
@@ -943,7 +944,8 @@ const Admin: React.FC = () => {
       if (response && Array.isArray(response)) {
         // 직접 배열인 경우
         const formattedReviews = response.map((review: any) => ({
-          id: review._id || review.id || Math.random(), // MongoDB _id 우선 사용
+          id: review.id || Math.random(), // 프론트엔드용 ID
+          _id: review._id, // MongoDB 원본 ID 보존
           user: review.userEmail || review.user || '익명',
           time: review.createdAt || review.time || new Date().toLocaleString(),
           content: review.content,
@@ -966,7 +968,8 @@ const Admin: React.FC = () => {
       } else if (response && response.success && Array.isArray(response.reviews)) {
         // {success: true, reviews: [...]} 형태인 경우
         const formattedReviews = response.reviews.map((review: any) => ({
-          id: review._id || review.id || Math.random(), // MongoDB _id 우선 사용
+          id: review.id || Math.random(), // 프론트엔드용 ID
+          _id: review._id, // MongoDB 원본 ID 보존
           user: review.userEmail || review.user || '익명',
           time: review.createdAt || review.time || new Date().toLocaleString(),
           content: review.content,
@@ -1289,8 +1292,15 @@ const Admin: React.FC = () => {
   const deleteReview = async (reviewId: number) => {
     if (window.confirm('정말로 이 리뷰를 삭제하시겠습니까?')) {
       try {
-        // 백엔드 API 호출
-        const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/reviews/${reviewId}`, {
+        // 해당 리뷰의 MongoDB _id 찾기
+        const review = reviews.find(r => r.id === reviewId);
+        if (!review || !review._id) {
+          alert('리뷰를 찾을 수 없습니다.');
+          return;
+        }
+        
+        // 백엔드 API 호출 - MongoDB _id 사용
+        const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/reviews/${review._id}`, {
           method: 'DELETE',
           headers: {
             'Content-Type': 'application/json',
