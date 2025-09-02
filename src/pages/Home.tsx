@@ -82,12 +82,15 @@ const Home: React.FC = () => {
   // 상품 데이터 로드 (썸네일 사용으로 성능 최적화)
   const loadProducts = async () => {
     try {
+      console.log('🔄 상품 데이터 로드 시작...');
       setLoading(true);
       // 썸네일 API 사용으로 빠른 로딩
       const activeProducts = await productAPI.getActiveProducts();
+      console.log('✅ 상품 데이터 로드 완료:', activeProducts.length, '개');
+      console.log('📦 첫 번째 상품 데이터:', activeProducts[0]);
       setProducts(activeProducts);
     } catch (error) {
-      console.error('상품 로드 에러:', error);
+      console.error('❌ 상품 로드 에러:', error);
       setProducts([]);
     } finally {
       setLoading(false);

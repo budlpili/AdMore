@@ -28,6 +28,13 @@ const ProductCard: React.FC<ProductCardProps> = ({
   // 준비중 상태 확인
   const isPreparing = product.status === 'inactive';
   
+  // 이미지 데이터 확인 로그
+  console.log('🖼️ ProductCard 렌더링:', product.name, {
+    hasImage: !!product.image,
+    imageLength: product.image?.length || 0,
+    imageStart: product.image?.substring(0, 20) || 'none'
+  });
+  
   // 지연 로딩을 위한 상태
   const [isInView, setIsInView] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -126,8 +133,12 @@ const ProductCard: React.FC<ProductCardProps> = ({
               className={`w-full h-full object-cover transition-opacity duration-300 ${
                 imageLoaded ? 'opacity-100' : 'opacity-0'
               }`}
-              onLoad={() => setImageLoaded(true)}
+              onLoad={() => {
+                console.log('🖼️ 이미지 로드 성공:', product.name);
+                setImageLoaded(true);
+              }}
               onError={(e) => {
+                console.error('❌ 이미지 로드 실패:', product.name, product.image?.substring(0, 50) + '...');
                 // 이미지 로드 실패 시 카테고리 아이콘 표시
                 const target = e.currentTarget as HTMLImageElement;
                 target.style.display = 'none';
