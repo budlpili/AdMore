@@ -318,21 +318,25 @@ const CustomerService: React.FC<CustomerServiceProps> = ({ setIsChatOpen }) => {
                               {notice.title}
                             </div>
                             <div className="sm:hidden text-xs text-gray-500 mt-1">
-                              {new Date(notice.createdAt).toLocaleDateString('ko-KR', {
+                              {new Date(notice.createdAt).toLocaleString('ko-KR', {
                                 year: 'numeric',
                                 month: '2-digit',
                                 day: '2-digit',
+                                hour: '2-digit',
+                                minute: '2-digit',
                                 timeZone: 'Asia/Seoul'
-                              })} 00:00
+                              })}
                             </div>
                           </td>
                           <td className="hidden sm:table-cell px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {new Date(notice.createdAt).toLocaleDateString('ko-KR', {
+                            {new Date(notice.createdAt).toLocaleString('ko-KR', {
                               year: 'numeric',
                               month: '2-digit',
                               day: '2-digit',
+                              hour: '2-digit',
+                              minute: '2-digit',
                               timeZone: 'Asia/Seoul'
-                            })} 00:00
+                            })}
                           </td>
                           <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
                             {(() => {
@@ -407,12 +411,14 @@ const CustomerService: React.FC<CustomerServiceProps> = ({ setIsChatOpen }) => {
                   </h3>
                   <div className="flex items-center gap-4 text-sm text-gray-500">
                     <span>작성자: {selectedNotice.author}</span>
-                    <span>작성일: {new Date(selectedNotice.createdAt).toLocaleDateString('ko-KR', {
+                    <span>작성일: {new Date(selectedNotice.createdAt).toLocaleString('ko-KR', {
                       year: 'numeric',
                       month: '2-digit',
                       day: '2-digit',
+                      hour: '2-digit',
+                      minute: '2-digit',
                       timeZone: 'Asia/Seoul'
-                    })} 00:00</span>
+                    })}</span>
                     {selectedNotice.important && (
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
                         중요
