@@ -399,6 +399,10 @@ const ReviewManagement: React.FC<ReviewManagementProps> = ({ reviews, onReviewsC
       return;
     }
     
+    console.log('찾은 리뷰 객체:', review);
+    console.log('리뷰의 _id:', review._id);
+    console.log('리뷰의 id:', review.id);
+    
     if (!replyContents[reviewId]?.trim()) {
       alert('댓글 내용을 입력해주세요.');
       return;
@@ -407,7 +411,7 @@ const ReviewManagement: React.FC<ReviewManagementProps> = ({ reviews, onReviewsC
     setIsSubmittingReply(true);
     try {
       // MongoDB _id를 사용하여 API 호출
-      const mongoId = review._id;
+      const mongoId = review._id || review.id;
       if (!mongoId) {
         throw new Error('리뷰의 MongoDB ID를 찾을 수 없습니다.');
       }
