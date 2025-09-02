@@ -112,7 +112,15 @@ const ProductCard: React.FC<ProductCardProps> = ({
                 }
               }}
             />
-          ) : null}
+          ) : (
+            // 이미지가 없을 때 기본 플레이스홀더 표시
+            <div className="w-full h-full flex items-center justify-center bg-gray-100">
+              <FontAwesomeIcon
+                icon={safeCategoryIcon.icon}
+                className={`text-6xl ${safeCategoryIcon.color} opacity-50`}
+              />
+            </div>
+          )}
           <FontAwesomeIcon
             icon={safeCategoryIcon.icon}
             className={`text-5xl ${safeCategoryIcon.color} category-icon`}
