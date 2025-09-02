@@ -619,7 +619,7 @@ const ReviewManagement: React.FC<ReviewManagementProps> = ({ reviews, onReviewsC
             content: newReviewData.content.trim(),
             product: selectedProduct.name || '상품명 없음',
             rating: newReviewData.rating,
-            productId: parseInt(newReviewData.productId),
+            productId: newReviewData.productId,
             orderId: newReviewData.orderId || undefined,
             productImage: selectedProduct.image || selectedProduct.background || null
           };
@@ -757,7 +757,9 @@ const ReviewManagement: React.FC<ReviewManagementProps> = ({ reviews, onReviewsC
                           key={productId}
                           onClick={() => {
                             if (productId && !isInactive) {
-                              setNewReviewData(prev => ({ ...prev, productId: productId.toString() }));
+                              // 상품의 실제 ID 사용 (id 또는 _id)
+                              const actualProductId = product.id || product._id || productId;
+                              setNewReviewData(prev => ({ ...prev, productId: actualProductId.toString() }));
                               setIsProductDropdownOpen(false);
                             }
                           }}
