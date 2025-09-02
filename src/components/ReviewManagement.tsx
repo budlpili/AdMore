@@ -757,8 +757,8 @@ const ReviewManagement: React.FC<ReviewManagementProps> = ({ reviews, onReviewsC
                           key={productId}
                           onClick={() => {
                             if (productId && !isInactive) {
-                              // 상품의 실제 ID 사용 (id 또는 _id)
-                              const actualProductId = product.id || product._id || productId;
+                              // 상품의 실제 ID 사용 (_id 우선, 없으면 id 사용) - ProductDetail.tsx와 동일한 로직
+                              const actualProductId = product._id || product.id || productId;
                               setNewReviewData(prev => ({ ...prev, productId: actualProductId.toString() }));
                               setIsProductDropdownOpen(false);
                             }
