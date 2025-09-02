@@ -83,9 +83,9 @@ const ProductCard: React.FC<ProductCardProps> = ({
               <div className="rounded-lg px-4 py-3 shadow-lg flex flex-col items-center gap-2">
                 <FontAwesomeIcon
                   icon={faGift}
-                  className="text-[32px] text-gray-200"
+                  className="text-[32px] text-gray-300"
                 />
-                <span className="text-gray-200 font-semibold text-sm">준비중입니다.</span>
+                <span className="text-gray-300 font-semibold text-sm">준비중입니다.</span>
               </div>
             </div>
           )}
