@@ -52,7 +52,7 @@ const productSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['active', 'inactive', 'discontinued'],
+    enum: ['active', 'inactive'],
     default: 'active'
   },
   tags: [{

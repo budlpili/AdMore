@@ -18,7 +18,7 @@ export interface Product {
   viewedDate?: string;
   rating?: number;
   reviewCount?: number;
-  status?: 'active' | 'inactive' | 'discontinued';
+  status?: 'active' | 'inactive';
   stock?: number;
   tags?: string[];
   detailedDescription?: string;
