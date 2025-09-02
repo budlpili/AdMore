@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Product } from '../types';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -28,9 +28,34 @@ const ProductCard: React.FC<ProductCardProps> = ({
   // 준비중 상태 확인
   const isPreparing = product.status === 'inactive';
   
+  // 지연 로딩을 위한 상태
+  const [isInView, setIsInView] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+  
+  // Intersection Observer를 사용한 지연 로딩
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsInView(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.1 }
+    );
+    
+    if (cardRef.current) {
+      observer.observe(cardRef.current);
+    }
+    
+    return () => observer.disconnect();
+  }, []);
+  
   // 준비중이 아닌 경우에만 Link 컴포넌트 사용
   const CardContent = () => (
     <div
+      ref={cardRef}
       className={`relative bg-white rounded-lg shadow-md overflow-hidden transition duration-300 flex-1 group ${
         isPreparing 
           ? 'cursor-not-allowed opacity-75' 
@@ -89,7 +114,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
               </div>
             </div>
           )}
-          {product.image ? (
+          {product.image && isInView ? (
             <img 
               src={product.image.startsWith('data:') ? 
                 product.image : 
@@ -98,7 +123,10 @@ const ProductCard: React.FC<ProductCardProps> = ({
                   `/${product.image}`
               } 
               alt={product.name}
-              className="w-full h-full object-cover"
+              className={`w-full h-full object-cover transition-opacity duration-300 ${
+                imageLoaded ? 'opacity-100' : 'opacity-0'
+              }`}
+              onLoad={() => setImageLoaded(true)}
               onError={(e) => {
                 // 이미지 로드 실패 시 카테고리 아이콘 표시
                 const target = e.currentTarget as HTMLImageElement;
@@ -113,7 +141,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
               }}
             />
           ) : (
-            // 이미지가 없을 때 기본 플레이스홀더 표시
+            // 이미지가 없거나 아직 로드되지 않았을 때 기본 플레이스홀더 표시
             <div className="w-full h-full flex items-center justify-center bg-gray-100">
               <FontAwesomeIcon
                 icon={safeCategoryIcon.icon}

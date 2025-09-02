@@ -77,15 +77,24 @@ const getProductThumbnails = async (req, res) => {
       rating: 1
     }).sort({ createdAt: -1 });
     
-    // 이미지 압축 로직 (간단한 base64 압축)
-    const compressedProducts = products.map(product => ({
-      ...product.toObject(),
-      // 이미지가 base64인 경우 압축 (실제로는 더 정교한 압축이 필요)
-      image: product.image ? (product.image.length > 100000 ? 
-        product.image.substring(0, 50000) + '...' : product.image) : null,
-      background: product.background ? (product.background.length > 100000 ? 
-        product.background.substring(0, 50000) + '...' : product.background) : null
-    }));
+    // 이미지 압축 로직 (더 정교한 압축)
+    const compressedProducts = products.map(product => {
+      const compressedProduct = { ...product.toObject() };
+      
+      // 이미지 압축 (base64 데이터 크기 제한)
+      if (product.image && product.image.length > 50000) {
+        // 큰 이미지는 썸네일용으로 압축
+        compressedProduct.image = product.image.substring(0, 30000) + '...';
+        compressedProduct.hasFullImage = true; // 전체 이미지가 있음을 표시
+      }
+      
+      if (product.background && product.background.length > 50000) {
+        compressedProduct.background = product.background.substring(0, 30000) + '...';
+        compressedProduct.hasFullBackground = true;
+      }
+      
+      return compressedProduct;
+    });
     
     res.json(compressedProducts);
   } catch (error) {

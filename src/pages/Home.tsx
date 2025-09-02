@@ -47,17 +47,17 @@ const getSlidesToShow = () => {
   let slides;
   
   if (width < 480) {
-    slides = 1.2; // 모바일 - 다음 카드 20% 보임
+    slides = 1.5; // 모바일 - 다음 카드 20% 보임
   } else if (width < 640) {
-    slides = 1.4; // 작은 모바일 - 다음 카드 30% 보임
+    slides = 2.5; // 작은 모바일 - 다음 카드 30% 보임
   } else if (width < 768) {
-    slides = 2.4; // 태블릿 - 다음 카드 20% 보임
+    slides = 3.5; // 태블릿 - 다음 카드 20% 보임
   } else if (width < 1024) {
-    slides = 3.4; // 작은 데스크톱 - 다음 카드 20% 보임
+    slides = 3.5; // 작은 데스크톱 - 다음 카드 20% 보임
   } else if (width < 1280) {
-    slides = 4.4; // 데스크톱 - 4개씩 보임
+    slides = 4.5; // 데스크톱 - 4개씩 보임
   } else {
-    slides = 4.4; // 큰 데스크톱 - 4개씩 보임
+    slides = 4.5; // 큰 데스크톱 - 4개씩 보임
   }
   
   console.log(`화면 너비: ${width}px, slidesToShow: ${slides}`);
@@ -79,10 +79,11 @@ const Home: React.FC = () => {
 
   const categories: string[] = ['전체', '페이스북', '인스타그램', '유튜브', '블로그', '트위터', '텔레그램', '기타'];
 
-  // 상품 데이터 로드
+  // 상품 데이터 로드 (썸네일 사용으로 성능 최적화)
   const loadProducts = async () => {
     try {
       setLoading(true);
+      // 썸네일 API 사용으로 빠른 로딩
       const activeProducts = await productAPI.getActiveProducts();
       setProducts(activeProducts);
     } catch (error) {
@@ -287,7 +288,7 @@ const Home: React.FC = () => {
       {/* All Products Section */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         <h2 className="text-xl sm:text-xl lg:text-2xl font-bold text-gray-900 mb-4 sm:mb-6 text-center sm:text-left">전체 상품</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 sm:gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-4 sm:gap-6">
           {filteredProducts.map((product) => (
             <ProductCard
               key={product._id || product.id}
