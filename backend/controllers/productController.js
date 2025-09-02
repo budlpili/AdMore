@@ -3,7 +3,11 @@ const Product = require('../models/Product');
 // 모든 상품 조회 (관리자용으로 변경 - 모든 상태 포함)
 const getAllProducts = async (req, res) => {
   try {
-    const products = await Product.find({}).sort({ createdAt: -1 });
+    // 이미지 데이터를 제외하고 기본 정보만 조회 (성능 최적화)
+    const products = await Product.find({}, {
+      image: 0,  // 큰 이미지 데이터 제외
+      background: 0  // 배경 이미지 데이터 제외
+    }).sort({ createdAt: -1 });
     res.json(products);
   } catch (error) {
     console.error('상품 조회 오류:', error);
@@ -14,7 +18,11 @@ const getAllProducts = async (req, res) => {
 // 관리자용 모든 상품 조회 (활성/비활성 모두)
 const getAllProductsForAdmin = async (req, res) => {
   try {
-    const products = await Product.find({}).sort({ createdAt: -1 });
+    // 이미지 데이터를 제외하고 기본 정보만 조회 (성능 최적화)
+    const products = await Product.find({}, {
+      image: 0,  // 큰 이미지 데이터 제외
+      background: 0  // 배경 이미지 데이터 제외
+    }).sort({ createdAt: -1 });
     res.json(products);
   } catch (error) {
     console.error('관리자 상품 조회 오류:', error);
@@ -22,7 +30,7 @@ const getAllProductsForAdmin = async (req, res) => {
   }
 };
 
-// 상품 상세 조회
+// 상품 상세 조회 (이미지 포함)
 const getProductById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -36,6 +44,27 @@ const getProductById = async (req, res) => {
   } catch (error) {
     console.error('상품 상세 조회 오류:', error);
     res.status(500).json({ message: '상품 조회에 실패했습니다.' });
+  }
+};
+
+// 상품 이미지만 조회 (캐싱 최적화)
+const getProductImages = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const product = await Product.findById(id, { image: 1, background: 1, _id: 1 });
+    
+    if (!product) {
+      return res.status(404).json({ message: '상품을 찾을 수 없습니다.' });
+    }
+    
+    res.json({
+      _id: product._id,
+      image: product.image,
+      background: product.background
+    });
+  } catch (error) {
+    console.error('상품 이미지 조회 오류:', error);
+    res.status(500).json({ message: '상품 이미지 조회에 실패했습니다.' });
   }
 };
 
@@ -301,7 +330,11 @@ const getProductsByCategory = async (req, res) => {
 // 활성 상품만 조회
 const getActiveProducts = async (req, res) => {
   try {
-    const products = await Product.find({ status: 'active' }).sort({ createdAt: -1 });
+    // 이미지 데이터를 제외하고 기본 정보만 조회 (성능 최적화)
+    const products = await Product.find({ status: 'active' }, {
+      image: 0,  // 큰 이미지 데이터 제외
+      background: 0  // 배경 이미지 데이터 제외
+    }).sort({ createdAt: -1 });
     res.json(products);
   } catch (error) {
     console.error('활성 상품 조회 오류:', error);
@@ -313,6 +346,7 @@ module.exports = {
   getAllProducts,
   getAllProductsForAdmin,
   getProductById,
+  getProductImages,
   createProduct,
   updateProduct,
   deleteProduct,

@@ -205,6 +205,11 @@ export const productsAPI = {
     return apiRequest<Product>(`/products/${id}`);
   },
 
+  // 상품 이미지만 조회 (캐싱 최적화)
+  getImages: async (id: string): Promise<{ _id: string; image?: string; background?: string }> => {
+    return apiRequest<{ _id: string; image?: string; background?: string }>(`/products/${id}/images`);
+  },
+
   // 상품 생성 (관리자용)
   create: async (productData: FormData) => {
     const token = localStorage.getItem('token');

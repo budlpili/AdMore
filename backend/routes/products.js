@@ -4,6 +4,7 @@ const {
   getAllProducts, 
   getAllProductsForAdmin,
   getProductById, 
+  getProductImages,
   createProduct, 
   updateProduct, 
   deleteProduct,
@@ -28,6 +29,9 @@ router.get('/popular', getPopularProducts);
 
 // 카테고리별 상품 조회
 router.get('/category/:category', getProductsByCategory);
+
+// 상품 이미지만 조회 (캐싱 최적화)
+router.get('/:id/images', getProductImages);
 
 // 상품 상세 조회
 router.get('/:id', getProductById);
