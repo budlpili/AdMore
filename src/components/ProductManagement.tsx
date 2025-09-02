@@ -1390,7 +1390,7 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
                           <span>{product.category}</span>
                         </div>
                       </td>
-                      <td className="px-3 sm:px-6 py-4 whitespace-nowrap min-w-[300px]">
+                      <td className="px-3 sm:px-6 py-4 whitespace-nowrap min-w-[380px]">
                         <div className="flex items-center">
                           <img 
                             src={product.image} 

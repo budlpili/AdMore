@@ -83,49 +83,51 @@ const ProductCard: React.FC<ProductCardProps> = ({
           className={`text-lg ${isFavorite ? 'text-red-500' : 'text-gray-100'}`}
         />
       </button>
-      {/* 카드 상품 이미지 */}
-      <div
-        className="flex justify-center items-center h-40 bg-cover bg-center transition-transform duration-300 group-hover:scale-110"
-        style={{
-          backgroundImage: product.background ? 
-            (product.background.startsWith('data:') ? 
-              `url(${product.background})` : 
-              product.background.startsWith('/') ? 
+      {/* 카드 상품 이미지 - 4:3 비율 유지 */}
+      <div className="relative w-full" style={{ aspectRatio: '4/3' }}>
+        <div
+          className="absolute inset-0 flex justify-center items-center bg-cover bg-center transition-transform duration-300 group-hover:scale-110"
+          style={{
+            backgroundImage: product.background ? 
+              (product.background.startsWith('data:') ? 
                 `url(${product.background})` : 
-                `url(/${product.background})`
-            ) : undefined,
-          backgroundColor: !product.background ? '#FFF7ED' : undefined
-        }}
-      >
-        {product.image ? (
-          <img 
-            src={product.image.startsWith('data:') ? 
-              product.image : 
-              product.image.startsWith('/') ? 
+                product.background.startsWith('/') ? 
+                  `url(${product.background})` : 
+                  `url(/${product.background})`
+              ) : undefined,
+            backgroundColor: !product.background ? '#FFF7ED' : undefined
+          }}
+        >
+          {product.image ? (
+            <img 
+              src={product.image.startsWith('data:') ? 
                 product.image : 
-                `/${product.image}`
-            } 
-            alt={product.name}
-            className="w-full h-full object-cover"
-            onError={(e) => {
-              // 이미지 로드 실패 시 카테고리 아이콘 표시
-              const target = e.currentTarget as HTMLImageElement;
-              target.style.display = 'none';
-              const parent = target.parentElement;
-              if (parent) {
-                const iconElement = parent.querySelector('.category-icon') as HTMLElement;
-                if (iconElement) {
-                  iconElement.style.display = 'flex';
+                product.image.startsWith('/') ? 
+                  product.image : 
+                  `/${product.image}`
+              } 
+              alt={product.name}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                // 이미지 로드 실패 시 카테고리 아이콘 표시
+                const target = e.currentTarget as HTMLImageElement;
+                target.style.display = 'none';
+                const parent = target.parentElement;
+                if (parent) {
+                  const iconElement = parent.querySelector('.category-icon') as HTMLElement;
+                  if (iconElement) {
+                    iconElement.style.display = 'flex';
+                  }
                 }
-              }
-            }}
+              }}
+            />
+          ) : null}
+          <FontAwesomeIcon
+            icon={safeCategoryIcon.icon}
+            className={`text-5xl ${safeCategoryIcon.color} category-icon`}
+            style={{ display: product.image ? 'none' : 'flex' }}
           />
-        ) : null}
-        <FontAwesomeIcon
-          icon={safeCategoryIcon.icon}
-          className={`text-5xl ${safeCategoryIcon.color} category-icon`}
-          style={{ display: product.image ? 'none' : 'flex' }}
-        />
+        </div>
       </div>
       {/* 카드 내용 */}
       <div className="p-4">
