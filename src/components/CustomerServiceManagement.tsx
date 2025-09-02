@@ -650,12 +650,14 @@ const CustomerServiceManagement: React.FC<CustomerServiceManagementProps> = ({
                             {notice.author}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {new Date(notice.createdAt).toLocaleDateString('ko-KR', {
+                            {new Date(notice.createdAt).toLocaleString('ko-KR', {
                               year: 'numeric',
                               month: '2-digit',
                               day: '2-digit',
+                              hour: '2-digit',
+                              minute: '2-digit',
                               timeZone: 'Asia/Seoul'
-                            })} 00:00
+                            })}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             {notice.important ? (
