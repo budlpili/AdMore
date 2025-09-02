@@ -568,6 +568,7 @@ const ReviewManagement: React.FC<ReviewManagementProps> = ({ reviews, onReviewsC
 
       const reviewData = {
         userId: newReviewData.userEmail.trim(), // 이메일을 userId로 사용
+        userEmail: newReviewData.userEmail.trim(), // userEmail 필드 추가
         productId: newReviewData.productId, // 문자열 그대로 사용
         product: selectedProduct.name || '상품명 없음', // 상품명 추가
         content: newReviewData.content.trim(),
