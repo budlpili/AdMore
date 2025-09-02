@@ -225,21 +225,14 @@ const ReviewManagement: React.FC<ReviewManagementProps> = ({ reviews, onReviewsC
         });
       });
       
-      // 상품 데이터에 id 필드 추가 (MongoDB _id를 기반으로)
+      // 상품 데이터에 id 필드 추가 (원본 ID 유지)
       const productsWithId = validProducts.map((product: any, index: number) => {
-        let uniqueId: number;
-        if (product._id) {
-          const idStr = product._id.toString();
-          uniqueId = parseInt(idStr.slice(-8), 16);
-        } else if (product.id) {
-          uniqueId = parseInt(product.id.toString());
-        } else {
-          uniqueId = Date.now() + index;
-        }
+        // 원본 ID를 그대로 유지 (문자열 또는 숫자)
+        const originalId = product.id || product._id || `product-${index}`;
         
         return {
           ...product,
-          id: uniqueId
+          id: originalId
         };
       });
       
