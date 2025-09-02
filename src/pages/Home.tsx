@@ -95,8 +95,11 @@ const Home: React.FC = () => {
 
 
 
-  // 별점 내림차순 정렬 후 상위 10개만 사용
-  const topProducts = [...products].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)).slice(0, 10);
+  // 활성 상품만 필터링 후 별점 내림차순 정렬하여 상위 10개만 사용
+  const topProducts = [...products]
+    .filter(product => product.status === 'active') // 활성 상품만 필터링
+    .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))
+    .slice(0, 10);
 
   const filteredProducts: Product[] = selectedCategory === '전체' 
     ? products 

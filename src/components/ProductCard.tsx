@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Product } from '../types';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faHeart as faSolidHeart, faHeart, faStar as faSolidStar, faStarHalfAlt, faStar as faRegularStar, faPlayCircle } from '@fortawesome/free-solid-svg-icons';
+import { faHeart as faSolidHeart, faHeart, faStar as faSolidStar, faStarHalfAlt, faStar as faRegularStar, faPlayCircle, faGift } from '@fortawesome/free-solid-svg-icons';
 import { IconDefinition } from '@fortawesome/free-brands-svg-icons';
 
 interface ProductCardProps {
@@ -50,14 +50,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
     >
 
       
-      {/* 준비중 오버레이 효과 */}
-      {isPreparing && (
-        <div className="absolute inset-0 bg-black bg-opacity-30 z-10 flex items-center justify-center">
-          <div className="bg-white bg-opacity-90 rounded-lg px-4 py-2 shadow-lg">
-            <span className="text-gray-700 font-semibold text-sm">준비중</span>
-          </div>
-        </div>
-      )}
+
       {/* 즐겨찾기 버튼 */}
       <button
         className="absolute top-4 right-4 z-10 bg-black/30 rounded-full w-8 h-8 border border-gray-50
@@ -84,6 +77,18 @@ const ProductCard: React.FC<ProductCardProps> = ({
             backgroundColor: !product.background ? '#FFF7ED' : undefined
           }}
         >
+          {/* 준비중 오버레이 효과 - 이미지 영역에만 적용 */}
+          {isPreparing && (
+            <div className="absolute inset-0 bg-black/80 z-10 flex items-center justify-center">
+              <div className="rounded-lg px-4 py-3 shadow-lg flex flex-col items-center gap-2">
+                <FontAwesomeIcon
+                  icon={faGift}
+                  className="text-[32px] text-gray-200"
+                />
+                <span className="text-gray-200 font-semibold text-sm">준비중입니다.</span>
+              </div>
+            </div>
+          )}
           {product.image ? (
             <img 
               src={product.image.startsWith('data:') ? 
