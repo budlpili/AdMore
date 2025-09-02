@@ -135,7 +135,7 @@ const ReviewManagement: React.FC<ReviewManagementProps> = ({ reviews, onReviewsC
       
       const deletePromises = reviewsToDelete.map(review => {
         if (!review._id) {
-          console.error(`리뷰 ${review.id}의 MongoDB _id가 없습니다.`);
+          console.error(`리뷰 ${review.id}의 MongoDB _id가 없습니다. 리뷰 데이터:`, review);
           throw new Error(`리뷰 ${review.id}의 MongoDB _id가 없습니다.`);
         }
         console.log(`리뷰 ${review.id} 삭제 시도, 사용할 MongoDB _id:`, review._id);
@@ -308,9 +308,14 @@ const ReviewManagement: React.FC<ReviewManagementProps> = ({ reviews, onReviewsC
           uniqueId = Date.now() + index;
         }
         
+        // _id가 없는 경우 경고 로그 출력
+        if (!review._id) {
+          console.warn(`리뷰 ${index}에 _id가 없습니다:`, review);
+        }
+        
         return {
           id: uniqueId,
-          _id: review._id, // MongoDB 원본 ID 저장
+          _id: review._id || review.id, // MongoDB 원본 ID 저장 (fallback으로 id 사용)
           user: review.userEmail || review.userId || review.user || '익명',
           time: (() => {
             const date = review.createdAt || review.time || new Date();
@@ -364,8 +369,14 @@ const ReviewManagement: React.FC<ReviewManagementProps> = ({ reviews, onReviewsC
       try {
         // 해당 리뷰의 MongoDB _id 찾기
         const review = reviews.find(r => r.id === reviewId);
-        if (!review || !review._id) {
+        if (!review) {
+          console.error(`리뷰 ID ${reviewId}를 찾을 수 없습니다. 현재 리뷰 목록:`, reviews.map(r => ({ id: r.id, _id: r._id })));
           alert('리뷰를 찾을 수 없습니다.');
+          return;
+        }
+        if (!review._id) {
+          console.error(`리뷰 ${reviewId}의 MongoDB _id가 없습니다. 리뷰 데이터:`, review);
+          alert('리뷰 ID 정보가 없습니다.');
           return;
         }
         
