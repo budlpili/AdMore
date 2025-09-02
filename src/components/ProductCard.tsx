@@ -48,21 +48,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
         console.log('이동할 경로:', linkTo || `/products/${product._id || product.id}`);
       }}
     >
-      {/* 준비중 배지: 비활성 상태일 때만 표시 */}
-      {(() => {
-        try {
-          const comingSoon = product.status === 'inactive';
-          if (!comingSoon) return null;
 
-          return (
-            <span className="absolute top-2 left-2 z-20 bg-yellow-500 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow">
-              준비중
-            </span>
-          );
-        } catch {
-          return null;
-        }
-      })()}
       
       {/* 준비중 오버레이 효과 */}
       {isPreparing && (
