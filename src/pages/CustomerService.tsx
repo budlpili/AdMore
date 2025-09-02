@@ -407,7 +407,12 @@ const CustomerService: React.FC<CustomerServiceProps> = ({ setIsChatOpen }) => {
                   </h3>
                   <div className="flex items-center gap-4 text-sm text-gray-500">
                     <span>작성자: {selectedNotice.author}</span>
-                    <span>작성일: {selectedNotice.createdAt}</span>
+                    <span>작성일: {new Date(selectedNotice.createdAt).toLocaleDateString('ko-KR', {
+                      year: 'numeric',
+                      month: '2-digit',
+                      day: '2-digit',
+                      timeZone: 'Asia/Seoul'
+                    })} 00:00</span>
                     {selectedNotice.important && (
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
                         중요
