@@ -15,7 +15,7 @@ import {
   faCaretUp,
   faCaretDown
 } from '@fortawesome/free-solid-svg-icons';
-import { reviewsAPI } from '../services/api';
+import { reviewsAPI, productAPI } from '../services/api';
 import Pagination from './Pagination';
 
 interface Review {
@@ -198,54 +198,52 @@ const ReviewManagement: React.FC<ReviewManagementProps> = ({ reviews, onReviewsC
   // 사용 가능한 상품 목록 로드 (모든 상품 - 활성/비활성)
   const loadAvailableProducts = async () => {
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/products/admin`);
-      if (response.ok) {
-        const data = await response.json();
-        // 응답 구조에 따라 상품 데이터 추출
-        const products = data.products || data || [];
-        console.log('로드된 상품 데이터:', products);
-        
-        // 첫 번째 상품의 구조 확인
-        if (products.length > 0) {
-          console.log('첫 번째 상품 구조:', products[0]);
-          console.log('첫 번째 상품의 id 타입:', typeof products[0].id);
-          console.log('첫 번째 상품의 _id:', products[0]._id);
+      const productList = await productAPI.getAllProductsForAdmin();
+      console.log('로드된 상품 데이터:', productList);
+      
+      // 응답 구조에 따라 상품 데이터 추출
+      const products = productList || [];
+      
+      // 첫 번째 상품의 구조 확인
+      if (products.length > 0) {
+        console.log('첫 번째 상품 구조:', products[0]);
+        console.log('첫 번째 상품의 id 타입:', typeof products[0].id);
+        console.log('첫 번째 상품의 _id:', products[0]._id);
+      }
+      
+      // id 또는 _id가 있는 상품만 필터링 (MongoDB _id도 고려)
+      const validProducts = products.filter((product: any) => product && (product.id || product._id));
+      console.log('유효한 상품 데이터:', validProducts);
+      
+      // 상품 이미지 정보 확인
+      validProducts.forEach((product: any) => {
+        console.log(`상품 "${product.name}" 이미지 정보:`, {
+          id: product.id || product._id,
+          image: product.image,
+          background: product.background,
+          status: product.status
+        });
+      });
+      
+      // 상품 데이터에 id 필드 추가 (MongoDB _id를 기반으로)
+      const productsWithId = validProducts.map((product: any, index: number) => {
+        let uniqueId: number;
+        if (product._id) {
+          const idStr = product._id.toString();
+          uniqueId = parseInt(idStr.slice(-8), 16);
+        } else if (product.id) {
+          uniqueId = parseInt(product.id.toString());
+        } else {
+          uniqueId = Date.now() + index;
         }
         
-        // id 또는 _id가 있는 상품만 필터링 (MongoDB _id도 고려)
-        const validProducts = products.filter((product: any) => product && (product.id || product._id));
-        console.log('유효한 상품 데이터:', validProducts);
-        
-        // 상품 이미지 정보 확인
-        validProducts.forEach((product: any) => {
-          console.log(`상품 "${product.name}" 이미지 정보:`, {
-            id: product.id || product._id,
-            image: product.image,
-            background: product.background,
-            status: product.status
-          });
-        });
-        
-        // 상품 데이터에 id 필드 추가 (MongoDB _id를 기반으로)
-        const productsWithId = validProducts.map((product: any, index: number) => {
-          let uniqueId: number;
-          if (product._id) {
-            const idStr = product._id.toString();
-            uniqueId = parseInt(idStr.slice(-8), 16);
-          } else if (product.id) {
-            uniqueId = parseInt(product.id.toString());
-          } else {
-            uniqueId = Date.now() + index;
-          }
-          
-          return {
-            ...product,
-            id: uniqueId
-          };
-        });
-        
-        setAvailableProducts(productsWithId);
-      }
+        return {
+          ...product,
+          id: uniqueId
+        };
+      });
+      
+      setAvailableProducts(productsWithId);
     } catch (error) {
       console.error('상품 목록 로드 중 오류:', error);
       setAvailableProducts([]);

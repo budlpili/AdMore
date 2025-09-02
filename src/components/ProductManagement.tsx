@@ -696,8 +696,8 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
         
         if (updatedProduct) {
           console.log('수정된 상품:', updatedProduct);
-          // 백엔드에서 최신 데이터 다시 가져오기
-          const latestProducts = await productAPI.getAllProducts();
+          // 백엔드에서 최신 데이터 다시 가져오기 (관리자용)
+          const latestProducts = await productAPI.getAllProductsForAdmin();
           onProductsChange(latestProducts);
           clearFormDraft(); // 임시 저장 데이터 삭제
           setCurrentPage(1); // 첫 번째 페이지로 이동
@@ -736,8 +736,8 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
         
         if (newProduct) {
           console.log('생성된 상품:', newProduct);
-          // 백엔드에서 최신 데이터 다시 가져오기
-          const latestProducts = await productAPI.getAllProducts();
+          // 백엔드에서 최신 데이터 다시 가져오기 (관리자용)
+          const latestProducts = await productAPI.getAllProductsForAdmin();
           onProductsChange(latestProducts);
           clearFormDraft(); // 임시 저장 데이터 삭제
           setCurrentPage(1); // 첫 번째 페이지로 이동
@@ -758,8 +758,8 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onProdu
       try {
         const success = await productAPI.deleteProduct(productId);
         if (success) {
-          // 백엔드에서 최신 데이터 다시 가져오기
-          const latestProducts = await productAPI.getAllProducts();
+          // 백엔드에서 최신 데이터 다시 가져오기 (관리자용)
+          const latestProducts = await productAPI.getAllProductsForAdmin();
           onProductsChange(latestProducts);
         } else {
           alert('상품 삭제에 실패했습니다.');

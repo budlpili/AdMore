@@ -828,8 +828,8 @@ const Admin: React.FC = () => {
     try {
       console.log('상품 데이터 로드 시작...');
       
-      // 백엔드에서 모든 상품 가져오기
-      const productList = await productAPI.getAllProducts();
+      // 백엔드에서 모든 상품 가져오기 (관리자용 - 활성/비활성 모두)
+      const productList = await productAPI.getAllProductsForAdmin();
       
       console.log('백엔드에서 상품 데이터 로드 완료:', productList);
       
