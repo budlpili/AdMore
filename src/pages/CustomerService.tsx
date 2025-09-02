@@ -318,11 +318,21 @@ const CustomerService: React.FC<CustomerServiceProps> = ({ setIsChatOpen }) => {
                               {notice.title}
                             </div>
                             <div className="sm:hidden text-xs text-gray-500 mt-1">
-                              {notice.createdAt}
+                              {new Date(notice.createdAt).toLocaleDateString('ko-KR', {
+                                year: 'numeric',
+                                month: '2-digit',
+                                day: '2-digit',
+                                timeZone: 'Asia/Seoul'
+                              })} 00:00
                             </div>
                           </td>
                           <td className="hidden sm:table-cell px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {notice.createdAt}
+                            {new Date(notice.createdAt).toLocaleDateString('ko-KR', {
+                              year: 'numeric',
+                              month: '2-digit',
+                              day: '2-digit',
+                              timeZone: 'Asia/Seoul'
+                            })} 00:00
                           </td>
                           <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
                             {(() => {
