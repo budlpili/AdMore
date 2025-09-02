@@ -225,8 +225,8 @@ const CustomerServiceManagement: React.FC<CustomerServiceManagementProps> = ({
     try {
       const response = await customerServiceAPI.getNotices();
       // MongoDB _id를 포함하여 매핑
-      const formattedNotices = response.map((notice: any) => ({
-        id: notice.id || Math.random(), // 프론트엔드용 ID
+      const formattedNotices = response.map((notice: any, index: number) => ({
+        id: notice._id || `notice-${index}`, // MongoDB _id를 프론트엔드 ID로 사용
         _id: notice._id, // MongoDB 원본 ID 보존
         title: notice.title,
         content: notice.content,
@@ -276,18 +276,27 @@ const CustomerServiceManagement: React.FC<CustomerServiceManagementProps> = ({
   const handleDeleteNotice = async (id: string | number) => {
     if (window.confirm('정말로 이 공지사항을 삭제하시겠습니까?')) {
       try {
-        // 해당 공지사항의 MongoDB _id 찾기
-        const notice = notices.find(n => n.id === id);
-        if (!notice || !notice._id) {
+        // 해당 공지사항 찾기
+        const notice = notices.find(n => n.id === id || n._id === id);
+        if (!notice) {
+          console.error('공지사항을 찾을 수 없습니다. ID:', id);
           alert('공지사항을 찾을 수 없습니다.');
           return;
         }
         
-        console.log(`공지사항 삭제 시도, MongoDB _id:`, notice._id);
-        await customerServiceAPI.deleteNotice(notice._id);
+        // MongoDB _id 사용 (없으면 id 사용)
+        const deleteId = notice._id || notice.id;
+        if (!deleteId) {
+          console.error('삭제할 ID가 없습니다. Notice:', notice);
+          alert('삭제할 공지사항 ID를 찾을 수 없습니다.');
+          return;
+        }
+        
+        console.log(`공지사항 삭제 시도, ID:`, deleteId);
+        await customerServiceAPI.deleteNotice(deleteId);
         
         // 삭제된 공지사항을 제외한 새로운 목록 생성
-        const updatedNotices = notices.filter(n => n.id !== id);
+        const updatedNotices = notices.filter(n => n.id !== id && n._id !== id);
         setNotices(updatedNotices);
         alert('공지사항이 성공적으로 삭제되었습니다.');
       } catch (error) {
