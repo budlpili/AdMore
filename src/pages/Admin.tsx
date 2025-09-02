@@ -3372,9 +3372,8 @@ const Admin: React.FC = () => {
                           <tr>
                             <td colSpan={12} className="px-6 py-12 text-center text-gray-500">
                               <div className="flex flex-col items-center">
-                                <FontAwesomeIcon icon={faBox} className="text-4xl text-gray-300 mb-4" />
-                                <p className="text-lg font-medium">주문 내역이 없습니다.</p>
-                                <p className="text-sm text-gray-400 mt-1">새로운 주문이 들어오면 여기에 표시됩니다.</p>
+                                <FontAwesomeIcon icon={faBox} className="text-2xl text-gray-300 mb-4" />
+                                <p className="text-sm text-gray-400">주문 내역이 없습니다.</p>
                               </div>
                             </td>
                           </tr>
