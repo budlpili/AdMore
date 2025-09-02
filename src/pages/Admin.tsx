@@ -9,7 +9,7 @@ import {
   faChevronLeft, faChevronRight, faBars, faTimes as faTimesIcon, faSync, faHeadset, faFileAlt, faShieldAlt,
   faTicketAlt, faCoins, faChartPie, faTasks, faListUl, faHistory
 } from '@fortawesome/free-solid-svg-icons';
-import { authAPI, productAPI, categoryAPI, tagAPI, reviewsAPI, usersAPI } from '../services/api';
+import { authAPI, productAPI, categoryAPI, tagAPI, reviewsAPI, usersAPI, customerServiceAPI } from '../services/api';
 import ProductManagement from '../components/ProductManagement';
 import ReviewManagement from '../components/ReviewManagement';
 import CustomerServiceManagement from '../components/CustomerServiceManagement';
@@ -496,6 +496,9 @@ const Admin: React.FC = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   
+  // 공지사항 관련 상태
+  const [notices, setNotices] = useState<any[]>([]);
+  
   // 알림 생성 함수
   const createNotification = (type: Notification['type'], title: string, message: string, link?: string, orderId?: string, userId?: string, productId?: string) => {
     console.log('createNotification 호출됨:', { type, title, message, link, orderId, userId, productId });
@@ -642,6 +645,7 @@ const Admin: React.FC = () => {
           loadProducts(),
           loadOrders(),
           loadReviews(),
+          loadNotices(),
           loadChatMessages(),
           loadUsers()
         ]);
@@ -996,6 +1000,16 @@ const Admin: React.FC = () => {
     } catch (error) {
       console.error('리뷰 로드 중 오류:', error);
       setReviews([]);
+    }
+  };
+
+  const loadNotices = async () => {
+    try {
+      const response = await customerServiceAPI.getNotices();
+      setNotices(response || []);
+    } catch (error) {
+      console.error('공지사항 로드 에러:', error);
+      setNotices([]);
     }
   };
 
@@ -1521,7 +1535,7 @@ const Admin: React.FC = () => {
     { id: 'coupons', label: '쿠폰관리', icon: faTicketAlt, count: undefined, action: undefined },
     { id: 'points', label: '포인트관리', icon: faCoins, count: undefined, action: undefined, status: '준비중' },
     { id: 'customerService', label: '고객센터', icon: faComments, count: undefined, action: undefined, subItems: [
-      { id: 'notices', label: '공지사항', icon: faBell, count: unreadCount, action: undefined },
+      { id: 'notices', label: '공지사항', icon: faBell, count: notices.length, action: undefined },
       { id: 'terms', label: '이용약관', icon: faFileAlt, count: undefined, action: undefined },
       { id: 'privacy', label: '개인정보취급방침', icon: faShieldAlt, count: undefined, action: undefined }
     ] },
@@ -3800,6 +3814,7 @@ const Admin: React.FC = () => {
               <CustomerServiceManagement 
                 chatMessages={chatMessages}
                 onChatMessagesChange={setChatMessages}
+                onNoticesChange={setNotices}
                 initialTab={customerServiceTab}
               />
             )}

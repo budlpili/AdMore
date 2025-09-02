@@ -22,12 +22,14 @@ import '../css/ProductManagement.css';
 interface CustomerServiceManagementProps {
   chatMessages: ChatMessage[];
   onChatMessagesChange: (messages: ChatMessage[]) => void;
+  onNoticesChange?: (notices: Notice[]) => void;
   initialTab?: 'notices' | 'terms' | 'privacy';
 }
 
 const CustomerServiceManagement: React.FC<CustomerServiceManagementProps> = ({
   chatMessages,
   onChatMessagesChange,
+  onNoticesChange,
   initialTab = 'notices'
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<'notices' | 'terms' | 'privacy'>(initialTab);
@@ -237,6 +239,7 @@ const CustomerServiceManagement: React.FC<CustomerServiceManagementProps> = ({
         status: notice.status
       }));
       setNotices(formattedNotices);
+      onNoticesChange?.(formattedNotices);
     } catch (error) {
       console.error('Failed to load notices:', error);
       alert('공지사항을 불러오는데 실패했습니다.');
@@ -246,6 +249,7 @@ const CustomerServiceManagement: React.FC<CustomerServiceManagementProps> = ({
   const saveNotices = async (updatedNotices: Notice[]) => {
     try {
       setNotices(updatedNotices);
+      onNoticesChange?.(updatedNotices);
       alert('공지사항이 성공적으로 저장되었습니다.');
     } catch (error) {
       console.error('Failed to save notices:', error);
@@ -298,6 +302,7 @@ const CustomerServiceManagement: React.FC<CustomerServiceManagementProps> = ({
         // 삭제된 공지사항을 제외한 새로운 목록 생성
         const updatedNotices = notices.filter(n => n.id !== id && n._id !== id);
         setNotices(updatedNotices);
+        onNoticesChange?.(updatedNotices);
         alert('공지사항이 성공적으로 삭제되었습니다.');
       } catch (error) {
         console.error('Failed to delete notice:', error);
@@ -324,6 +329,7 @@ const CustomerServiceManagement: React.FC<CustomerServiceManagementProps> = ({
             : notice
         );
         setNotices(updatedNotices);
+        onNoticesChange?.(updatedNotices);
         alert('공지사항이 성공적으로 수정되었습니다.');
       } catch (error) {
         console.error('Failed to update notice:', error);
@@ -336,7 +342,9 @@ const CustomerServiceManagement: React.FC<CustomerServiceManagementProps> = ({
           ...noticeForm,
           author: '관리자'
         });
-        setNotices([...notices, newNotice]);
+        const updatedNotices = [...notices, newNotice];
+        setNotices(updatedNotices);
+        onNoticesChange?.(updatedNotices);
         alert('공지사항이 성공적으로 등록되었습니다.');
       } catch (error) {
         console.error('Failed to create notice:', error);
