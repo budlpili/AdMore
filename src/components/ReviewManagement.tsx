@@ -1008,7 +1008,7 @@ const ReviewManagement: React.FC<ReviewManagementProps> = ({ reviews, onReviewsC
       <div className="space-y-4">
         
         {currentReviews.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-8 text-gray-500 border border-gray-200 rounded-lg bg-white p-4">
             {searchTerm ? '검색 결과가 없습니다.' : '등록된 리뷰가 없습니다.'}
           </div>
         ) : (
