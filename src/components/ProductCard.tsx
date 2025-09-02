@@ -121,11 +121,12 @@ const ProductCard: React.FC<ProductCardProps> = ({
               />
             </div>
           )}
-          <FontAwesomeIcon
-            icon={safeCategoryIcon.icon}
-            className={`text-5xl ${safeCategoryIcon.color} category-icon`}
-            style={{ display: product.image ? 'none' : 'flex' }}
-          />
+          {!product.image && (
+            <FontAwesomeIcon
+              icon={safeCategoryIcon.icon}
+              className={`text-6xl ${safeCategoryIcon.color} opacity-70`}
+            />
+          )}
         </div>
       </div>
       {/* 카드 내용 */}
