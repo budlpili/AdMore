@@ -28,6 +28,11 @@ const ProductCard: React.FC<ProductCardProps> = ({
   // 준비중 상태 확인
   const isPreparing = product.status === 'inactive';
   
+  // 지연 로딩을 위한 상태
+  const [isInView, setIsInView] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+  
   // 이미지 데이터 확인 로그
   console.log('🖼️ ProductCard 렌더링:', product.name, {
     hasImage: !!product.image,
@@ -36,11 +41,6 @@ const ProductCard: React.FC<ProductCardProps> = ({
     isInView: isInView,
     imageLoaded: imageLoaded
   });
-  
-  // 지연 로딩을 위한 상태
-  const [isInView, setIsInView] = useState(false);
-  const [imageLoaded, setImageLoaded] = useState(false);
-  const cardRef = useRef<HTMLDivElement>(null);
   
   // Intersection Observer를 사용한 지연 로딩 (임시로 비활성화)
   useEffect(() => {
