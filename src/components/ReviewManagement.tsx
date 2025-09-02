@@ -198,7 +198,7 @@ const ReviewManagement: React.FC<ReviewManagementProps> = ({ reviews, onReviewsC
   // 사용 가능한 상품 목록 로드 (모든 상품 - 활성/비활성)
   const loadAvailableProducts = async () => {
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/products`);
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/products/admin`);
       if (response.ok) {
         const data = await response.json();
         // 응답 구조에 따라 상품 데이터 추출
