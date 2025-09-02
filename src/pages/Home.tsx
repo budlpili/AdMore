@@ -53,11 +53,11 @@ const getSlidesToShow = () => {
   } else if (width < 768) {
     slides = 2.4; // 태블릿 - 다음 카드 20% 보임
   } else if (width < 1024) {
-    slides = 2.4; // 작은 데스크톱 - 다음 카드 20% 보임
+    slides = 3.4; // 작은 데스크톱 - 다음 카드 20% 보임
   } else if (width < 1280) {
-    slides = 3.4; // 데스크톱 - 다음 카드 20% 보임
+    slides = 4.4; // 데스크톱 - 4개씩 보임
   } else {
-    slides = 3.4; // 큰 데스크톱 - 다음 카드 20% 보임
+    slides = 4.4; // 큰 데스크톱 - 4개씩 보임
   }
   
   console.log(`화면 너비: ${width}px, slidesToShow: ${slides}`);
