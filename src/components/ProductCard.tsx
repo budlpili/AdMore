@@ -31,13 +31,15 @@ const ProductCard: React.FC<ProductCardProps> = ({
   // 지연 로딩을 위한 상태
   const [isInView, setIsInView] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [productImage, setProductImage] = useState<string | null>(product.image || null);
   const cardRef = useRef<HTMLDivElement>(null);
   
   // 이미지 데이터 확인 로그
   console.log('🖼️ ProductCard 렌더링:', product.name, {
-    hasImage: !!product.image,
-    imageLength: product.image?.length || 0,
-    imageStart: product.image?.substring(0, 20) || 'none',
+    hasOriginalImage: !!product.image,
+    hasProductImage: !!productImage,
+    imageLength: productImage?.length || 0,
+    imageStart: productImage?.substring(0, 20) || 'none',
     isInView: isInView,
     imageLoaded: imageLoaded
   });
@@ -46,6 +48,11 @@ const ProductCard: React.FC<ProductCardProps> = ({
   useEffect(() => {
     // 임시로 지연 로딩 비활성화 - 이미지를 즉시 표시
     setIsInView(true);
+    
+    // 이미지가 없으면 별도로 로드
+    if (!productImage && product._id) {
+      loadProductImage();
+    }
     
     // 원래 지연 로딩 로직 (주석 처리)
     /*
@@ -65,7 +72,22 @@ const ProductCard: React.FC<ProductCardProps> = ({
     
     return () => observer.disconnect();
     */
-  }, []);
+  }, [productImage, product._id]);
+
+  // 상품 이미지 별도 로드 함수
+  const loadProductImage = async () => {
+    try {
+      const response = await fetch(`https://port-0-admore-me83wyv0a5a64d5a.sel5.cloudtype.app/api/products/${product._id}/images`);
+      if (response.ok) {
+        const imageData = await response.json();
+        if (imageData.image) {
+          setProductImage(imageData.image);
+        }
+      }
+    } catch (error) {
+      console.error('이미지 로드 실패:', product.name, error);
+    }
+  };
   
   // 준비중이 아닌 경우에만 Link 컴포넌트 사용
   const CardContent = () => (
@@ -129,13 +151,13 @@ const ProductCard: React.FC<ProductCardProps> = ({
               </div>
             </div>
           )}
-          {product.image && isInView ? (
+          {productImage && isInView ? (
             <img 
-              src={product.image.startsWith('data:') ? 
-                product.image : 
-                product.image.startsWith('/') ? 
-                  product.image : 
-                  `/${product.image}`
+              src={productImage.startsWith('data:') ? 
+                productImage : 
+                productImage.startsWith('/') ? 
+                  productImage : 
+                  `/${productImage}`
               } 
               alt={product.name}
               className={`w-full h-full object-cover transition-opacity duration-300 ${
@@ -146,7 +168,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
                 setImageLoaded(true);
               }}
               onError={(e) => {
-                console.error('❌ 이미지 로드 실패:', product.name, product.image?.substring(0, 50) + '...');
+                console.error('❌ 이미지 로드 실패:', product.name, productImage?.substring(0, 50) + '...');
                 // 이미지 로드 실패 시 카테고리 아이콘 표시
                 const target = e.currentTarget as HTMLImageElement;
                 target.style.display = 'none';

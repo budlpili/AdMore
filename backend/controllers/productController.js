@@ -362,11 +362,14 @@ const getProductsByCategory = async (req, res) => {
   }
 };
 
-// 활성 상품만 조회
+// 활성 상품만 조회 (이미지 제외로 성능 최적화)
 const getActiveProducts = async (req, res) => {
   try {
-    // 모든 데이터 포함하여 조회 (이미지 포함)
-    const products = await Product.find({ status: 'active' }).sort({ createdAt: -1 });
+    // 이미지 제외하여 빠른 로딩
+    const products = await Product.find({ status: 'active' }, { 
+      image: 0, 
+      background: 0 
+    }).sort({ createdAt: -1 });
     res.json(products);
   } catch (error) {
     console.error('활성 상품 조회 오류:', error);
