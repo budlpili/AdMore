@@ -26,7 +26,7 @@ interface Review {
   content: string;
   time: string;
   product: string;
-  productId?: number;
+  productId?: string;
   reply?: string;
   replyTime?: string;
   category?: string;
