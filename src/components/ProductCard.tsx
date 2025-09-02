@@ -24,12 +24,25 @@ const ProductCard: React.FC<ProductCardProps> = ({
 }) => {
   // categoryIcon이 undefined일 때 기본값 사용
   const safeCategoryIcon = categoryIcon || { icon: faPlayCircle, color: 'text-gray-400' };
-  return (
-    <Link
-      to={linkTo || `/products/${product._id || product.id}`}
-      className="relative bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition duration-300 flex-1 cursor-pointer group"
+  
+  // 준비중 상태 확인
+  const isPreparing = product.status === 'inactive';
+  
+  // 준비중이 아닌 경우에만 Link 컴포넌트 사용
+  const CardContent = () => (
+    <div
+      className={`relative bg-white rounded-lg shadow-md overflow-hidden transition duration-300 flex-1 group ${
+        isPreparing 
+          ? 'cursor-not-allowed opacity-75' 
+          : 'cursor-pointer hover:shadow-lg'
+      }`}
       style={cardWidthPx ? { minWidth: `${cardWidthPx}px`, maxWidth: `${cardWidthPx}px` } : {}}
-      onClick={() => {
+      onClick={(e) => {
+        if (isPreparing) {
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
         console.log('상품 카드 클릭:', product._id || product.id, product.name);
         console.log('상품 전체 정보:', product);
         console.log('이동할 경로:', linkTo || `/products/${product._id || product.id}`);
@@ -42,7 +55,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
           if (!comingSoon) return null;
 
           return (
-            <span className="absolute top-2 left-2 z-10 bg-yellow-500 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow">
+            <span className="absolute top-2 left-2 z-20 bg-yellow-500 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow">
               준비중
             </span>
           );
@@ -50,6 +63,15 @@ const ProductCard: React.FC<ProductCardProps> = ({
           return null;
         }
       })()}
+      
+      {/* 준비중 오버레이 효과 */}
+      {isPreparing && (
+        <div className="absolute inset-0 bg-black bg-opacity-30 z-10 flex items-center justify-center">
+          <div className="bg-white bg-opacity-90 rounded-lg px-4 py-2 shadow-lg">
+            <span className="text-gray-700 font-semibold text-sm">준비중</span>
+          </div>
+        </div>
+      )}
       {/* 즐겨찾기 버튼 */}
       <button
         className="absolute top-4 right-4 z-10 bg-black/30 rounded-full w-8 h-8 border border-gray-50
@@ -157,6 +179,17 @@ const ProductCard: React.FC<ProductCardProps> = ({
         </div>
         
       </div>
+    </div>
+  );
+  
+  // 준비중이 아닌 경우에만 Link로 감싸기
+  if (isPreparing) {
+    return <CardContent />;
+  }
+  
+  return (
+    <Link to={linkTo || `/products/${product._id || product.id}`}>
+      <CardContent />
     </Link>
   );
 };
