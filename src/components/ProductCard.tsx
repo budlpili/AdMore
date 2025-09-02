@@ -32,7 +32,9 @@ const ProductCard: React.FC<ProductCardProps> = ({
   console.log('🖼️ ProductCard 렌더링:', product.name, {
     hasImage: !!product.image,
     imageLength: product.image?.length || 0,
-    imageStart: product.image?.substring(0, 20) || 'none'
+    imageStart: product.image?.substring(0, 20) || 'none',
+    isInView: isInView,
+    imageLoaded: imageLoaded
   });
   
   // 지연 로딩을 위한 상태
@@ -40,8 +42,13 @@ const ProductCard: React.FC<ProductCardProps> = ({
   const [imageLoaded, setImageLoaded] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   
-  // Intersection Observer를 사용한 지연 로딩
+  // Intersection Observer를 사용한 지연 로딩 (임시로 비활성화)
   useEffect(() => {
+    // 임시로 지연 로딩 비활성화 - 이미지를 즉시 표시
+    setIsInView(true);
+    
+    // 원래 지연 로딩 로직 (주석 처리)
+    /*
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
@@ -57,6 +64,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
     }
     
     return () => observer.disconnect();
+    */
   }, []);
   
   // 준비중이 아닌 경우에만 Link 컴포넌트 사용
