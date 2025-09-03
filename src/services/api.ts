@@ -197,7 +197,7 @@ export const productsAPI = {
 
   // 활성 상품만 조회
   getActiveProducts: async (): Promise<Product[]> => {
-    return apiRequest<Product[]>('/products?status=active');
+    return apiRequest<Product[]>('/products/active');
   },
 
   // 상품 상세 조회
