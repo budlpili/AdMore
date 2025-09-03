@@ -3,6 +3,7 @@ const router = express.Router();
 const { 
   getAllProducts, 
   getAllProductsForAdmin,
+  getAllProductsOptimized,
   getProductById, 
   getProductImages,
   getProductThumbnails,
@@ -24,6 +25,9 @@ router.get('/admin', getAllProductsForAdmin);
 
 // 활성 상품만 조회
 router.get('/active', getActiveProducts);
+
+// 모든 상품 조회 (활성/비활성 모두, 최적화된 필드만)
+router.get('/all', getAllProductsOptimized);
 
 // 인기 상품 조회
 router.get('/popular', getPopularProducts);

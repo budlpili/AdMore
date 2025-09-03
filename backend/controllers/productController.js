@@ -24,6 +24,21 @@ const getAllProductsForAdmin = async (req, res) => {
   }
 };
 
+// 모든 상품 조회 (활성/비활성 모두, 최적화된 필드만)
+const getAllProductsOptimized = async (req, res) => {
+  try {
+    const products = await Product.find({})
+      .select('_id name description price originalPrice price1Day price7Days price30Days category status rating reviewCount productNumber createdAt')
+      .select('-detailedDescription -image -background -specifications') // 큰 필드들 제외
+      .sort({ createdAt: -1 })
+      .lean();
+    res.json(products);
+  } catch (error) {
+    console.error('최적화된 상품 조회 오류:', error);
+    res.status(500).json({ message: '상품 조회에 실패했습니다.' });
+  }
+};
+
 // 상품 상세 조회 (이미지 포함)
 const getProductById = async (req, res) => {
   try {
@@ -402,6 +417,7 @@ const getActiveProducts = async (req, res) => {
 module.exports = {
   getAllProducts,
   getAllProductsForAdmin,
+  getAllProductsOptimized,
   getProductById,
   getProductImages,
   getProductThumbnails,

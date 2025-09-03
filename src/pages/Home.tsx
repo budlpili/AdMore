@@ -79,16 +79,16 @@ const Home: React.FC = () => {
 
   const categories: string[] = ['전체', '페이스북', '인스타그램', '유튜브', '블로그', '트위터', '텔레그램', '기타'];
 
-  // 상품 데이터 로드 (썸네일 사용으로 성능 최적화)
+  // 상품 데이터 로드 (최적화된 전체 상품 로드)
   const loadProducts = async () => {
     try {
       console.log('🔄 상품 데이터 로드 시작...');
       setLoading(true);
-      // 썸네일 API 사용으로 빠른 로딩
-      const activeProducts = await productAPI.getActiveProducts();
-      console.log('✅ 상품 데이터 로드 완료:', activeProducts.length, '개');
-      console.log('📦 첫 번째 상품 데이터:', activeProducts[0]);
-      setProducts(activeProducts);
+      // 최적화된 전체 상품 로드 (활성/비활성 모두 포함, 큰 필드 제외)
+      const allProducts = await productAPI.getAllProductsOptimized();
+      console.log('✅ 상품 데이터 로드 완료:', allProducts.length, '개');
+      console.log('📦 첫 번째 상품 데이터:', allProducts[0]);
+      setProducts(allProducts);
     } catch (error) {
       console.error('❌ 상품 로드 에러:', error);
       setProducts([]);

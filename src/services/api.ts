@@ -200,6 +200,11 @@ export const productsAPI = {
     return apiRequest<Product[]>('/products/active');
   },
 
+  // 모든 상품 조회 (활성/비활성 모두, 최적화된 필드만)
+  getAllProductsOptimized: async (): Promise<Product[]> => {
+    return apiRequest<Product[]>('/products/all');
+  },
+
   // 상품 상세 조회
   getById: async (id: string): Promise<Product> => {
     return apiRequest<Product>(`/products/${id}`);
