@@ -382,23 +382,17 @@ const compressImage = (base64String, quality = 0.7) => {
   }
 };
 
-// 활성 상품만 조회 (이미지 압축 포함)
+// 활성 상품만 조회 (최대 성능 최적화)
 const getActiveProducts = async (req, res) => {
   try {
-    // 인덱스를 활용한 최적화된 쿼리
+    // 인덱스를 활용한 최적화된 쿼리 - 이미지 제외
     const products = await Product.find({ status: 'active' })
-      .select('name description price originalPrice price1Day price7Days price30Days category status rating reviewCount productNumber createdAt image')
-      .select('-detailedDescription -background -specifications') // detailedDescription만 제외
+      .select('_id name description price originalPrice price1Day price7Days price30Days category status rating reviewCount productNumber createdAt')
+      .select('-detailedDescription -image -background -specifications') // 모든 대용량 필드 제외
       .sort({ createdAt: -1 })
       .lean(); // lean()으로 성능 최적화
     
-    // 이미지 압축 적용
-    const compressedProducts = products.map(product => ({
-      ...product,
-      image: product.image ? compressImage(product.image, 0.5) : null // 50% 압축
-    }));
-    
-    res.json(compressedProducts);
+    res.json(products);
   } catch (error) {
     console.error('활성 상품 조회 오류:', error);
     res.status(500).json({ message: '상품 조회에 실패했습니다.' });

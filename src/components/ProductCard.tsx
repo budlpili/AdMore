@@ -44,9 +44,9 @@ const ProductCard: React.FC<ProductCardProps> = ({
     imageLoaded: imageLoaded
   });
   
-  // Intersection Observer를 사용한 지연 로딩 (임시로 비활성화)
+  // 이미지 로딩 최적화
   useEffect(() => {
-    // 임시로 지연 로딩 비활성화 - 이미지를 즉시 표시
+    // 이미지를 즉시 표시
     setIsInView(true);
     
     // 이미지가 없으면 별도로 로드
