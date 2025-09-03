@@ -55,19 +55,19 @@ const Products: React.FC = () => {
 
   const [favorites, setFavorites] = useState<(string | number)[]>([]);
 
-  // 상품 데이터 로드
+  // 상품 데이터 로드 (최적화된 전체 상품 로드)
   const loadProducts = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      // 백엔드에서 활성 상품만 가져오기
-      const activeProducts = await productAPI.getActiveProducts();
-      console.log('로드된 모든 상품:', activeProducts);
-      activeProducts.forEach(product => {
-        console.log(`상품 ID: ${product._id || product.id}, 이름: ${product.name}, 카테고리: ${product.category}`);
+      // 최적화된 전체 상품 로드 (활성/비활성 모두 포함, 큰 필드 제외)
+      const allProducts = await productAPI.getAllProductsOptimized();
+      console.log('로드된 모든 상품:', allProducts);
+      allProducts.forEach(product => {
+        console.log(`상품 ID: ${product._id || product.id}, 이름: ${product.name}, 카테고리: ${product.category}, 상태: ${product.status}`);
       });
-      setProducts(activeProducts);
+      setProducts(allProducts);
       
     } catch (error) {
       console.error('상품 로드 에러:', error);
