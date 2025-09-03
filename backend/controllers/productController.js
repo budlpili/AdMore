@@ -362,14 +362,15 @@ const getProductsByCategory = async (req, res) => {
   }
 };
 
-// 활성 상품만 조회 (이미지 제외로 성능 최적화)
+// 활성 상품만 조회 (성능 최적화)
 const getActiveProducts = async (req, res) => {
   try {
-    // 이미지 제외하여 빠른 로딩
-    const products = await Product.find({ status: 'active' }, { 
-      image: 0, 
-      background: 0 
-    }).sort({ createdAt: -1 });
+    // 인덱스를 활용한 최적화된 쿼리
+    const products = await Product.find({ status: 'active' })
+      .select('name description price originalPrice price1Day price7Days price30Days category status rating reviewCount productNumber createdAt')
+      .sort({ createdAt: -1 })
+      .lean(); // lean()으로 성능 최적화
+    
     res.json(products);
   } catch (error) {
     console.error('활성 상품 조회 오류:', error);

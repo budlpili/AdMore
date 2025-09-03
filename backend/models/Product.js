@@ -96,6 +96,12 @@ const productSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// 성능 최적화를 위한 인덱스 추가
+productSchema.index({ status: 1 }); // status 필드 인덱스
+productSchema.index({ status: 1, createdAt: -1 }); // status + createdAt 복합 인덱스
+productSchema.index({ category: 1, status: 1 }); // category + status 복합 인덱스
+productSchema.index({ productNumber: 1 }); // productNumber 인덱스 (unique는 자동으로 인덱스 생성됨)
+
 // 상품명으로 검색
 productSchema.statics.findByName = function(name) {
   return this.find({ 
