@@ -100,7 +100,7 @@ const productSchema = new mongoose.Schema({
 productSchema.index({ status: 1 }); // status 필드 인덱스
 productSchema.index({ status: 1, createdAt: -1 }); // status + createdAt 복합 인덱스
 productSchema.index({ category: 1, status: 1 }); // category + status 복합 인덱스
-productSchema.index({ productNumber: 1 }); // productNumber 인덱스 (unique는 자동으로 인덱스 생성됨)
+// productNumber는 unique: true로 인해 자동으로 인덱스가 생성되므로 별도 인덱스 불필요
 
 // 상품명으로 검색
 productSchema.statics.findByName = function(name) {
