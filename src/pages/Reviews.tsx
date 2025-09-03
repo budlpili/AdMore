@@ -7,6 +7,73 @@ import mockReviews from '../data/reviews-list';
 import products from '../data/products';
 import { reviewsAPI, ordersAPI, productAPI } from '../services/api';
 
+// 상품 이미지 로더 컴포넌트
+const ProductImageLoader: React.FC<{ review: any; className: string }> = ({ review, className }) => {
+  const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+
+  useEffect(() => {
+    const loadImage = async () => {
+      // 이미지 우선순위: productImage > image > background
+      let source = review.productImage || review.image || review.background;
+      
+      if (source) {
+        // 이미지가 이미 있는 경우
+        setImageSrc(source);
+        setImageLoaded(true);
+        return;
+      }
+      
+      // 이미지가 없고 상품 ID가 있는 경우 별도 API로 로드
+      if (review.productIdForImage) {
+        try {
+          const response = await fetch(`https://port-0-admore-me83wyv0a5a64d5a.sel5.cloudtype.app/api/products/${review.productIdForImage}/images`);
+          if (response.ok) {
+            const imageData = await response.json();
+            if (imageData.image) {
+              setImageSrc(imageData.image);
+              setImageLoaded(true);
+              return;
+            }
+          }
+        } catch (error) {
+          console.error('상품 이미지 로드 실패:', review.product, error);
+        }
+      }
+      
+      setLoadError(true);
+    };
+
+    loadImage();
+  }, [review.productImage, review.image, review.background, review.productIdForImage]);
+
+  const handleImageError = () => {
+    setLoadError(true);
+    setImageLoaded(false);
+  };
+
+  return (
+    <div className={className}>
+      {imageSrc && !loadError ? (
+        <img 
+          src={imageSrc}
+          alt={review.product}
+          className="w-full h-full object-cover"
+          onError={handleImageError}
+          onLoad={() => setImageLoaded(true)}
+        />
+      ) : (
+        <div className="w-full h-full flex items-center justify-center bg-gray-100">
+          <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // 이메일 마스킹 함수
 const maskEmail = (email: string): string => {
   if (!email || !email.includes('@')) return email;
@@ -123,7 +190,9 @@ const Reviews: React.FC = () => {
             image: matchingProduct?.image || review.image,
             background: matchingProduct?.background || review.background,
             // 상품 이미지 우선순위: 1. 매칭된 상품의 image, 2. 매칭된 상품의 background, 3. 리뷰의 productImage
-            productImage: matchingProduct?.image || matchingProduct?.background || review.productImage || null
+            productImage: matchingProduct?.image || matchingProduct?.background || review.productImage || null,
+            // 상품 이미지 로드를 위한 상품 ID 저장
+            productIdForImage: matchingProduct?._id || matchingProduct?.id
           };
         });
         
@@ -150,10 +219,10 @@ const Reviews: React.FC = () => {
     };
     loadReviews();
     
-    // 상품 데이터 로드
+    // 상품 데이터 로드 (최적화된 API 사용)
     const loadProducts = async () => {
       try {
-        const response = await productAPI.getAll();
+        const response = await productAPI.getAllProductsOptimized();
         console.log('상품 데이터 응답:', response);
         
         let productsData;
@@ -314,7 +383,9 @@ const Reviews: React.FC = () => {
             image: matchingProduct?.image || review.image,
             background: matchingProduct?.background || review.background,
             // 상품 이미지 우선순위: 1. 매칭된 상품의 image, 2. 매칭된 상품의 background, 3. 리뷰의 productImage
-            productImage: matchingProduct?.image || matchingProduct?.background || review.productImage || null
+            productImage: matchingProduct?.image || matchingProduct?.background || review.productImage || null,
+            // 상품 이미지 로드를 위한 상품 ID 저장
+            productIdForImage: matchingProduct?._id || matchingProduct?.id
           };
         });
         
@@ -639,62 +710,10 @@ const Reviews: React.FC = () => {
                   <div className="flex items-center justify-between gap-2 flex-col sm:flex-row">
                     <div className="flex items-center gap-3">
                       {/* 상품 이미지 */}
-                      <div className="w-16 h-12 bg-gray-200 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
-                        {(() => {
-                          // 이미지 우선순위: productImage > image > background
-                          const imageSource = review.productImage || review.image || review.background;
-                          
-                          if (imageSource) {
-                            let imageSrc = imageSource;
-                            
-                            // 이미지 경로 처리
-                            if (imageSource.startsWith('data:')) {
-                              // base64 이미지
-                              imageSrc = imageSource;
-                            } else if (imageSource.startsWith('http')) {
-                              // 외부 URL
-                              imageSrc = imageSource;
-                            } else if (imageSource.startsWith('/')) {
-                              // 절대 경로
-                              imageSrc = imageSource;
-                            } else {
-                              // 상대 경로 - images 폴더에서 찾기
-                              imageSrc = `/images/${imageSource}`;
-                            }
-                            
-                            return (
-                              <img 
-                                src={imageSrc}
-                                alt={review.product}
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                  const target = e.currentTarget as HTMLImageElement;
-                                  console.log('이미지 로드 실패:', imageSrc);
-                                  target.style.display = 'none';
-                                  // 다음 형제 요소(폴백 아이콘)를 표시
-                                  const parent = target.parentElement;
-                                  if (parent) {
-                                    const fallbackIcon = parent.querySelector('.fallback-icon') as HTMLElement;
-                                    if (fallbackIcon) {
-                                      fallbackIcon.style.display = 'flex';
-                                    }
-                                  }
-                                }}
-                              />
-                            );
-                          }
-                          
-                          // 이미지가 없는 경우 기본 아이콘 표시
-                          return null;
-                        })()}
-                        
-                        {/* 폴백 아이콘 - 이미지 로드 실패 시 표시 */}
-                        <div className="fallback-icon w-full h-full flex items-center justify-center bg-gray-100" style={{ display: (!review.productImage && !review.image && !review.background) ? 'flex' : 'none' }}>
-                          <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                          </svg>
-                        </div>
-                      </div>
+                      <ProductImageLoader 
+                        review={review}
+                        className="w-16 h-12 bg-gray-200 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0"
+                      />
                       
                       {/* 상품 정보 */}
                       <div className="flex flex-col gap-1">
