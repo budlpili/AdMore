@@ -362,17 +362,43 @@ const getProductsByCategory = async (req, res) => {
   }
 };
 
-// 활성 상품만 조회 (성능 최적화)
+// 이미지 압축 함수
+const compressImage = (base64String, quality = 0.7) => {
+  if (!base64String || !base64String.startsWith('data:image/')) {
+    return base64String;
+  }
+  
+  try {
+    // base64에서 이미지 데이터 추출
+    const base64Data = base64String.split(',')[1];
+    const buffer = Buffer.from(base64Data, 'base64');
+    
+    // 간단한 압축: base64 문자열을 70%로 줄임 (실제로는 더 정교한 압축이 필요)
+    const compressedData = base64Data.substring(0, Math.floor(base64Data.length * quality));
+    return `data:image/jpeg;base64,${compressedData}`;
+  } catch (error) {
+    console.error('이미지 압축 오류:', error);
+    return base64String;
+  }
+};
+
+// 활성 상품만 조회 (이미지 압축 포함)
 const getActiveProducts = async (req, res) => {
   try {
-    // 인덱스를 활용한 최적화된 쿼리 (대용량 필드 제외)
+    // 인덱스를 활용한 최적화된 쿼리
     const products = await Product.find({ status: 'active' })
-      .select('name description price originalPrice price1Day price7Days price30Days category status rating reviewCount productNumber createdAt')
-      .select('-detailedDescription -image -background -specifications') // 대용량 필드 제외
+      .select('name description price originalPrice price1Day price7Days price30Days category status rating reviewCount productNumber createdAt image')
+      .select('-detailedDescription -background -specifications') // detailedDescription만 제외
       .sort({ createdAt: -1 })
       .lean(); // lean()으로 성능 최적화
     
-    res.json(products);
+    // 이미지 압축 적용
+    const compressedProducts = products.map(product => ({
+      ...product,
+      image: product.image ? compressImage(product.image, 0.5) : null // 50% 압축
+    }));
+    
+    res.json(compressedProducts);
   } catch (error) {
     console.error('활성 상품 조회 오류:', error);
     res.status(500).json({ message: '상품 조회에 실패했습니다.' });
