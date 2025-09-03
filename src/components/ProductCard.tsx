@@ -126,19 +126,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
       </button>
       {/* 카드 상품 이미지 - 4:3 비율 유지 */}
       <div className="relative w-full" style={{ aspectRatio: '4/3' }}>
-        <div
-          className="absolute inset-0 flex justify-center items-center bg-cover bg-center transition-transform duration-300 group-hover:scale-110"
-          style={{
-            backgroundImage: product.background ? 
-              (product.background.startsWith('data:') ? 
-                `url(${product.background})` : 
-                product.background.startsWith('/') ? 
-                  `url(${product.background})` : 
-                  `url(/${product.background})`
-              ) : undefined,
-            backgroundColor: !product.background ? '#FFF7ED' : undefined
-          }}
-        >
+        <div className="absolute inset-0 flex justify-center items-center bg-gray-100 transition-transform duration-300 group-hover:scale-110">
           {/* 준비중 오버레이 효과 - 이미지 영역에만 적용 */}
           {isPreparing && (
             <div className="absolute inset-0 bg-black/80 z-10 flex items-center justify-center">
@@ -151,6 +139,8 @@ const ProductCard: React.FC<ProductCardProps> = ({
               </div>
             </div>
           )}
+          
+          {/* 상품 이미지 */}
           {productImage && isInView ? (
             <img 
               src={productImage.startsWith('data:') ? 
@@ -169,6 +159,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
               }}
               onError={(e) => {
                 console.error('❌ 이미지 로드 실패:', product.name, productImage?.substring(0, 50) + '...');
+                setImageLoaded(false);
                 // 이미지 로드 실패 시 카테고리 아이콘 표시
                 const target = e.currentTarget as HTMLImageElement;
                 target.style.display = 'none';
@@ -181,21 +172,19 @@ const ProductCard: React.FC<ProductCardProps> = ({
                 }
               }}
             />
-          ) : (
-            // 이미지가 없거나 아직 로드되지 않았을 때 기본 플레이스홀더 표시
-            <div className="w-full h-full flex items-center justify-center bg-gray-100">
-              <FontAwesomeIcon
-                icon={safeCategoryIcon.icon}
-                className={`text-6xl ${safeCategoryIcon.color} opacity-50`}
-              />
-            </div>
-          )}
-          {!product.image && (
+          ) : null}
+          
+          {/* 카테고리 아이콘 - 이미지가 없거나 로드 실패 시 표시 */}
+          <div 
+            className={`category-icon w-full h-full flex items-center justify-center ${
+              (!productImage || !imageLoaded) ? 'flex' : 'hidden'
+            }`}
+          >
             <FontAwesomeIcon
               icon={safeCategoryIcon.icon}
               className={`text-6xl ${safeCategoryIcon.color} opacity-70`}
             />
-          )}
+          </div>
         </div>
       </div>
       {/* 카드 내용 */}
