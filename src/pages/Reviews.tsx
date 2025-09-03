@@ -15,40 +15,65 @@ const ProductImageLoader: React.FC<{ review: any; className: string }> = ({ revi
 
   useEffect(() => {
     const loadImage = async () => {
+      console.log('🖼️ ProductImageLoader 시작:', {
+        productName: review.product,
+        productId: review.productId,
+        productIdForImage: review.productIdForImage,
+        hasProductImage: !!review.productImage,
+        hasImage: !!review.image,
+        hasBackground: !!review.background
+      });
+
       // 이미지 우선순위: productImage > image > background
       let source = review.productImage || review.image || review.background;
       
       if (source) {
-        // 이미지가 이미 있는 경우
+        console.log('✅ 기존 이미지 사용:', source.substring(0, 50) + '...');
         setImageSrc(source);
         setImageLoaded(true);
         return;
       }
       
       // 이미지가 없고 상품 ID가 있는 경우 별도 API로 로드
-      if (review.productIdForImage) {
+      const productId = review.productIdForImage || review.productId;
+      if (productId) {
+        console.log('🔄 별도 API로 이미지 로드 시도:', productId);
         try {
-          const response = await fetch(`https://port-0-admore-me83wyv0a5a64d5a.sel5.cloudtype.app/api/products/${review.productIdForImage}/images`);
+          const response = await fetch(`https://port-0-admore-me83wyv0a5a64d5a.sel5.cloudtype.app/api/products/${productId}/images`);
+          console.log('📡 이미지 API 응답 상태:', response.status);
+          
           if (response.ok) {
             const imageData = await response.json();
+            console.log('📦 이미지 데이터:', {
+              hasImage: !!imageData.image,
+              imageLength: imageData.image?.length || 0
+            });
+            
             if (imageData.image) {
+              console.log('✅ 이미지 로드 성공:', review.product);
               setImageSrc(imageData.image);
               setImageLoaded(true);
               return;
             }
+          } else {
+            console.error('❌ 이미지 API 오류:', response.status, response.statusText);
           }
         } catch (error) {
-          console.error('상품 이미지 로드 실패:', review.product, error);
+          console.error('❌ 상품 이미지 로드 실패:', review.product, error);
         }
+      } else {
+        console.log('⚠️ 상품 ID가 없음:', review.product);
       }
       
+      console.log('❌ 이미지 로드 실패, 폴백 아이콘 사용');
       setLoadError(true);
     };
 
     loadImage();
-  }, [review.productImage, review.image, review.background, review.productIdForImage]);
+  }, [review.productImage, review.image, review.background, review.productIdForImage, review.productId]);
 
   const handleImageError = () => {
+    console.log('❌ 이미지 렌더링 실패:', review.product);
     setLoadError(true);
     setImageLoaded(false);
   };
@@ -61,7 +86,10 @@ const ProductImageLoader: React.FC<{ review: any; className: string }> = ({ revi
           alt={review.product}
           className="w-full h-full object-cover"
           onError={handleImageError}
-          onLoad={() => setImageLoaded(true)}
+          onLoad={() => {
+            console.log('✅ 이미지 렌더링 성공:', review.product);
+            setImageLoaded(true);
+          }}
         />
       ) : (
         <div className="w-full h-full flex items-center justify-center bg-gray-100">
